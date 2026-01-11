@@ -9,11 +9,11 @@ import (
 )
 
 type Repo struct {
-	pool *pgxpool.Conn
+	pool *pgxpool.Pool
 	sq   squirrel.StatementBuilderType
 }
 
-func NewRepo(pool *pgxpool.Conn) *Repo {
+func NewRepo(pool *pgxpool.Pool) *Repo {
 	return &Repo{pool: pool, sq: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)}
 }
 
