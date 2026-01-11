@@ -240,8 +240,6 @@ func (s *Service) UpdateUserContacts(ctx context.Context, req *UpdateUserContact
 	return nil
 }
 
-// Validation helpers
-
 func (s *Service) validateUserDetailsReq(req *CreateUserDetailsReq) *ValidationError {
 	valErr := NewValidationError()
 
