@@ -2,7 +2,8 @@ package user
 
 import "github.com/google/uuid"
 
-type dbUserDetails struct {
+// DBUserDetails user_service.users_details
+type DBUserDetails struct {
 	Name       string    `db:"name"`
 	Surname    string    `db:"surname"`
 	Patronymic *string   `db:"patronymic"`
@@ -10,11 +11,22 @@ type dbUserDetails struct {
 	UserUUID   uuid.UUID `db:"user_uuid"`
 }
 
-type dbUserContacts struct {
+// DBUserContacts user_service.users_contacts
+type DBUserContacts struct {
 	PhoneNumber string    `db:"phone_number"`
 	Email       *string   `db:"email"`
 	TelegramID  *int64    `db:"telegram_id"`
 	UserUUID    uuid.UUID `db:"user_uuid"`
+}
+
+type DBUserInfo struct {
+	UUID        uuid.UUID `db:"uuid"`
+	Name        string    `db:"name"`
+	Surname     string    `db:"surname"`
+	Patronymic  *string   `db:"patronymic"`
+	GroupCode   string    `db:"group_code"`
+	PhoneNumber string    `db:"phone_number"`
+	TelegramID  *int64    `db:"telegram_id"`
 }
 
 type CreateUserRes struct {
