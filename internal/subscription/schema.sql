@@ -5,13 +5,14 @@ create type lab_topic as enum ('Virtual', 'Electricity', 'Mechanics');
 
 create table if not exists subscription_service.subscriptions
 (
-    lab_type       lab_type    not null,
-    lab_topic      lab_topic   not null,
-    lab_number     int         not null,
-    lab_auditorium int         not null,
-    created_at     timestamptz not null,
-    closed_at      timestamptz,
-    user_uuid      uuid        not null,
+    subscription_uuid uuid        not null unique,
+    lab_type          lab_type    not null,
+    lab_topic         lab_topic   not null,
+    lab_number        int         not null,
+    lab_auditorium    int         not null,
+    created_at        timestamptz not null,
+    closed_at         timestamptz,
+    user_uuid         uuid        not null,
     constraint subscriptions_pk primary key (lab_type, lab_topic, lab_number, lab_auditorium,
                                              user_uuid)
 );
@@ -46,7 +47,9 @@ create table if not exists subscription_service.teacher_preferences
 
 create table if not exists subscription_service.details
 (
-    successful_subscriptions     int not null,
-    last_successful_subscription timestamptz
+    successful_subscriptions     int  not null,
+    last_successful_subscription timestamptz,
+    user_uuid                    uuid not null,
+    constraint details_pk primary key (user_uuid)
 );
 
