@@ -9,7 +9,7 @@ create table if not exists subscription_service.subscriptions
     lab_type          lab_type    not null,
     lab_topic         lab_topic   not null,
     lab_number        int         not null,
-    lab_auditorium    int         not null,
+    lab_auditorium    int         ,
     created_at        timestamptz not null,
     closed_at         timestamptz,
     user_uuid         uuid        not null,

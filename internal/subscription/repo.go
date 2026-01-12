@@ -255,7 +255,7 @@ matching_subscriptions AS (
     WHERE s.lab_type = $1
       AND s.lab_topic = $2
       AND s.lab_number = $3
-      AND s.lab_auditorium = $4
+      AND (s.lab_auditorium = NULL OR s.lab_auditorium = $4)
       AND s.closed_at IS NULL
       AND EXISTS (
           SELECT 1 

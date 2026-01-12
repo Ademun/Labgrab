@@ -39,7 +39,7 @@ type DBSubscription struct {
 	LabType          LabType    `db:"lab_type"`
 	LabTopic         LabTopic   `db:"lab_topic"`
 	LabNumber        int        `db:"lab_number"`
-	LabAuditorium    int        `db:"lab_auditorium"`
+	LabAuditorium    *int       `db:"lab_auditorium"` // Defence can happen in any auditorium
 	CreatedAt        time.Time  `db:"created_at"`
 	ClosedAt         *time.Time `db:"closed_at"`
 	UserUUID         uuid.UUID  `db:"user_uuid"`
@@ -87,4 +87,13 @@ type DBSubscriptionMatchResult struct {
 	SuccessfulSubscriptions    int
 	LastSuccessfulSubscription *time.Time
 	MatchingTimeslots          map[DayOfWeek][]int
+}
+
+type CreateSubscriptionReq struct {
+	UserUUID      uuid.UUID
+	LabType       LabType
+	LabTopic      LabTopic
+	LabNumber     int
+	LabAuditorium *int
+	CreatedAt     time.Time
 }
