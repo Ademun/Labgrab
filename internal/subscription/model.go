@@ -97,3 +97,44 @@ type CreateSubscriptionReq struct {
 	LabAuditorium *int
 	CreatedAt     time.Time
 }
+
+type CreateSubscriptionDataReq struct {
+	UserUUID            uuid.UUID
+	TimePreferences     map[DayOfWeek][]int
+	BlacklistedTeachers []string
+}
+
+type UpdateSubscriptionDataReq struct {
+	UserUUID         uuid.UUID
+	SubscriptionUUID uuid.UUID
+	LabType          LabType
+	LabTopic         LabTopic
+	LabNumber        int
+	LabAuditorium    *int
+}
+
+type GetMatchingSubscriptionsReq struct {
+	LabType        LabType
+	LabTopic       LabTopic
+	LabNumber      int
+	LabAuditorium  int
+	AvailableSlots map[DayOfWeek]map[int][]string
+}
+
+type GetSubscriptionRes struct {
+	SubscriptionUUID uuid.UUID
+	LabType          LabType
+	LabTopic         LabTopic
+	LabNumber        int
+	LabAuditorium    *int
+	CreatedAt        time.Time
+	ClosedAt         *time.Time
+}
+
+type GetMatchingSubscriptionsRes struct {
+	UserUUID                   uuid.UUID
+	SubscriptionUUID           uuid.UUID
+	SuccessfulSubscriptions    int
+	LastSuccessfulSubscription *time.Time
+	MatchingTimeslots          map[DayOfWeek][]int
+}

@@ -22,8 +22,8 @@ func NewRepo(pool *pgxpool.Pool) *Repo {
 
 func (r *Repo) CreateSubscription(ctx context.Context, sub *DBSubscription) error {
 	query, args, err := r.sq.Insert("subscription_service.subscriptions").
-		Columns("subscription_uuid", "lab_type", "lab_topic", "lab_number", "lab_auditorium", "created_at", "closed_at", "user_uuid").
-		Values(sub.SubscriptionUUID, sub.LabType, sub.LabTopic, sub.LabNumber, sub.LabAuditorium, sub.CreatedAt, sub.ClosedAt, sub.UserUUID).
+		Columns("subscription_uuid", "lab_type", "lab_topic", "lab_number", "lab_auditorium", "created_at", "user_uuid").
+		Values(sub.SubscriptionUUID, sub.LabType, sub.LabTopic, sub.LabNumber, sub.LabAuditorium, sub.CreatedAt, sub.UserUUID).
 		ToSql()
 	if err != nil {
 		return err
@@ -125,7 +125,6 @@ func (r *Repo) UpdateSubscription(ctx context.Context, sub *DBSubscription) erro
 		Set("lab_topic", sub.LabTopic).
 		Set("lab_number", sub.LabNumber).
 		Set("lab_auditorium", sub.LabAuditorium).
-		Set("closed_at", sub.ClosedAt).
 		Where(squirrel.Eq{"subscription_uuid": sub.SubscriptionUUID}).
 		ToSql()
 	if err != nil {
@@ -255,7 +254,7 @@ matching_subscriptions AS (
     WHERE s.lab_type = $1
       AND s.lab_topic = $2
       AND s.lab_number = $3
-      AND (s.lab_auditorium = NULL OR s.lab_auditorium = $4)
+      AND (s.lab_auditorium IS NULL OR s.lab_auditorium = $4)
       AND s.closed_at IS NULL
       AND EXISTS (
           SELECT 1 
