@@ -88,13 +88,13 @@ func (r *Repo) GetUserInfo(ctx context.Context, userUUID uuid.UUID) (*DBUserInfo
 	return &userInfo, nil
 }
 
-func (r *Repo) UpdateUserDetails(ctx context.Context, req *UpdateUserDetailsReq) error {
+func (r *Repo) UpdateUserDetails(ctx context.Context, details *DBUserDetails) error {
 	query, args, err := r.sq.Update("user_service.users_details").
-		Set("name", req.Name).
-		Set("surname", req.Surname).
-		Set("patronymic", req.Patronymic).
-		Set("group_code", req.GroupCode).
-		Where(squirrel.Eq{"user_uuid": req.UserUUID}).
+		Set("name", details.Name).
+		Set("surname", details.Surname).
+		Set("patronymic", details.Patronymic).
+		Set("group_code", details.GroupCode).
+		Where(squirrel.Eq{"user_uuid": details.UserUUID}).
 		ToSql()
 	if err != nil {
 		return err
@@ -104,12 +104,12 @@ func (r *Repo) UpdateUserDetails(ctx context.Context, req *UpdateUserDetailsReq)
 	return err
 }
 
-func (r *Repo) UpdateUserContacts(ctx context.Context, req *UpdateUserContactsReq) error {
+func (r *Repo) UpdateUserContacts(ctx context.Context, contacts *DBUserContacts) error {
 	query, args, err := r.sq.Update("user_service.users_contacts").
-		Set("phone_number", req.PhoneNumber).
-		Set("email", req.Email).
-		Set("telegram_id", req.TelegramID).
-		Where(squirrel.Eq{"user_uuid": req.UserUUID}).
+		Set("phone_number", contacts.PhoneNumber).
+		Set("email", contacts.Email).
+		Set("telegram_id", contacts.TelegramID).
+		Where(squirrel.Eq{"user_uuid": contacts.UserUUID}).
 		ToSql()
 	if err != nil {
 		return err

@@ -185,7 +185,15 @@ func (s *Service) UpdateUserDetails(ctx context.Context, req *UpdateUserDetailsR
 		return s.handleValidationError(validationErr, validationSpan, span, req.UserUUID, "user details")
 	}
 
-	err := s.repo.UpdateUserDetails(ctx, req)
+	details := &DBUserDetails{
+		Name:       req.Name,
+		Surname:    req.Surname,
+		Patronymic: req.Patronymic,
+		GroupCode:  req.GroupCode,
+		UserUUID:   req.UserUUID,
+	}
+
+	err := s.repo.UpdateUserDetails(ctx, details)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to update user details")
@@ -223,7 +231,14 @@ func (s *Service) UpdateUserContacts(ctx context.Context, req *UpdateUserContact
 		return s.handleValidationError(validationErr, validationSpan, span, req.UserUUID, "user contacts")
 	}
 
-	err := s.repo.UpdateUserContacts(ctx, req)
+	contacts := &DBUserContacts{
+		PhoneNumber: req.PhoneNumber,
+		Email:       req.Email,
+		TelegramID:  req.TelegramID,
+		UserUUID:    req.UserUUID,
+	}
+
+	err := s.repo.UpdateUserContacts(ctx, contacts)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to update user contacts")
