@@ -8,6 +8,7 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -173,7 +174,7 @@ func (r *Repo) DeleteSubscription(ctx context.Context, subscriptionUUID uuid.UUI
 	return err
 }
 
-func (r *Repo) CreateSubscriptionData(ctx context.Context, tx pgxpool.Tx, data *DBUserSubscriptionData) error {
+func (r *Repo) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, data *DBUserSubscriptionData) error {
 	detailsQuery, detailsArgs, err := r.sq.Insert("subscription_service.details").
 		Columns("successful_subscriptions", "last_successful_subscription", "user_uuid").
 		Values(data.SuccessfulSubscriptions, data.LastSuccessfulSubscription, data.UserUUID).
@@ -215,7 +216,7 @@ func (r *Repo) CreateSubscriptionData(ctx context.Context, tx pgxpool.Tx, data *
 		}
 	}
 
-	return tx.Commit(ctx)
+	return nil
 }
 
 func (r *Repo) GetMatchingSubscriptionsBySlot(ctx context.Context, search *DBSubscriptionSearch) ([]DBSubscriptionMatchResult, error) {

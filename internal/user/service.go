@@ -25,11 +25,11 @@ func NewService(repo *Repo, logger *zap.SugaredLogger) *Service {
 	return &Service{repo: repo, logger: logger}
 }
 
-func (s *Service) CreateUser(ctx context.Context) (*CreateUserRes, error) {
+func (s *Service) CreateUser(ctx context.Context, tx pgx.Tx) (*CreateUserRes, error) {
 	ctx, span := tracer.Start(ctx, "user.service.CreateUser")
 	defer span.End()
 
-	userUUID, err := s.repo.CreateUser(ctx)
+	userUUID, err := s.repo.CreateUser(ctx, tx)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to create user")

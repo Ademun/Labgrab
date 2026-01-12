@@ -5,6 +5,7 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -17,14 +18,14 @@ func NewRepo(pool *pgxpool.Pool) *Repo {
 	return &Repo{pool: pool, sq: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)}
 }
 
-func (r *Repo) CreateUser(ctx context.Context) (uuid.UUID, error) {
+func (r *Repo) CreateUser(ctx context.Context, tx pgx.Tx) (uuid.UUID, error) {
 	userUUID := uuid.New()
 	query, args, err := r.sq.Insert("user_service.users").Columns("uuid").Values(userUUID).ToSql()
 	if err != nil {
 		return userUUID, err
 	}
 
-	_, err = r.pool.Exec(ctx, query, args...)
+	_, err = tx.Exec(ctx, query, args...)
 
 	return userUUID, err
 }

@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -75,7 +74,7 @@ func (s *Service) CreateSubscription(ctx context.Context, req *CreateSubscriptio
 	return nil
 }
 
-func (s *Service) CreateSubscriptionData(ctx context.Context, tx pgxpool.Tx, req *CreateSubscriptionDataReq) error {
+func (s *Service) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, req *CreateSubscriptionDataReq) error {
 	ctx, span := tracer.Start(ctx, "subscription.service.CreateSubscriptionData")
 	defer span.End()
 
