@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"sync"
 
 	"golang.org/x/time/rate"
 )
@@ -15,6 +16,7 @@ type AdaptiveHTTPClient struct {
 	client  *http.Client
 	limiter *rate.Limiter
 	cfg     *config.HTTPClientConfig
+	mu      sync.Mutex
 }
 
 func NewAdaptiveHTTPClient(cfg *config.HTTPClientConfig) *AdaptiveHTTPClient {
@@ -23,6 +25,8 @@ func NewAdaptiveHTTPClient(cfg *config.HTTPClientConfig) *AdaptiveHTTPClient {
 			Timeout: cfg.Timeout,
 		},
 		limiter: rate.NewLimiter(cfg.MinRate, cfg.BurstSize),
+		cfg:     cfg,
+		mu:      sync.Mutex{},
 	}
 }
 
@@ -79,6 +83,8 @@ func (c *AdaptiveHTTPClient) handleHttpResponse(res *http.Response) {
 		return
 	}
 
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if res.StatusCode >= 400 {
 		c.reduceRate()
 	} else {
@@ -87,11 +93,11 @@ func (c *AdaptiveHTTPClient) handleHttpResponse(res *http.Response) {
 }
 
 func (c *AdaptiveHTTPClient) reduceRate() {
-	newRate := math.Min(float64(c.limiter.Limit())*c.cfg.DecreaseFactor, float64(c.cfg.MinRate))
+	newRate := math.Max(float64(c.limiter.Limit())*c.cfg.DecreaseFactor, float64(c.cfg.MinRate))
 	c.limiter.SetLimit(rate.Limit(newRate))
 }
 
 func (c *AdaptiveHTTPClient) increaseRate() {
-	newRate := math.Max(float64(c.limiter.Limit())*c.cfg.IncreaseFactor, float64(c.cfg.MaxRate))
+	newRate := math.Min(float64(c.limiter.Limit())*c.cfg.IncreaseFactor, float64(c.cfg.MaxRate))
 	c.limiter.SetLimit(rate.Limit(newRate))
 }
