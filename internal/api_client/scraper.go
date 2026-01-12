@@ -9,10 +9,10 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func (s *Service) ScrapeSlotSourcesIDs(ctx context.Context, slotProviderURL string) ([]int, error) {
-	doc, err := s.ScrapeDocument(ctx, slotProviderURL)
+func (c *Client) ScrapeSlotSourcesIDs(ctx context.Context, sourcesIDsProviderURL string) ([]int, error) {
+	doc, err := c.ScrapeDocument(ctx, sourcesIDsProviderURL)
 	if err != nil {
-		return nil, fmt.Errorf("eror scraping document from url %s: %w", slotProviderURL, err)
+		return nil, fmt.Errorf("eror scraping document from url %s: %w", sourcesIDsProviderURL, err)
 	}
 
 	idList := make([]int, 0)
@@ -42,8 +42,8 @@ func (s *Service) ScrapeSlotSourcesIDs(ctx context.Context, slotProviderURL stri
 	return idList, nil
 }
 
-func (s *Service) ScrapeDocument(ctx context.Context, slotProviderURL string) (*goquery.Document, error) {
-	res, err := s.httpClient.Get(ctx, slotProviderURL)
+func (c *Client) ScrapeDocument(ctx context.Context, sourcesIDsProviderURL string) (*goquery.Document, error) {
+	res, err := c.httpClient.Get(ctx, sourcesIDsProviderURL)
 	if err != nil {
 		return nil, err
 	}

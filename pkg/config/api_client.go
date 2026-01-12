@@ -6,6 +6,11 @@ import (
 	"golang.org/x/time/rate"
 )
 
+type APIClientConfig struct {
+	HTTPClientConfig HTTPClientConfig `json:"http"`
+	SourcesConfig    SourcesConfig    `json:"sources"`
+}
+
 type HTTPClientConfig struct {
 	Timeout        time.Duration `yaml:"timeout"`
 	IncreaseFactor float64       `yaml:"increase"`
@@ -13,4 +18,9 @@ type HTTPClientConfig struct {
 	MaxRate        rate.Limit    `yaml:"max_rate"`
 	MinRate        rate.Limit    `yaml:"min_rate"`
 	BurstSize      int           `yaml:"burst"`
+}
+
+type SourcesConfig struct {
+	SourcesIDsProviderURL string `yaml:"sources_ids_provider"`
+	SlotsSourceURL        string `yaml:"slots_source"`
 }
