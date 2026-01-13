@@ -27,10 +27,18 @@ const (
 	DaySun DayOfWeek = "SUN"
 )
 
+type Lesson int
+
+type Teacher string
+
+type Schedule map[DayOfWeek]map[Lesson][]Teacher
+
 type Event struct {
+	Name       string
 	Type       Type
 	Topic      Topic
 	Number     int
 	Auditorium int
-	Schedule   map[DayOfWeek]map[int][]string
+	Spot       *int
+	Schedule   Schedule
 }
