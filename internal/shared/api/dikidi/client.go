@@ -15,14 +15,12 @@ type Client struct {
 	cfg           *config.APIClientConfig
 }
 
-func (c *Client) GetSlotStream(ctx context.Context) (chan *APISlotData, chan error) {
-	results := make(chan *APISlotData)
-	errors := make(chan error)
+func (c *Client) GetSlotStream(ctx context.Context) chan *SlotResult {
+	results := make(chan *SlotResult)
 	rate := make(chan struct{}, 50)
 
 	go func() {
 		defer close(results)
-		defer close(errors)
 
 		wg := sync.WaitGroup{}
 
@@ -37,20 +35,21 @@ func (c *Client) GetSlotStream(ctx context.Context) (chan *APISlotData, chan err
 				result, err := c.ProcessSlotSource(ctx, sourceID)
 				if err != nil {
 					select {
-					case errors <- err:
+					case results <- &SlotResult{nil, err}:
 					case <-ctx.Done():
+						return
 					}
-					return
 				}
 				select {
-				case results <- result:
+				case results <- &SlotResult{result, nil}:
 				case <-ctx.Done():
+					return
 				}
 			}()
 		}
 	}()
 
-	return results, errors
+	return results
 }
 
 func (c *Client) ProcessSlotSource(ctx context.Context, slotSourceID int) (*APISlotData, error) {
