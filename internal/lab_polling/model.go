@@ -1,4 +1,4 @@
-package lab
+package lab_polling
 
 type Type string
 
