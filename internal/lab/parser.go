@@ -24,8 +24,40 @@ type Parser struct {
 	defaultType Type
 }
 
-func (p *Parser) ParseSlot(slot *dikidi.APISlotData) (*Event, error) {
+func (p *Parser) ParseSlot(slot *dikidi.APISlotData) ([]Event, error) {
+	events := make([]Event, 0)
+	errors := make([]error, 0)
+	masters := slot.Data.Masters
+	if len(masters) == 0 {
+		return events, nil
+	}
 
+	for id, master := range masters {
+		event, err := p.parseSlotInfo(master.Username, master.ServiceName)
+		if err != nil {
+			errors = append(errors, err)
+			continue
+		}
+
+		schedule := make(Schedule)
+		times := slot.Data.Times
+		for _, timeStr := range times[id] {
+			dayOfWeek, lesson, err := p.parseTimeString(timeStr)
+			if err != nil {
+				errors = append(errors, err)
+				continue
+			}
+			schedule[dayOfWeek][lesson] = make([]Teacher, 0)
+		}
+		event.Schedule = schedule
+		events = append(events, *event)
+	}
+
+	if len(errors) > 0 {
+		return nil, &ErrSlotParsing{errors: errors}
+	}
+
+	return events, nil
 }
 
 func (p *Parser) parseSlotInfo(username, serviceName string) (*Event, error) {
