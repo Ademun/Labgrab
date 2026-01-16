@@ -3,6 +3,6 @@ package config
 import "time"
 
 type DeduplicatorConfig struct {
-	keyPrefix string        `yaml:"key_prefix"`
-	ttl       time.Duration `yaml:"ttl"`
+	KeyPrefix string        `yaml:"key_prefix"`
+	TTL       time.Duration `yaml:"ttl"`
 }

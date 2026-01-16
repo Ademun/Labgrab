@@ -138,3 +138,13 @@ type GetMatchingSubscriptionsRes struct {
 	LastSuccessfulSubscription *time.Time
 	MatchingTimeslots          map[DayOfWeek][]int
 }
+
+type keyGenerationParams struct {
+	subscriptionUUID uuid.UUID
+	labType          LabType
+	labTopic         LabTopic
+	labNumber        int
+	labAuditorium    int
+	day              DayOfWeek
+	lesson           int
+}

@@ -220,7 +220,6 @@ func (r *Repo) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, data *DBUs
 }
 
 func (r *Repo) GetMatchingSubscriptionsBySlot(ctx context.Context, search *DBSubscriptionSearch) ([]DBSubscriptionMatchResult, error) {
-	// Convert AvailableSlots to JSONB format for SQL
 	availableSlotsJSON, err := convertAvailableSlotsToJSON(search.AvailableSlots)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert available slots to JSON: %w", err)
