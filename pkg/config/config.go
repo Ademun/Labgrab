@@ -8,7 +8,8 @@ import (
 
 type Config struct {
 	InfraConfig               InfraConfig
-	APIClientConfig           APIClientConfig           `yaml:"api_client"`
+	APIClientConfig           DikidiClientConfig        `yaml:"dikidi_client"`
+	PollingServiceConfig      PollingServiceConfig      `yaml:"polling_service"`
 	SubscriptionServiceConfig SubscriptionServiceConfig `yaml:"subscription_service"`
 }
 

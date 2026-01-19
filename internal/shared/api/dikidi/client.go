@@ -12,7 +12,15 @@ import (
 type Client struct {
 	httpClient    *AdaptiveHTTPClient
 	slotSourceIDs []int
-	cfg           *config.APIClientConfig
+	cfg           *config.DikidiClientConfig
+}
+
+func NewClient(cfg *config.DikidiClientConfig, httpClient *AdaptiveHTTPClient) *Client {
+	return &Client{
+		httpClient:    httpClient,
+		slotSourceIDs: make([]int, 0),
+		cfg:           cfg,
+	}
 }
 
 func (c *Client) GetSlotStream(ctx context.Context) chan *SlotResult {

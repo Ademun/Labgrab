@@ -3,6 +3,7 @@ package lab_polling
 import (
 	"fmt"
 	"labgrab/internal/shared/api/dikidi"
+	"labgrab/pkg/config"
 	"regexp"
 	"strconv"
 	"strings"
@@ -22,6 +23,55 @@ type Parser struct {
 	topicMap    map[string]Topic
 	typeMap     map[string]Type
 	defaultType Type
+}
+
+func NewParser(cfg *config.ParserConfig) (*Parser, error) {
+	numberRegexp, err := regexp.Compile(cfg.NumberRegexpPattern)
+	if err != nil {
+		return nil, fmt.Errorf("invalid number_regexp pattern: %v", err)
+	}
+
+	auditoriumRegexp, err := regexp.Compile(cfg.AuditoriumRegexpPattern)
+	if err != nil {
+		return nil, fmt.Errorf("invalid auditorium_regexp pattern: %v", err)
+	}
+
+	spotRegexp, err := regexp.Compile(cfg.SpotRegexpPattern)
+	if err != nil {
+		return nil, fmt.Errorf("invalid spot_regexp pattern: %v", err)
+	}
+
+	topicRegexp, err := regexp.Compile(cfg.TopicRegexpPattern)
+	if err != nil {
+		return nil, fmt.Errorf("invalid topic_regexp pattern: %v", err)
+	}
+
+	timezone, err := time.LoadLocation(cfg.Timezone)
+	if err != nil {
+		return nil, fmt.Errorf("invalid timezone: %v", err)
+	}
+
+	topicMap := make(map[string]Topic)
+	for k, v := range cfg.TopicMap {
+		topicMap[k] = Topic(v)
+	}
+
+	typeMap := make(map[string]Type)
+	for k, v := range cfg.TypeMap {
+		typeMap[k] = Type(v)
+	}
+
+	return &Parser{
+		numberRegexp:     numberRegexp,
+		auditoriumRegexp: auditoriumRegexp,
+		spotRegexp:       spotRegexp,
+		topicRegexp:      topicRegexp,
+		namePrefix:       cfg.NamePrefix,
+		timezone:         timezone,
+		topicMap:         topicMap,
+		typeMap:          typeMap,
+		defaultType:      Type(cfg.DefaultType),
+	}, nil
 }
 
 func (p *Parser) ParseSlot(slot *dikidi.APISlotData) ([]Event, error) {
@@ -143,7 +193,7 @@ func (p *Parser) parseTopic(username, serviceName string) (Topic, error) {
 			return topic, nil
 		}
 	}
-	return TopicMechanics, fmt.Errorf("topic not found")
+	return "", fmt.Errorf("topic not found")
 }
 
 func (p *Parser) parseType(username, serviceName string) Type {

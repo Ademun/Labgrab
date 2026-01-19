@@ -1,4 +1,4 @@
-api_client:
+dikidi_client:
   http:
     timeout: 10s
     increase: 1.2
@@ -9,6 +9,25 @@ api_client:
   sources:
     sources_ids_provider: https://dikidi.net/550001?p=1.pi-ssm-sd&s=7937920&rl=0_0
     slots_source: https://dikidi.net/ru/mobile/ajax/newrecord/get_datetimes/?company_id=550001
+polling_service:
+  parser:
+    number_pattern: '№\s*(\d+)'
+    auditorium_pattern: '\((\d+)\s*\p{L}+\.\)'
+    spot_pattern: '\((\d+)-?\p{L}*\s*место\)'
+    topic_pattern: '(Оптика|Тв\.?\s*тело|Электричество|Механика|Виртуальная\s*лаб\.?)'
+    name_prefix: 'Лабораторная работа'
+    timezone: 'Europe/Moscow'
+    topic_map:
+      'Оптика': 'Optics'
+      'Тв. тело': 'SolidBody'
+      'Электричество': 'Electricity'
+      'Механика': 'Mechanics'
+      'Виртуальная лаб.': 'Virtual'
+    type_map:
+      'Аудиторное': 'Defence'
+      'Выполнение': 'Performance'
+    default_type: 'Performance'
+
 subscription_service:
   deduplicator:
     key_prefix: slot

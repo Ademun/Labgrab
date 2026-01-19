@@ -13,6 +13,8 @@ const (
 	TopicVirtual     Topic = "Virtual"
 	TopicElectricity Topic = "Electricity"
 	TopicMechanics   Topic = "Mechanics"
+	TopicOptics      Topic = "Optics"
+	TopicSolidBody   Topic = "SolidBody"
 )
 
 type DayOfWeek string

@@ -6,7 +6,7 @@ import (
 	"golang.org/x/time/rate"
 )
 
-type APIClientConfig struct {
+type DikidiClientConfig struct {
 	HTTPClientConfig HTTPClientConfig `yaml:"http"`
 	SourcesConfig    SourcesConfig    `yaml:"sources"`
 }
