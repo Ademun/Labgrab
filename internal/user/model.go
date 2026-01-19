@@ -29,23 +29,18 @@ type DBUserInfo struct {
 	TelegramID  *int64    `db:"telegram_id"`
 }
 
-type CreateUserRes struct {
-	UUID uuid.UUID
-}
-
-type CreateUserDetailsReq struct {
-	UserUUID   uuid.UUID
-	Name       string
-	Surname    string
-	Patronymic *string
-	GroupCode  string
-}
-
-type CreateUserContactsReq struct {
-	UserUUID    uuid.UUID
+type CreateUserReq struct {
+	Name        string
+	Surname     string
+	Patronymic  *string
+	GroupCode   string
 	PhoneNumber string
 	Email       *string
 	TelegramID  *int64
+}
+
+type CreateUserRes struct {
+	UUID uuid.UUID
 }
 
 type GetUserInfoRes struct {
@@ -71,8 +66,4 @@ type UpdateUserContactsReq struct {
 	PhoneNumber string
 	Email       *string
 	TelegramID  *int64
-}
-
-type DBUser struct {
-	UUID uuid.UUID `db:"uuid"`
 }

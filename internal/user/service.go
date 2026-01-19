@@ -25,11 +25,24 @@ func NewService(repo *Repo, logger *zap.SugaredLogger) *Service {
 	return &Service{repo: repo, logger: logger}
 }
 
-func (s *Service) CreateUser(ctx context.Context, tx pgx.Tx) (*CreateUserRes, error) {
+func (s *Service) CreateUser(ctx context.Context, req *CreateUserReq, tx pgx.Tx) (*CreateUserRes, error) {
 	ctx, span := tracer.Start(ctx, "user.service.CreateUser")
 	defer span.End()
 
-	userUUID, err := s.repo.CreateUser(ctx, tx)
+	details := &DBUserDetails{
+		Name:       req.Name,
+		Surname:    req.Surname,
+		Patronymic: req.Patronymic,
+		GroupCode:  req.GroupCode,
+	}
+
+	contacts := &DBUserContacts{
+		PhoneNumber: req.PhoneNumber,
+		Email:       req.Email,
+		TelegramID:  req.TelegramID,
+	}
+
+	userUUID, err := s.repo.CreateUser(ctx, details, contacts, tx)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to create user")
@@ -41,85 +54,6 @@ func (s *Service) CreateUser(ctx context.Context, tx pgx.Tx) (*CreateUserRes, er
 	s.logger.Infow("user created successfully", "user_uuid", userUUID)
 
 	return &CreateUserRes{UUID: userUUID}, nil
-}
-
-func (s *Service) CreateUserDetails(ctx context.Context, req *CreateUserDetailsReq) error {
-	ctx, span := tracer.Start(ctx, "user.service.CreateUserDetails")
-	defer span.End()
-
-	span.SetAttributes(attribute.String("user.uuid", req.UserUUID.String()))
-
-	_, validationSpan := tracer.Start(ctx, "user.service.CreateUserDetails.validate")
-	validationErr := s.validateUserDetailsReq(req)
-	validationSpan.End()
-
-	if validationErr != nil {
-		return s.handleValidationError(validationErr, validationSpan, span, req.UserUUID, "user details")
-	}
-
-	details := &DBUserDetails{
-		Name:       req.Name,
-		Surname:    req.Surname,
-		Patronymic: req.Patronymic,
-		GroupCode:  req.GroupCode,
-		UserUUID:   req.UserUUID,
-	}
-
-	err := s.repo.CreateUserDetails(ctx, details)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to create user details")
-		s.logger.Errorw("failed to create user details in repository",
-			"user_uuid", req.UserUUID,
-			"error", err)
-		return fmt.Errorf("%w: %v", ErrCreateUser, err)
-	}
-
-	s.logger.Infow("user details created successfully",
-		"user_uuid", req.UserUUID,
-		"name", req.Name,
-		"surname", req.Surname,
-		"group_code", req.GroupCode)
-
-	return nil
-}
-
-func (s *Service) CreateUserContacts(ctx context.Context, req *CreateUserContactsReq) error {
-	ctx, span := tracer.Start(ctx, "user.service.CreateUserContacts")
-	defer span.End()
-
-	span.SetAttributes(attribute.String("user.uuid", req.UserUUID.String()))
-
-	_, validationSpan := tracer.Start(ctx, "user.service.CreateUserContacts.validate")
-	validationErr := s.validateUserContactsReq(req)
-	validationSpan.End()
-
-	if validationErr != nil {
-		return s.handleValidationError(validationErr, validationSpan, span, req.UserUUID, "user contacts")
-	}
-
-	contacts := &DBUserContacts{
-		PhoneNumber: req.PhoneNumber,
-		Email:       req.Email,
-		TelegramID:  req.TelegramID,
-		UserUUID:    req.UserUUID,
-	}
-
-	err := s.repo.CreateUserContacts(ctx, contacts)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to create user contacts")
-		s.logger.Errorw("failed to create user contacts in repository",
-			"user_uuid", req.UserUUID,
-			"error", err)
-		return fmt.Errorf("%w: %v", ErrCreateUser, err)
-	}
-
-	s.logger.Infow("user contacts created successfully",
-		"user_uuid", req.UserUUID,
-		"phone_number", req.PhoneNumber)
-
-	return nil
 }
 
 func (s *Service) GetUserInfo(ctx context.Context, userUUID string) (*GetUserInfoRes, error) {
@@ -171,26 +105,20 @@ func (s *Service) UpdateUserDetails(ctx context.Context, req *UpdateUserDetailsR
 
 	span.SetAttributes(attribute.String("user.uuid", req.UserUUID.String()))
 
-	_, validationSpan := tracer.Start(ctx, "user.service.UpdateUserDetails.validate")
-	validationErr := s.validateUserDetailsReq(&CreateUserDetailsReq{
-		UserUUID:   req.UserUUID,
-		Name:       req.Name,
-		Surname:    req.Surname,
-		Patronymic: req.Patronymic,
-		GroupCode:  req.GroupCode,
-	})
-	validationSpan.End()
-
-	if validationErr != nil {
-		return s.handleValidationError(validationErr, validationSpan, span, req.UserUUID, "user details")
-	}
-
 	details := &DBUserDetails{
 		Name:       req.Name,
 		Surname:    req.Surname,
 		Patronymic: req.Patronymic,
 		GroupCode:  req.GroupCode,
 		UserUUID:   req.UserUUID,
+	}
+
+	_, validationSpan := tracer.Start(ctx, "user.service.UpdateUserDetails.validate")
+	validationErr := s.validateUserDetails(details)
+	validationSpan.End()
+
+	if validationErr != nil {
+		return s.handleValidationError(validationErr, validationSpan, span, req.UserUUID, "user details")
 	}
 
 	err := s.repo.UpdateUserDetails(ctx, details)
@@ -218,24 +146,19 @@ func (s *Service) UpdateUserContacts(ctx context.Context, req *UpdateUserContact
 
 	span.SetAttributes(attribute.String("user.uuid", req.UserUUID.String()))
 
-	_, validationSpan := tracer.Start(ctx, "user.service.UpdateUserContacts.validate")
-	validationErr := s.validateUserContactsReq(&CreateUserContactsReq{
-		UserUUID:    req.UserUUID,
-		PhoneNumber: req.PhoneNumber,
-		Email:       req.Email,
-		TelegramID:  req.TelegramID,
-	})
-	validationSpan.End()
-
-	if validationErr != nil {
-		return s.handleValidationError(validationErr, validationSpan, span, req.UserUUID, "user contacts")
-	}
-
 	contacts := &DBUserContacts{
 		PhoneNumber: req.PhoneNumber,
 		Email:       req.Email,
 		TelegramID:  req.TelegramID,
 		UserUUID:    req.UserUUID,
+	}
+
+	_, validationSpan := tracer.Start(ctx, "user.service.UpdateUserContacts.validate")
+	validationErr := s.validateUserContacts(contacts)
+	validationSpan.End()
+
+	if validationErr != nil {
+		return s.handleValidationError(validationErr, validationSpan, span, req.UserUUID, "user contacts")
 	}
 
 	err := s.repo.UpdateUserContacts(ctx, contacts)
@@ -255,22 +178,22 @@ func (s *Service) UpdateUserContacts(ctx context.Context, req *UpdateUserContact
 	return nil
 }
 
-func (s *Service) validateUserDetailsReq(req *CreateUserDetailsReq) *ValidationError {
+func (s *Service) validateUserDetails(details *DBUserDetails) *ValidationError {
 	valErr := NewValidationError()
 
-	if !ValidateAlphabeticString(req.Name) {
+	if !ValidateAlphabeticString(details.Name) {
 		valErr.Add("Name", "must contain only alphabetic characters, spaces, hyphens, underscores, and dots")
 	}
 
-	if !ValidateAlphabeticString(req.Surname) {
+	if !ValidateAlphabeticString(details.Surname) {
 		valErr.Add("Surname", "must contain only alphabetic characters, spaces, hyphens, underscores, and dots")
 	}
 
-	if req.Patronymic != nil && !ValidateAlphabeticString(*req.Patronymic) {
+	if details.Patronymic != nil && !ValidateAlphabeticString(*details.Patronymic) {
 		valErr.Add("Patronymic", "must contain only alphabetic characters, spaces, hyphens, underscores, and dots")
 	}
 
-	if !ValidateGroupCode(req.GroupCode) {
+	if !ValidateGroupCode(details.GroupCode) {
 		valErr.Add("GroupCode", "must match format XX-YY-ZZ (e.g., AB-12-34)")
 	}
 
@@ -281,14 +204,14 @@ func (s *Service) validateUserDetailsReq(req *CreateUserDetailsReq) *ValidationE
 	return nil
 }
 
-func (s *Service) validateUserContactsReq(req *CreateUserContactsReq) *ValidationError {
+func (s *Service) validateUserContacts(contacts *DBUserContacts) *ValidationError {
 	valErr := NewValidationError()
 
-	if !ValidatePhoneNumber(req.PhoneNumber) {
+	if !ValidatePhoneNumber(contacts.PhoneNumber) {
 		valErr.Add("PhoneNumber", "must be in E.164 format (e.g., +1234567890)")
 	}
 
-	if req.TelegramID != nil && !ValidateTelegramID(int(*req.TelegramID)) {
+	if contacts.TelegramID != nil && !ValidateTelegramID(int(*contacts.TelegramID)) {
 		valErr.Add("TelegramID", "must be a positive integer")
 	}
 

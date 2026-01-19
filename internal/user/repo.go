@@ -18,7 +18,7 @@ func NewRepo(pool *pgxpool.Pool) *Repo {
 	return &Repo{pool: pool, sq: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)}
 }
 
-func (r *Repo) CreateUser(ctx context.Context, tx pgx.Tx) (uuid.UUID, error) {
+func (r *Repo) CreateUser(ctx context.Context, details *DBUserDetails, contacts *DBUserContacts, tx pgx.Tx) (uuid.UUID, error) {
 	userUUID := uuid.New()
 	query, args, err := r.sq.Insert("user_service.users").Columns("uuid").Values(userUUID).ToSql()
 	if err != nil {
@@ -27,10 +27,21 @@ func (r *Repo) CreateUser(ctx context.Context, tx pgx.Tx) (uuid.UUID, error) {
 
 	_, err = tx.Exec(ctx, query, args...)
 
+	details.UserUUID = userUUID
+	contacts.UserUUID = userUUID
+
+	if err = r.createUserDetails(ctx, details, tx); err != nil {
+		return userUUID, err
+	}
+
+	if err = r.createUserContacts(ctx, contacts, tx); err != nil {
+		return userUUID, err
+	}
+
 	return userUUID, err
 }
 
-func (r *Repo) CreateUserDetails(ctx context.Context, details *DBUserDetails) error {
+func (r *Repo) createUserDetails(ctx context.Context, details *DBUserDetails, tx pgx.Tx) error {
 	query, args, err := r.sq.Insert("user_service.users_details").
 		Columns("name", "surname", "patronymic", "group_code", "user_uuid").
 		Values(details.Name, details.Surname, details.Patronymic, details.GroupCode, details.UserUUID).
@@ -38,11 +49,11 @@ func (r *Repo) CreateUserDetails(ctx context.Context, details *DBUserDetails) er
 	if err != nil {
 		return err
 	}
-	_, err = r.pool.Exec(ctx, query, args...)
+	_, err = tx.Exec(ctx, query, args...)
 	return err
 }
 
-func (r *Repo) CreateUserContacts(ctx context.Context, contacts *DBUserContacts) error {
+func (r *Repo) createUserContacts(ctx context.Context, contacts *DBUserContacts, tx pgx.Tx) error {
 	query, args, err := r.sq.Insert("user_service.users_contacts").
 		Columns("phone_number", "email", "telegram_id", "user_uuid").
 		Values(contacts.PhoneNumber, contacts.Email, contacts.TelegramID, contacts.UserUUID).
@@ -50,7 +61,7 @@ func (r *Repo) CreateUserContacts(ctx context.Context, contacts *DBUserContacts)
 	if err != nil {
 		return err
 	}
-	_, err = r.pool.Exec(ctx, query, args...)
+	_, err = tx.Exec(ctx, query, args...)
 	return err
 }
 
