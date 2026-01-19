@@ -1,1 +1,5 @@
-package labgrab
+package main
+
+func main() {
+
+}
