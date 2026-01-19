@@ -4,6 +4,8 @@ import (
 	"context"
 	"labgrab/internal/lab_polling"
 	"labgrab/internal/shared/api/dikidi"
+	"labgrab/internal/subscription"
+	"labgrab/internal/user"
 	"labgrab/pkg/config"
 	"labgrab/pkg/logger"
 	"os"
@@ -77,5 +79,15 @@ func main() {
 	}
 	pollingService := lab_polling.NewService(dikidiClient, slotParser, log)
 	log.Info("Finished setting up polling service")
+
+	log.Info("Setting up subscription service")
+	subscriptionRepo := subscription.NewRepo(pool)
+	subscriptionService := subscription.NewService(subscriptionRepo, log)
+	log.Info("Finished setting up subscription service")
+
+	log.Info("Setting up user service")
+	userRepo := user.NewRepo(pool)
+	userService := user.NewService(userRepo, log)
+	log.Info("Finished setting up user service")
 
 }
