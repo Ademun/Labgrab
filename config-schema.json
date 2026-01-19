@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Application Configuration",
+  "type": "object",
+  "properties": {
+    "api_client": {
+      "type": "object",
+      "properties": {
+        "http": {
+          "type": "object",
+          "properties": {
+            "timeout": {
+              "type": "string",
+              "description": "Duration string (e.g., '30s', '1m')",
+              "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
+              "examples": ["30s", "1m", "5m"]
+            },
+            "increase": {
+              "type": "number",
+              "description": "Rate increase factor",
+              "minimum": 1.0,
+              "examples": [1.5, 2.0]
+            },
+            "decrease": {
+              "type": "number",
+              "description": "Rate decrease factor",
+              "maximum": 2.0,
+              "minimum": 0.0,
+              "examples": [0.5, 0.75]
+            },
+            "max_rate": {
+              "type": "number",
+              "description": "Maximum requests per second",
+              "minimum": 0,
+              "examples": [100, 1000]
+            },
+            "min_rate": {
+              "type": "number",
+              "description": "Minimum requests per second",
+              "minimum": 0,
+              "examples": [1, 10]
+            },
+            "burst": {
+              "type": "integer",
+              "description": "Burst size for rate limiter",
+              "minimum": 1,
+              "examples": [10, 50]
+            }
+          },
+          "required": ["timeout", "increase", "decrease", "max_rate", "min_rate", "burst"],
+          "additionalProperties": false
+        },
+        "sources": {
+          "type": "object",
+          "properties": {
+            "sources_ids_provider": {
+              "type": "string",
+              "format": "uri",
+              "description": "URL for sources IDs provider",
+              "examples": ["https://api.example.com/sources"]
+            },
+            "slots_source": {
+              "type": "string",
+              "format": "uri",
+              "description": "URL for slots source",
+              "examples": ["https://api.example.com/slots"]
+            }
+          },
+          "required": ["sources_ids_provider", "slots_source"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["http", "sources"],
+      "additionalProperties": false
+    },
+    "subscription_service": {
+      "type": "object",
+      "properties": {
+        "deduplicator": {
+          "type": ["object", "null"],
+          "properties": {
+            "key_prefix": {
+              "type": "string",
+              "description": "Prefix for deduplication keys",
+              "examples": ["dedup:", "cache:"]
+            },
+            "ttl": {
+              "type": "string",
+              "description": "Time to live as duration string",
+              "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
+              "examples": ["1h", "24h", "168h"]
+            }
+          },
+          "required": ["key_prefix", "ttl"],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["api_client", "subscription_service"],
+  "additionalProperties": false
+}

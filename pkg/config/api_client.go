@@ -7,8 +7,8 @@ import (
 )
 
 type APIClientConfig struct {
-	HTTPClientConfig HTTPClientConfig `json:"http"`
-	SourcesConfig    SourcesConfig    `json:"sources"`
+	HTTPClientConfig HTTPClientConfig `yaml:"http"`
+	SourcesConfig    SourcesConfig    `yaml:"sources"`
 }
 
 type HTTPClientConfig struct {
