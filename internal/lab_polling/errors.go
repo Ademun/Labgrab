@@ -10,5 +10,5 @@ type ErrSlotParsing struct {
 }
 
 func (e *ErrSlotParsing) Error() string {
-	return fmt.Sprintf("Encountered %d erros when parsing slot: %s", len(e.errors), errors.Join(e.errors...))
+	return fmt.Sprintf("Encountered %d errors when parsing slot: %s", len(e.errors), errors.Join(e.errors...))
 }
