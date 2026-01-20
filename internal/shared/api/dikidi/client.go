@@ -55,6 +55,8 @@ func (c *Client) GetSlotStream(ctx context.Context) chan *SlotResult {
 				}
 			}()
 		}
+
+		wg.Wait()
 	}()
 
 	return results
