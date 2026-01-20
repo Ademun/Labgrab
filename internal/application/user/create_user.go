@@ -1,6 +1,7 @@
 package user
 
 import (
+	"context"
 	"labgrab/internal/subscription"
 	"labgrab/internal/user"
 
@@ -19,4 +20,32 @@ func NewCreateUserUseCase(userSvc *user.Service, subscriptionSvc *subscription.S
 		subscriptionSvc: subscriptionSvc,
 		logger:          logger,
 	}
+}
+
+func (uc *CreateUserUseCase) Exec(ctx context.Context, req *CreateUserReq) error {
+	userReq := &user.CreateUserReq{
+		Name:        req.Name,
+		Surname:     req.Surname,
+		Patronymic:  req.Patronymic,
+		GroupCode:   req.GroupCode,
+		PhoneNumber: req.PhoneNumber,
+		Email:       req.Email,
+		TelegramID:  req.TelegramID,
+	}
+
+	res, err := uc.userSvc.CreateUser(ctx, userReq)
+	if err != nil {
+		return err
+	}
+
+	subReq := &subscription.CreateSubscriptionDataReq{
+		UserUUID: res.UUID,
+	}
+
+	err = uc.subscriptionSvc.CreateSubscriptionData(ctx, res.Tx, subReq)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
