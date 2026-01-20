@@ -22,7 +22,7 @@ func NewCreateUserUseCase(userSvc *user.Service, subscriptionSvc *subscription.S
 	}
 }
 
-func (uc *CreateUserUseCase) Exec(ctx context.Context, req *CreateUserReq) error {
+func (uc *CreateUserUseCase) Exec(ctx context.Context, req *CreateUserReqDTO) error {
 	userReq := &user.CreateUserReq{
 		Name:        req.Name,
 		Surname:     req.Surname,
