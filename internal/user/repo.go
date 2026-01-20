@@ -62,8 +62,8 @@ func (r *Repo) createUserDetails(ctx context.Context, details *DBUserDetails, tx
 
 func (r *Repo) createUserContacts(ctx context.Context, contacts *DBUserContacts, tx pgx.Tx) error {
 	query, args, err := r.sq.Insert("user_service.users_contacts").
-		Columns("phone_number", "email", "telegram_id", "user_uuid").
-		Values(contacts.PhoneNumber, contacts.Email, contacts.TelegramID, contacts.UserUUID).
+		Columns("phone_number", "telegram_id", "user_uuid").
+		Values(contacts.PhoneNumber, contacts.TelegramID, contacts.UserUUID).
 		ToSql()
 	if err != nil {
 		return err
@@ -126,7 +126,6 @@ func (r *Repo) UpdateUserDetails(ctx context.Context, details *DBUserDetails) er
 func (r *Repo) UpdateUserContacts(ctx context.Context, contacts *DBUserContacts) error {
 	query, args, err := r.sq.Update("user_service.users_contacts").
 		Set("phone_number", contacts.PhoneNumber).
-		Set("email", contacts.Email).
 		Set("telegram_id", contacts.TelegramID).
 		Where(squirrel.Eq{"user_uuid": contacts.UserUUID}).
 		ToSql()

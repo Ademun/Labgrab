@@ -38,7 +38,6 @@ func (s *Service) CreateUser(ctx context.Context, req *CreateUserReq) (*CreateUs
 
 	contacts := &DBUserContacts{
 		PhoneNumber: req.PhoneNumber,
-		Email:       req.Email,
 		TelegramID:  req.TelegramID,
 	}
 
@@ -148,7 +147,6 @@ func (s *Service) UpdateUserContacts(ctx context.Context, req *UpdateUserContact
 
 	contacts := &DBUserContacts{
 		PhoneNumber: req.PhoneNumber,
-		Email:       req.Email,
 		TelegramID:  req.TelegramID,
 		UserUUID:    req.UserUUID,
 	}

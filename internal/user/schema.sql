@@ -20,7 +20,6 @@ create table if not exists user_service.users_details
 create table if not exists user_service.users_contacts
 (
     phone_number text not null,
-    email        text,
     telegram_id  bigint,
     user_uuid    uuid not null,
     constraint users_contacts_pk primary key (user_uuid),

@@ -29,7 +29,6 @@ func (uc *CreateUserUseCase) Exec(ctx context.Context, req *CreateUserReqDTO) er
 		Patronymic:  req.Patronymic,
 		GroupCode:   req.GroupCode,
 		PhoneNumber: req.PhoneNumber,
-		Email:       req.Email,
 		TelegramID:  req.TelegramID,
 	}
 
