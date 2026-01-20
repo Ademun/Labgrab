@@ -18,11 +18,16 @@ func NewRepo(pool *pgxpool.Pool) *Repo {
 	return &Repo{pool: pool, sq: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)}
 }
 
-func (r *Repo) CreateUser(ctx context.Context, details *DBUserDetails, contacts *DBUserContacts, tx pgx.Tx) (uuid.UUID, error) {
+func (r *Repo) CreateUser(ctx context.Context, details *DBUserDetails, contacts *DBUserContacts) (uuid.UUID, pgx.Tx, error) {
 	userUUID := uuid.New()
 	query, args, err := r.sq.Insert("user_service.users").Columns("uuid").Values(userUUID).ToSql()
 	if err != nil {
-		return userUUID, err
+		return userUUID, nil, err
+	}
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return userUUID, nil, err
 	}
 
 	_, err = tx.Exec(ctx, query, args...)
@@ -31,14 +36,16 @@ func (r *Repo) CreateUser(ctx context.Context, details *DBUserDetails, contacts 
 	contacts.UserUUID = userUUID
 
 	if err = r.createUserDetails(ctx, details, tx); err != nil {
-		return userUUID, err
+		tx.Rollback(ctx)
+		return userUUID, nil, err
 	}
 
 	if err = r.createUserContacts(ctx, contacts, tx); err != nil {
-		return userUUID, err
+		tx.Rollback(ctx)
+		return userUUID, nil, err
 	}
 
-	return userUUID, err
+	return userUUID, tx, err
 }
 
 func (r *Repo) createUserDetails(ctx context.Context, details *DBUserDetails, tx pgx.Tx) error {

@@ -25,7 +25,7 @@ func NewService(repo *Repo, logger *zap.SugaredLogger) *Service {
 	return &Service{repo: repo, logger: logger}
 }
 
-func (s *Service) CreateUser(ctx context.Context, req *CreateUserReq, tx pgx.Tx) (*CreateUserRes, error) {
+func (s *Service) CreateUser(ctx context.Context, req *CreateUserReq) (*CreateUserRes, error) {
 	ctx, span := tracer.Start(ctx, "user.service.CreateUser")
 	defer span.End()
 
@@ -42,7 +42,7 @@ func (s *Service) CreateUser(ctx context.Context, req *CreateUserReq, tx pgx.Tx)
 		TelegramID:  req.TelegramID,
 	}
 
-	userUUID, err := s.repo.CreateUser(ctx, details, contacts, tx)
+	userUUID, tx, err := s.repo.CreateUser(ctx, details, contacts)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to create user")
@@ -53,7 +53,7 @@ func (s *Service) CreateUser(ctx context.Context, req *CreateUserReq, tx pgx.Tx)
 	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
 	s.logger.Infow("user created successfully", "user_uuid", userUUID)
 
-	return &CreateUserRes{UUID: userUUID}, nil
+	return &CreateUserRes{UUID: userUUID, Tx: tx}, nil
 }
 
 func (s *Service) GetUserInfo(ctx context.Context, userUUID string) (*GetUserInfoRes, error) {
