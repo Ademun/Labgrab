@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Service struct {
@@ -20,6 +21,12 @@ func (s *Service) ValidateTelegramAuthData(ctx context.Context, data *TelegramAu
 	if err := s.verifyHash(data); err != nil {
 		return err
 	}
+
+	if err := s.verifyAuthDate(data.AuthDate); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *Service) verifyHash(data *TelegramAuthData) error {
@@ -61,4 +68,15 @@ func (s *Service) buildDataCheckString(data *TelegramAuthData) string {
 	}
 
 	return strings.Join(parts, "\n")
+}
+
+func (s *Service) verifyAuthDate(authDate time.Time) error {
+	currentDate := time.Now()
+	if currentDate.Sub(authDate).Hours() > 24 {
+		return &ErrAuthDateExpired{
+			AuthDate:    authDate,
+			CurrentDate: currentDate,
+		}
+	}
+	return nil
 }
