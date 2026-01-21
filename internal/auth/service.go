@@ -11,20 +11,48 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
+	"go.uber.org/zap"
 )
 
+var tracer = otel.Tracer("auth-service")
+
 type Service struct {
-	cfg *config.AuthServiceConfig
+	cfg    *config.AuthServiceConfig
+	logger *zap.SugaredLogger
 }
 
 func (s *Service) ValidateTelegramAuthData(ctx context.Context, data *TelegramAuthData) error {
-	if err := s.verifyHash(data); err != nil {
-		return err
+	ctx, span := tracer.Start(ctx, "auth.service.ValidateTelegramAuthData")
+	defer span.End()
+
+	_, hashSpan := tracer.Start(ctx, "auth.service.VerifyHash")
+	hashErr := s.verifyHash(data)
+	hashSpan.End()
+
+	if hashErr != nil {
+		hashSpan.RecordError(hashErr)
+		hashSpan.SetStatus(codes.Error, hashErr.Error())
+		span.RecordError(hashErr)
+		span.SetStatus(codes.Error, hashErr.Error())
+		s.logger.Errorw(hashErr.Error())
 	}
 
-	if err := s.verifyAuthDate(data.AuthDate); err != nil {
-		return err
+	_, dateSpan := tracer.Start(ctx, "auth.service.VerifyAuthDate")
+	dateErr := s.verifyAuthDate(data.AuthDate)
+	dateSpan.End()
+
+	if dateErr != nil {
+		dateSpan.RecordError(dateErr)
+		dateSpan.SetStatus(codes.Error, dateErr.Error())
+		span.RecordError(hashErr)
+		span.SetStatus(codes.Error, dateErr.Error())
+		s.logger.Errorw(dateErr.Error())
 	}
+
+	s.logger.Info("telegram auth data verified successfully")
 
 	return nil
 }
