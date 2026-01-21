@@ -17,10 +17,12 @@ type Service struct {
 }
 
 func (s *Service) ValidateTelegramAuthData(ctx context.Context, data *TelegramAuthData) error {
-
+	if err := s.verifyHash(data); err != nil {
+		return err
+	}
 }
 
-func (s *Service) verifyHash(data *TelegramAuthData) bool {
+func (s *Service) verifyHash(data *TelegramAuthData) error {
 	dataCheckString := s.buildDataCheckString(data)
 	key := sha256.Sum256([]byte(s.cfg.BotToken))
 
@@ -28,7 +30,13 @@ func (s *Service) verifyHash(data *TelegramAuthData) bool {
 	h.Write([]byte(dataCheckString))
 	hash := hex.EncodeToString(h.Sum(nil))
 
-	return hmac.Equal([]byte(hash), []byte(data.Hash))
+	if !hmac.Equal([]byte(hash), []byte(data.Hash)) {
+		return &ErrHashIntegrity{
+			ExpectedHash: data.Hash,
+			ActualHash:   hash,
+		}
+	}
+	return nil
 }
 
 func (s *Service) buildDataCheckString(data *TelegramAuthData) string {
