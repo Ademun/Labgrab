@@ -12,8 +12,8 @@ type NewUserUseCase struct {
 	subscriptionSvc *subscription.Service
 }
 
-func NewNewUserUseCase(userSvc *user.Service) *NewUserUseCase {
-	return &NewUserUseCase{userSvc: userSvc}
+func NewNewUserUseCase(userSvc *user.Service, subscriptionSvc *subscription.Service) *NewUserUseCase {
+	return &NewUserUseCase{userSvc: userSvc, subscriptionSvc: subscriptionSvc}
 }
 
 func (uc *NewUserUseCase) Exec(ctx context.Context, data *dto.NewUserReqDTO) (*dto.NewUserRespDTO, error) {
@@ -40,6 +40,8 @@ func (uc *NewUserUseCase) Exec(ctx context.Context, data *dto.NewUserReqDTO) (*d
 	if err := uc.subscriptionSvc.CreateSubscriptionData(ctx, userResp.Tx, subReq); err != nil {
 		return nil, err
 	}
+
+	userResp.Tx.Commit(ctx)
 
 	return &dto.NewUserRespDTO{
 		UserUUID: userResp.UUID.String(),

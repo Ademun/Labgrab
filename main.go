@@ -87,7 +87,7 @@ func main() {
 
 	log.Info("Setting up subscription service")
 	subscriptionRepo := subscription.NewRepo(pool)
-	_ = subscription.NewService(subscriptionRepo, log)
+	subscriptionService := subscription.NewService(subscriptionRepo, log)
 	log.Info("Finished setting up subscription service")
 
 	log.Info("Setting up user service")
@@ -103,8 +103,10 @@ func main() {
 	r := mux.NewRouter()
 	log.Info("Setting up user domain routes")
 	authUserUseCase := usecase.NewAuthUserUseCase(authService, userService)
-	userHandler := api_user.NewHandler(authUserUseCase)
+	newUserUseCase := usecase.NewNewUserUseCase(userService, subscriptionService)
+	userHandler := api_user.NewHandler(authUserUseCase, newUserUseCase)
 	r.HandleFunc("/api/user/auth", userHandler.Auth).Methods(http.MethodPost)
+	r.HandleFunc("/api/user/new", userHandler.NewUser).Methods(http.MethodPost)
 	log.Info("Finished setting up user domain routes")
 	if err := http.ListenAndServe(":8080", r); err != nil {
 		log.Fatal("Failed to start http server", "error", err)
