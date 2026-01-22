@@ -20,7 +20,7 @@ create table if not exists user_service.users_details
 create table if not exists user_service.users_contacts
 (
     phone_number text not null,
-    telegram_id  bigint,
+    telegram_id  bigint not null ,
     user_uuid    uuid not null,
     constraint users_contacts_pk primary key (user_uuid),
     constraint users_contacts_fk foreign key (user_uuid) references user_service.users (uuid) match simple on delete cascade on update cascade

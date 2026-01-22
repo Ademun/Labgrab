@@ -17,7 +17,7 @@ type DBUserDetails struct {
 // DBUserContacts user_service.users_contacts
 type DBUserContacts struct {
 	PhoneNumber string    `db:"phone_number"`
-	TelegramID  *int64    `db:"telegram_id"`
+	TelegramID  int       `db:"telegram_id"`
 	UserUUID    uuid.UUID `db:"user_uuid"`
 }
 
@@ -37,7 +37,7 @@ type CreateUserReq struct {
 	Patronymic  *string
 	GroupCode   string
 	PhoneNumber string
-	TelegramID  *int64
+	TelegramID  int
 }
 
 type CreateUserRes struct {
@@ -66,5 +66,5 @@ type UpdateUserDetailsReq struct {
 type UpdateUserContactsReq struct {
 	UserUUID    uuid.UUID
 	PhoneNumber string
-	TelegramID  *int64
+	TelegramID  int
 }

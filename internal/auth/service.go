@@ -24,6 +24,10 @@ type Service struct {
 	logger *zap.SugaredLogger
 }
 
+func NewService(cfg *config.AuthServiceConfig, logger *zap.SugaredLogger) *Service {
+	return &Service{cfg: cfg, logger: logger}
+}
+
 func (s *Service) ValidateTelegramAuthData(ctx context.Context, data *TelegramAuthData) error {
 	ctx, span := tracer.Start(ctx, "auth.service.ValidateTelegramAuthData")
 	defer span.End()
@@ -82,7 +86,7 @@ func (s *Service) buildDataCheckString(data *TelegramAuthData) string {
 	fields["last_name"] = data.LastName
 	fields["username"] = data.Username
 	fields["photo_url"] = data.PhotoURL
-	fields["auth_date"] = strconv.FormatInt(data.AuthDate.Unix(), 10)
+	fields["auth_date"] = strconv.Itoa(data.AuthDate)
 
 	keys := make([]string, 0, len(fields))
 	for k := range fields {
@@ -98,11 +102,12 @@ func (s *Service) buildDataCheckString(data *TelegramAuthData) string {
 	return strings.Join(parts, "\n")
 }
 
-func (s *Service) verifyAuthDate(authDate time.Time) error {
+func (s *Service) verifyAuthDate(authDate int) error {
 	currentDate := time.Now()
-	if currentDate.Sub(authDate).Hours() > 24 {
+	authDateTime := time.Unix(int64(authDate), 0)
+	if currentDate.Sub(authDateTime).Hours() > 24 {
 		return &ErrAuthDateExpired{
-			AuthDate:    authDate,
+			AuthDate:    authDateTime,
 			CurrentDate: currentDate,
 		}
 	}

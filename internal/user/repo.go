@@ -136,3 +136,25 @@ func (r *Repo) UpdateUserContacts(ctx context.Context, contacts *DBUserContacts)
 	_, err = r.pool.Exec(ctx, query, args...)
 	return err
 }
+
+func (r *Repo) ExistsByTelegramID(ctx context.Context, telegramID int) (bool, error) {
+	subquery := r.sq.Select("1").
+		From("user_service.users_contacts").
+		Where(squirrel.Eq{"telegram_id": telegramID}).
+		Limit(1)
+
+	query, args, err := r.sq.Select().
+		Column(squirrel.Expr("EXISTS(?)", subquery)).
+		ToSql()
+	if err != nil {
+		return false, err
+	}
+
+	var exists bool
+	err = r.pool.QueryRow(ctx, query, args...).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
+}

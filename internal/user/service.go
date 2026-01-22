@@ -176,6 +176,23 @@ func (s *Service) UpdateUserContacts(ctx context.Context, req *UpdateUserContact
 	return nil
 }
 
+func (s *Service) ExistsByTelegramID(ctx context.Context, telegramID int) (bool, error) {
+	ctx, span := tracer.Start(ctx, "user.service.ExistsByTelegramID")
+	defer span.End()
+
+	exists, err := s.repo.ExistsByTelegramID(ctx, telegramID)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to check if user exists")
+		s.logger.Errorw("failed to check if user exists by telegram id", "error", err)
+		return false, err
+	}
+
+	s.logger.Infow("user exists by telegram ID check finished successfully", "telegram_id", telegramID)
+
+	return exists, nil
+}
+
 func (s *Service) validateUserDetails(details *DBUserDetails) *ValidationError {
 	valErr := NewValidationError()
 
@@ -209,7 +226,7 @@ func (s *Service) validateUserContacts(contacts *DBUserContacts) *ValidationErro
 		valErr.Add("PhoneNumber", "must be in E.164 format (e.g., +1234567890)")
 	}
 
-	if contacts.TelegramID != nil && !ValidateTelegramID(int(*contacts.TelegramID)) {
+	if !ValidateTelegramID(contacts.TelegramID) {
 		valErr.Add("TelegramID", "must be a positive integer")
 	}
 

@@ -12,5 +12,5 @@ type RedisConfig struct {
 }
 
 type PostgresConfig struct {
-	ConnectionString string `env:"POSTGRES_CONN_STRING"`
+	ConnectionString string `envconfig:"POSTGRES_CONN_STRING"`
 }

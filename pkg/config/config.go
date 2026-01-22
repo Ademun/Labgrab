@@ -1,32 +1,32 @@
 package config
 
 import (
-	"fmt"
+	"os"
 
-	"github.com/spf13/viper"
+	"github.com/kelseyhightower/envconfig"
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
 	InfraConfig               InfraConfig
-	APIClientConfig           DikidiClientConfig        `yaml:"dikidi_client"`
+	APIClientConfig           DikidiClientConfig `yaml:"dikidi_client"`
+	AuthServiceConfig         AuthServiceConfig
 	PollingServiceConfig      PollingServiceConfig      `yaml:"polling_service"`
 	SubscriptionServiceConfig SubscriptionServiceConfig `yaml:"subscription_service"`
 }
 
 func Load() (*Config, error) {
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
-	viper.AutomaticEnv()
-
-	if err := viper.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("error reading config file, %v", err)
+	file, err := os.ReadFile("config.yaml")
+	if err != nil {
+		return nil, err
 	}
 
 	var config Config
-	if err := viper.Unmarshal(&config); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal config, %v", err)
+	if err := yaml.Unmarshal(file, &config); err != nil {
+		return nil, err
 	}
+
+	err = envconfig.Process("", &config)
 
 	return &config, nil
 }

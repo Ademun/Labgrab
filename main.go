@@ -2,16 +2,21 @@ package main
 
 import (
 	"context"
+	api_user "labgrab/internal/application/user"
+	"labgrab/internal/application/user/usecase"
+	"labgrab/internal/auth"
 	"labgrab/internal/lab_polling"
 	"labgrab/internal/shared/api/dikidi"
 	"labgrab/internal/subscription"
 	"labgrab/internal/user"
 	"labgrab/pkg/config"
 	"labgrab/pkg/logger"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 )
@@ -56,7 +61,7 @@ func main() {
 	log.Info("Connected to postgresql server")
 
 	log.Info("Establishing redis connection")
-	cache := redis.NewClient(&redis.Options{
+	_ = redis.NewClient(&redis.Options{
 		Addr:     cfg.InfraConfig.RedisConfig.Address,
 		Password: cfg.InfraConfig.RedisConfig.Password,
 		DB:       cfg.InfraConfig.RedisConfig.DB,
@@ -77,12 +82,12 @@ func main() {
 			err,
 		)
 	}
-	pollingService := lab_polling.NewService(dikidiClient, slotParser, log)
+	_ = lab_polling.NewService(dikidiClient, slotParser, log)
 	log.Info("Finished setting up polling service")
 
 	log.Info("Setting up subscription service")
 	subscriptionRepo := subscription.NewRepo(pool)
-	subscriptionService := subscription.NewService(subscriptionRepo, log)
+	_ = subscription.NewService(subscriptionRepo, log)
 	log.Info("Finished setting up subscription service")
 
 	log.Info("Setting up user service")
@@ -90,4 +95,24 @@ func main() {
 	userService := user.NewService(userRepo, log)
 	log.Info("Finished setting up user service")
 
+	log.Info("Setting up auth service")
+	authService := auth.NewService(&cfg.AuthServiceConfig, log)
+	log.Info("Finished setting up auth service")
+
+	log.Info("Setting up routes")
+	r := mux.NewRouter()
+	log.Info("Setting up user domain routes")
+	authUserUseCase := usecase.NewAuthUserUseCase(authService, userService)
+	userHandler := api_user.NewHandler(authUserUseCase)
+	r.HandleFunc("/api/user/auth", userHandler.Auth).Methods(http.MethodPost)
+	log.Info("Finished setting up user domain routes")
+	if err := http.ListenAndServe(":8080", r); err != nil {
+		log.Fatal("Failed to start http server", "error", err)
+	}
+	log.Info("Finished setting up routes")
+	select {
+	case <-ctx.Done():
+		log.Info("Shutting down server")
+		return
+	}
 }
