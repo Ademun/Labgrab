@@ -1,0 +1,18 @@
+package dto
+
+import "time"
+
+type GetSubscriptionsReqDTO struct {
+	UserUUID         string  `json:"user_uuid"`
+	SubscriptionUUID *string `json:"subscription_uuid"`
+}
+
+type GetSubscriptionsResDTO struct {
+	UUID          string     `json:"uuid"`
+	LabType       string     `json:"lab_type"`
+	LabTopic      string     `json:"lab_topic"`
+	LabNumber     int        `json:"lab_number"`
+	LabAuditorium *int       `json:"lab_auditorium"`
+	CreatedAt     time.Time  `json:"created_at"`
+	ClosedAt      *time.Time `json:"closed_at"`
+}
