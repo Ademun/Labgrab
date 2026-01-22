@@ -204,7 +204,7 @@ func (s *Service) validateUserDetails(details *DBUserDetails) *ValidationError {
 		valErr.Add("Surname", "must contain only alphabetic characters, spaces, hyphens, underscores, and dots")
 	}
 
-	if details.Patronymic != nil && !ValidateAlphabeticString(*details.Patronymic) {
+	if !ValidateAlphabeticString(details.Patronymic) {
 		valErr.Add("Patronymic", "must contain only alphabetic characters, spaces, hyphens, underscores, and dots")
 	}
 

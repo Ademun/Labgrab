@@ -180,11 +180,13 @@ func (r *Repo) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, data *DBUs
 		Values(data.SuccessfulSubscriptions, data.LastSuccessfulSubscription, data.UserUUID).
 		ToSql()
 	if err != nil {
+		tx.Rollback(ctx)
 		return err
 	}
 
 	_, err = tx.Exec(ctx, detailsQuery, detailsArgs...)
 	if err != nil {
+		tx.Rollback(ctx)
 		return err
 	}
 
@@ -193,11 +195,13 @@ func (r *Repo) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, data *DBUs
 		Values(data.BlacklistedTeachers, data.UserUUID).
 		ToSql()
 	if err != nil {
+		tx.Rollback(ctx)
 		return err
 	}
 
 	_, err = tx.Exec(ctx, teacherQuery, teacherArgs...)
 	if err != nil {
+		tx.Rollback(ctx)
 		return err
 	}
 
@@ -207,11 +211,13 @@ func (r *Repo) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, data *DBUs
 			Values(day, lessons, data.UserUUID).
 			ToSql()
 		if err != nil {
+			tx.Rollback(ctx)
 			return err
 		}
 
 		_, err = tx.Exec(ctx, timeQuery, timeArgs...)
 		if err != nil {
+			tx.Rollback(ctx)
 			return err
 		}
 	}
