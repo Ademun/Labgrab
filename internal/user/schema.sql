@@ -10,7 +10,7 @@ create table if not exists user_service.users_details
 (
     name       text not null,
     surname    text not null,
-    patronymic text,
+    patronymic text not null,
     group_code text not null,
     user_uuid  uuid not null,
     constraint users_details_pk primary key (user_uuid),
