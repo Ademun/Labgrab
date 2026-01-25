@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	api_subscription "labgrab/internal/application/subscription"
+	subscription_usecase "labgrab/internal/application/subscription/usecase"
 	api_user "labgrab/internal/application/user"
-	"labgrab/internal/application/user/usecase"
+	user_usecase "labgrab/internal/application/user/usecase"
 	"labgrab/internal/auth"
 	"labgrab/internal/lab_polling"
 	"labgrab/internal/shared/api/dikidi"
@@ -102,12 +104,19 @@ func main() {
 	log.Info("Setting up routes")
 	r := mux.NewRouter()
 	log.Info("Setting up user domain routes")
-	authUserUseCase := usecase.NewAuthUserUseCase(authService, userService)
-	newUserUseCase := usecase.NewNewUserUseCase(userService, subscriptionService)
+	authUserUseCase := user_usecase.NewAuthUserUseCase(authService, userService)
+	newUserUseCase := user_usecase.NewNewUserUseCase(userService, subscriptionService)
 	userHandler := api_user.NewHandler(authUserUseCase, newUserUseCase)
 	r.HandleFunc("/api/user/auth", userHandler.Auth).Methods(http.MethodPost)
 	r.HandleFunc("/api/user/new", userHandler.NewUser).Methods(http.MethodPost)
 	log.Info("Finished setting up user domain routes")
+	log.Info("Setting up subscription domain routes")
+	getSubscriptionsUseCase := subscription_usecase.NewGetSubscriptionsUseCase(subscriptionService, log)
+	newSubscriptionUseCase := subscription_usecase.NewNewSubscriptionUseCase(subscriptionService, log)
+	editSubscriptionUseCase := subscription_usecase.NewEditSubscriptionUseCase(subscriptionService, log)
+	subscriptionHandler := api_subscription.NewHandler(getSubscriptionsUseCase, newSubscriptionUseCase, editSubscriptionUseCase, log)
+	subscriptionHandler.RegisterRoutes(r)
+	log.Info("Finished setting up subscription domain routes")
 	if err := http.ListenAndServe(":8080", r); err != nil {
 		log.Fatal("Failed to start http server", "error", err)
 	}

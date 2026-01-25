@@ -25,7 +25,7 @@ func NewService(repo *Repo, logger *zap.SugaredLogger) *Service {
 	return &Service{repo: repo, logger: logger}
 }
 
-func (s *Service) CreateSubscription(ctx context.Context, req *CreateSubscriptionReq) error {
+func (s *Service) CreateSubscription(ctx context.Context, req *CreateSubscriptionReq) (uuid.UUID, error) {
 	ctx, span := tracer.Start(ctx, "subscription.service.CreateSubscription")
 	defer span.End()
 
@@ -36,23 +36,20 @@ func (s *Service) CreateSubscription(ctx context.Context, req *CreateSubscriptio
 	validationSpan.End()
 
 	if validationErr != nil {
-		return s.handleValidationError(validationErr, validationSpan, span, req.UserUUID, "subscription")
+		return uuid.Nil, s.handleValidationError(validationErr, validationSpan, span, req.UserUUID, "subscription")
 	}
-
-	subscriptionUUID := uuid.New()
 
 	dbSub := &DBSubscription{
-		SubscriptionUUID: subscriptionUUID,
-		LabType:          req.LabType,
-		LabTopic:         req.LabTopic,
-		LabNumber:        req.LabNumber,
-		LabAuditorium:    req.LabAuditorium,
-		CreatedAt:        req.CreatedAt,
-		ClosedAt:         nil,
-		UserUUID:         req.UserUUID,
+		LabType:       req.LabType,
+		LabTopic:      req.LabTopic,
+		LabNumber:     req.LabNumber,
+		LabAuditorium: req.LabAuditorium,
+		CreatedAt:     req.CreatedAt,
+		ClosedAt:      nil,
+		UserUUID:      req.UserUUID,
 	}
 
-	err := s.repo.CreateSubscription(ctx, dbSub)
+	subscriptionUUID, err := s.repo.CreateSubscription(ctx, dbSub)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to create subscription")
@@ -60,7 +57,7 @@ func (s *Service) CreateSubscription(ctx context.Context, req *CreateSubscriptio
 			"user_uuid", req.UserUUID,
 			"subscription_uuid", subscriptionUUID,
 			"error", err)
-		return fmt.Errorf("%w: %v", ErrCreateSubscription, err)
+		return subscriptionUUID, fmt.Errorf("%w: %v", ErrCreateSubscription, err)
 	}
 
 	span.SetAttributes(attribute.String("subscription.uuid", subscriptionUUID.String()))
@@ -71,7 +68,7 @@ func (s *Service) CreateSubscription(ctx context.Context, req *CreateSubscriptio
 		"lab_topic", req.LabTopic,
 		"lab_number", req.LabNumber)
 
-	return nil
+	return subscriptionUUID, nil
 }
 
 func (s *Service) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, req *CreateSubscriptionDataReq) error {

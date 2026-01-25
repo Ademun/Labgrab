@@ -47,7 +47,8 @@ func (uc *NewSubscriptionUseCase) Exec(ctx context.Context, data *dto.NewSubscri
 		CreatedAt:     data.CreatedAt,
 	}
 
-	if err := uc.subscriptionSvc.CreateSubscription(ctx, req); err != nil {
+	subscriptionUUID, err := uc.subscriptionSvc.CreateSubscription(ctx, req)
+	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to create subscription")
 		uc.logger.Errorw("failed to create subscription",
@@ -60,6 +61,6 @@ func (uc *NewSubscriptionUseCase) Exec(ctx context.Context, data *dto.NewSubscri
 		"user_uuid", userUUID)
 
 	return &dto.NewSubscriptionResDTO{
-		UUID: userUUID.String(),
+		UUID: subscriptionUUID.String(),
 	}, nil
 }

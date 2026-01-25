@@ -21,17 +21,18 @@ func NewRepo(pool *pgxpool.Pool) *Repo {
 	return &Repo{pool: pool, sq: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)}
 }
 
-func (r *Repo) CreateSubscription(ctx context.Context, sub *DBSubscription) error {
+func (r *Repo) CreateSubscription(ctx context.Context, sub *DBSubscription) (uuid.UUID, error) {
+	subscriptionUUID, err := uuid.NewUUID()
 	query, args, err := r.sq.Insert("subscription_service.subscriptions").
 		Columns("subscription_uuid", "lab_type", "lab_topic", "lab_number", "lab_auditorium", "created_at", "user_uuid").
-		Values(sub.SubscriptionUUID, sub.LabType, sub.LabTopic, sub.LabNumber, sub.LabAuditorium, sub.CreatedAt, sub.UserUUID).
+		Values(subscriptionUUID, sub.LabType, sub.LabTopic, sub.LabNumber, sub.LabAuditorium, sub.CreatedAt, sub.UserUUID).
 		ToSql()
 	if err != nil {
-		return err
+		return subscriptionUUID, err
 	}
 
 	_, err = r.pool.Exec(ctx, query, args...)
-	return err
+	return subscriptionUUID, err
 }
 
 func (r *Repo) GetSubscription(ctx context.Context, subscriptionUUID uuid.UUID) (*DBSubscription, error) {
