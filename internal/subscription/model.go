@@ -1,6 +1,7 @@
 package subscription
 
 import (
+	"labgrab/internal/shared/errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -100,6 +101,20 @@ type CreateSubscriptionReq struct {
 	CreatedAt     time.Time
 }
 
+func (r CreateSubscriptionReq) Validate() error {
+	err := errors.NewValidationError()
+	if r.LabType == LabTypePerformance && r.LabAuditorium == nil {
+		err.Add("lab_type & lab_auditorium", "If lab type is equal to 'Performance' lab auditorium should be provided")
+	}
+	if r.LabType == LabTypeDefence && r.LabAuditorium != nil {
+		err.Add("lab_type & lab_auditorium", "If lab type is equal to 'Defence' lab auditorium should not be provided")
+	}
+	if err.HasErrors() {
+		return err
+	}
+	return nil
+}
+
 type CreateSubscriptionDataReq struct {
 	UserUUID            uuid.UUID
 	TimePreferences     map[DayOfWeek][]int
@@ -113,6 +128,20 @@ type UpdateSubscriptionDataReq struct {
 	LabTopic         LabTopic
 	LabNumber        int
 	LabAuditorium    *int
+}
+
+func (r UpdateSubscriptionDataReq) Validate() error {
+	err := errors.NewValidationError()
+	if r.LabType == LabTypePerformance && r.LabAuditorium == nil {
+		err.Add("lab_type & lab_auditorium", "If lab type is equal to 'Performance' lab auditorium should be provided")
+	}
+	if r.LabType == LabTypeDefence && r.LabAuditorium != nil {
+		err.Add("lab_type & lab_auditorium", "If lab type is equal to 'Defence' lab auditorium should not be provided")
+	}
+	if err.HasErrors() {
+		return err
+	}
+	return nil
 }
 
 type GetMatchingSubscriptionsReq struct {

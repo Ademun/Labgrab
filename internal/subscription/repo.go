@@ -23,6 +23,13 @@ func NewRepo(pool *pgxpool.Pool) *Repo {
 
 func (r *Repo) CreateSubscription(ctx context.Context, sub *DBSubscription) (uuid.UUID, error) {
 	subscriptionUUID, err := uuid.NewUUID()
+	if err != nil {
+		return uuid.Nil, &errors.ErrDBProcedure{
+			Procedure: "CreateSubscription",
+			Step:      "UUID generation",
+			Err:       err,
+		}
+	}
 	query, args, err := r.sq.Insert("subscription_service.subscriptions").
 		Columns("subscription_uuid", "lab_type", "lab_topic", "lab_number", "lab_auditorium", "created_at", "user_uuid").
 		Values(subscriptionUUID, sub.LabType, sub.LabTopic, sub.LabNumber, sub.LabAuditorium, sub.CreatedAt, sub.UserUUID).
@@ -440,6 +447,7 @@ ORDER BY
 			return nil, &errors.ErrDBProcedure{
 				Procedure: "GetMatchingSubscriptionsBySlot",
 				Step:      "Row scanning",
+				Err:       err,
 			}
 		}
 

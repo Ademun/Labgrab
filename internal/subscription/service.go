@@ -27,6 +27,12 @@ func (s *Service) CreateSubscription(ctx context.Context, req *CreateSubscriptio
 	ctx, span := tracer.Start(ctx, "subscription.service.CreateSubscription")
 	defer span.End()
 
+	if err := req.Validate(); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return uuid.Nil, err
+	}
+
 	dbSub := &DBSubscription{
 		LabType:       req.LabType,
 		LabTopic:      req.LabTopic,
@@ -141,6 +147,12 @@ func (s *Service) GetSubscriptions(ctx context.Context, userUUID uuid.UUID) ([]G
 func (s *Service) UpdateSubscription(ctx context.Context, req *UpdateSubscriptionDataReq) error {
 	ctx, span := tracer.Start(ctx, "subscription.service.UpdateSubscription")
 	defer span.End()
+
+	if err := req.Validate(); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
 
 	subscription := &DBSubscription{
 		SubscriptionUUID: req.SubscriptionUUID,
