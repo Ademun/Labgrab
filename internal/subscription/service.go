@@ -14,12 +14,13 @@ import (
 var tracer = otel.Tracer("subscription-service")
 
 type Service struct {
-	repo   *Repo
-	logger *zap.SugaredLogger
+	repo         *Repo
+	deduplicator *Deduplicator
+	logger       *zap.SugaredLogger
 }
 
-func NewService(repo *Repo, logger *zap.SugaredLogger) *Service {
-	return &Service{repo: repo, logger: logger}
+func NewService(repo *Repo, deduplicator *Deduplicator, logger *zap.SugaredLogger) *Service {
+	return &Service{repo: repo, deduplicator: deduplicator, logger: logger}
 }
 
 func (s *Service) CreateSubscription(ctx context.Context, req *CreateSubscriptionReq) (uuid.UUID, error) {
@@ -246,8 +247,20 @@ func (s *Service) GetMatchingSubscriptions(ctx context.Context, req *GetMatching
 		return nil, err
 	}
 
-	result := make([]GetMatchingSubscriptionsRes, len(matches))
-	for i, match := range matches {
+	relevantMatches, err := s.deduplicator.Deduplicate(ctx, req, matches)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "GetMatchingSubscriptions",
+			Step:      "Deduplication",
+			Err:       err,
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
+	result := make([]GetMatchingSubscriptionsRes, len(relevantMatches))
+	for i, match := range relevantMatches {
 		result[i] = GetMatchingSubscriptionsRes{
 			UserUUID:                   match.UserUUID,
 			SubscriptionUUID:           match.SubscriptionUUID,
