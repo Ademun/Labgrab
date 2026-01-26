@@ -30,31 +30,24 @@ func (uc *EditSubscriptionUseCase) Exec(ctx context.Context, data *dto.EditSubsc
 
 	userUUID, err := uuid.Parse(data.UserUUID)
 	if err != nil {
+		err = fmt.Errorf("invalid user uuid: %w", err)
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "invalid user UUID")
-		uc.logger.Errorw("failed to parse user UUID",
-			"user_uuid", data.UserUUID,
-			"error", err)
-		return nil, fmt.Errorf("invalid user UUID: %w", err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
 
 	subscriptionUUID, err := uuid.Parse(data.SubscriptionUUID)
 	if err != nil {
+		err = fmt.Errorf("invalid subscription uuid: %w", err)
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "invalid subscription UUID")
-		uc.logger.Errorw("failed to parse subscription UUID",
-			"subscription_uuid", data.SubscriptionUUID,
-			"error", err)
-		return nil, fmt.Errorf("invalid subscription UUID: %w", err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
 
 	existingSub, err := uc.subscriptionSvc.GetSubscription(ctx, subscriptionUUID)
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to get existing subscription")
-		uc.logger.Errorw("failed to get existing subscription",
-			"subscription_uuid", subscriptionUUID,
-			"error", err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 
@@ -89,15 +82,9 @@ func (uc *EditSubscriptionUseCase) Exec(ctx context.Context, data *dto.EditSubsc
 
 	if err := uc.subscriptionSvc.UpdateSubscription(ctx, req); err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to update subscription")
-		uc.logger.Errorw("failed to update subscription",
-			"subscription_uuid", subscriptionUUID,
-			"error", err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
-
-	uc.logger.Infow("subscription updated successfully",
-		"subscription_uuid", subscriptionUUID)
 
 	return &dto.EditSubscriptionResDTO{
 		UUID: subscriptionUUID.String(),

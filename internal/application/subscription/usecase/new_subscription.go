@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"fmt"
-
 	"labgrab/internal/application/subscription/dto"
 	"labgrab/internal/subscription"
 
@@ -24,18 +23,16 @@ func NewNewSubscriptionUseCase(subscriptionSvc *subscription.Service, logger *za
 	}
 }
 
-func (uc *NewSubscriptionUseCase) Exec(ctx context.Context, data *dto.NewSubscriptionReqDTO) (*dto.NewSubscriptionResDTO, error) {
+func (uc *NewSubscriptionUseCase) Exec(ctx context.Context, data *dto.NewSubscriptionReqDTO) (uuid.UUID, error) {
 	ctx, span := tracer.Start(ctx, "subscription.usecase.NewSubscription")
 	defer span.End()
 
 	userUUID, err := uuid.Parse(data.UserUUID)
 	if err != nil {
+		err = fmt.Errorf("invalid user uuid: %w", err)
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "invalid user UUID")
-		uc.logger.Errorw("failed to parse user UUID",
-			"user_uuid", data.UserUUID,
-			"error", err)
-		return nil, fmt.Errorf("invalid user UUID: %w", err)
+		span.SetStatus(codes.Error, err.Error())
+		return uuid.Nil, err
 	}
 
 	req := &subscription.CreateSubscriptionReq{
@@ -50,17 +47,9 @@ func (uc *NewSubscriptionUseCase) Exec(ctx context.Context, data *dto.NewSubscri
 	subscriptionUUID, err := uc.subscriptionSvc.CreateSubscription(ctx, req)
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to create subscription")
-		uc.logger.Errorw("failed to create subscription",
-			"user_uuid", userUUID,
-			"error", err)
-		return nil, err
+		span.SetStatus(codes.Error, err.Error())
+		return uuid.Nil, err
 	}
 
-	uc.logger.Infow("subscription created successfully",
-		"user_uuid", userUUID)
-
-	return &dto.NewSubscriptionResDTO{
-		UUID: subscriptionUUID.String(),
-	}, nil
+	return subscriptionUUID, nil
 }
