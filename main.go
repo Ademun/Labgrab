@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	api_subscription "labgrab/internal/application/subscription"
-	subscription_usecase "labgrab/internal/application/subscription/usecase"
 	api_user "labgrab/internal/application/user"
 	user_usecase "labgrab/internal/application/user/usecase"
 	"labgrab/internal/auth"
@@ -112,10 +111,7 @@ func main() {
 	r.HandleFunc("/api/user/new", userHandler.NewUser).Methods(http.MethodPost)
 	log.Info("Finished setting up user domain routes")
 	log.Info("Setting up subscription domain routes")
-	getSubscriptionsUseCase := subscription_usecase.NewGetSubscriptionsUseCase(subscriptionService, log)
-	newSubscriptionUseCase := subscription_usecase.NewNewSubscriptionUseCase(subscriptionService, log)
-	editSubscriptionUseCase := subscription_usecase.NewEditSubscriptionUseCase(subscriptionService, log)
-	subscriptionHandler := api_subscription.NewHandler(getSubscriptionsUseCase, newSubscriptionUseCase, editSubscriptionUseCase, log)
+	subscriptionHandler := api_subscription.NewHandler(subscriptionService, log)
 	subscriptionHandler.RegisterRoutes(r)
 	log.Info("Finished setting up subscription domain routes")
 	if err := http.ListenAndServe(":8080", r); err != nil {

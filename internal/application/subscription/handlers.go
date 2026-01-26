@@ -3,6 +3,7 @@ package subscription
 import (
 	"encoding/json"
 	"fmt"
+	"labgrab/internal/subscription"
 	"net/http"
 
 	"labgrab/internal/application/subscription/dto"
@@ -23,16 +24,13 @@ type Handler struct {
 	logger           *zap.SugaredLogger
 }
 
-func NewHandler(
-	getSubscriptions *usecase.GetSubscriptionsUseCase,
-	newSubscription *usecase.NewSubscriptionUseCase,
-	editSubscription *usecase.EditSubscriptionUseCase,
+func NewHandler(subscriptionSvc *subscription.Service,
 	logger *zap.SugaredLogger,
 ) *Handler {
 	return &Handler{
-		getSubscriptions: getSubscriptions,
-		newSubscription:  newSubscription,
-		editSubscription: editSubscription,
+		getSubscriptions: usecase.NewGetSubscriptionsUseCase(subscriptionSvc, logger),
+		newSubscription:  usecase.NewNewSubscriptionUseCase(subscriptionSvc, logger),
+		editSubscription: usecase.NewEditSubscriptionUseCase(subscriptionSvc, logger),
 		logger:           logger,
 	}
 }
