@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"labgrab/internal/application/subscription/dto"
 	"labgrab/internal/subscription"
+	"time"
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/codes"
@@ -41,7 +42,7 @@ func (uc *NewSubscriptionUseCase) Exec(ctx context.Context, data *dto.NewSubscri
 		LabTopic:      subscription.LabTopic(data.LabTopic),
 		LabNumber:     data.LabNumber,
 		LabAuditorium: data.LabAuditorium,
-		CreatedAt:     data.CreatedAt,
+		CreatedAt:     time.Unix(data.CreatedAt, 0),
 	}
 
 	subscriptionUUID, err := uc.subscriptionSvc.CreateSubscription(ctx, req)

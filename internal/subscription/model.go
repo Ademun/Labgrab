@@ -19,6 +19,8 @@ const (
 	LabTopicVirtual     LabTopic = "Virtual"
 	LabTopicElectricity LabTopic = "Electricity"
 	LabTopicMechanics   LabTopic = "Mechanics"
+	LabTopicOptics      LabTopic = "Optics"
+	LabTopicsRigidBody  LabTopic = "RigidBody"
 )
 
 type DayOfWeek string

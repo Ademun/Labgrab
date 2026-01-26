@@ -1,7 +1,7 @@
 create schema if not exists subscription_service;
 
 create type lab_type as enum ('Defence', 'Performance');
-create type lab_topic as enum ('Virtual', 'Electricity', 'Mechanics');
+create type lab_topic as enum ('Virtual', 'Electricity', 'Mechanics', 'Optics', 'Rigid Body');
 
 create table if not exists subscription_service.subscriptions
 (

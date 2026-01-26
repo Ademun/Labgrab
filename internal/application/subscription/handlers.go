@@ -150,7 +150,7 @@ func (h *Handler) EditSubscription(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/subscriptions/{user_uuid}", h.GetSubscriptions).Methods(http.MethodGet)
-	r.HandleFunc("/api/subscriptions/{user_uuid}/new", h.NewSubscription).Methods(http.MethodPost)
+	r.HandleFunc("/api/subscriptions/{user_uuid}", h.NewSubscription).Methods(http.MethodPost)
 	r.HandleFunc("/api/subscriptions/{user_uuid}/{id}", h.GetSubscriptions).Methods(http.MethodGet)
 	r.HandleFunc("/api/subscriptions/{user_uuid}/{id}", h.EditSubscription).Methods(http.MethodPatch)
 }
