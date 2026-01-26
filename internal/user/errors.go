@@ -1,15 +1,8 @@
 package user
 
 import (
-	"errors"
 	"fmt"
 	"strings"
-)
-
-var (
-	ErrUserNotFound = errors.New("user not found")
-	ErrCreateUser   = errors.New("failed to create user")
-	ErrUpdateUser   = errors.New("failed to update user")
 )
 
 type ValidationError struct {

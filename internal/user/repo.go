@@ -2,7 +2,7 @@ package user
 
 import (
 	"context"
-	"labgrab/internal/shared/errors"
+	repo_errors "labgrab/internal/shared/errors"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
@@ -23,7 +23,7 @@ func (r *Repo) CreateUser(ctx context.Context, details *DBUserDetails, contacts 
 	userUUID := uuid.New()
 	query, args, err := r.sq.Insert("user_service.users").Columns("uuid").Values(userUUID).ToSql()
 	if err != nil {
-		return userUUID, nil, &errors.ErrDBProcedure{
+		return userUUID, nil, &repo_errors.ErrDBProcedure{
 			Procedure: "CreateUser",
 			Step:      "Query setup",
 			Err:       err,
@@ -32,7 +32,7 @@ func (r *Repo) CreateUser(ctx context.Context, details *DBUserDetails, contacts 
 
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return userUUID, nil, &errors.ErrDBProcedure{
+		return userUUID, nil, &repo_errors.ErrDBProcedure{
 			Procedure: "CreateUser",
 			Step:      "Transaction setup",
 			Err:       err,
@@ -42,7 +42,7 @@ func (r *Repo) CreateUser(ctx context.Context, details *DBUserDetails, contacts 
 	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
 		tx.Rollback(ctx)
-		return userUUID, nil, &errors.ErrDBProcedure{
+		return userUUID, nil, &repo_errors.ErrDBProcedure{
 			Procedure: "CreateUser",
 			Step:      "Query execution",
 			Err:       err,
@@ -71,7 +71,7 @@ func (r *Repo) createUserDetails(ctx context.Context, details *DBUserDetails, tx
 		Values(details.Name, details.Surname, details.Patronymic, details.GroupCode, details.UserUUID).
 		ToSql()
 	if err != nil {
-		return &errors.ErrDBProcedure{
+		return &repo_errors.ErrDBProcedure{
 			Procedure: "CreateUserDetails",
 			Step:      "Query setup",
 			Err:       err,
@@ -79,7 +79,7 @@ func (r *Repo) createUserDetails(ctx context.Context, details *DBUserDetails, tx
 	}
 	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
-		return &errors.ErrDBProcedure{
+		return &repo_errors.ErrDBProcedure{
 			Procedure: "CreateUserDetails",
 			Step:      "Query execution",
 			Err:       err,
@@ -94,7 +94,7 @@ func (r *Repo) createUserContacts(ctx context.Context, contacts *DBUserContacts,
 		Values(contacts.PhoneNumber, contacts.TelegramID, contacts.UserUUID).
 		ToSql()
 	if err != nil {
-		return &errors.ErrDBProcedure{
+		return &repo_errors.ErrDBProcedure{
 			Procedure: "CreateUserContacts",
 			Step:      "Query setup",
 			Err:       err,
@@ -102,7 +102,7 @@ func (r *Repo) createUserContacts(ctx context.Context, contacts *DBUserContacts,
 	}
 	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
-		return &errors.ErrDBProcedure{
+		return &repo_errors.ErrDBProcedure{
 			Procedure: "CreateUserContacts",
 			Step:      "Query execution",
 			Err:       err,
@@ -126,7 +126,7 @@ func (r *Repo) GetUserInfo(ctx context.Context, userUUID uuid.UUID) (*DBUserInfo
 		Where(squirrel.Eq{"ud.user_uuid": userUUID}).
 		ToSql()
 	if err != nil {
-		return nil, &errors.ErrDBProcedure{
+		return nil, &repo_errors.ErrDBProcedure{
 			Procedure: "GetUserInfo",
 			Step:      "Query setup",
 			Err:       err,
@@ -144,7 +144,7 @@ func (r *Repo) GetUserInfo(ctx context.Context, userUUID uuid.UUID) (*DBUserInfo
 	)
 
 	if err != nil {
-		return nil, &errors.ErrDBProcedure{
+		return nil, &repo_errors.ErrDBProcedure{
 			Procedure: "GetUserInfo",
 			Step:      "Row scanning",
 			Err:       err,
@@ -163,7 +163,7 @@ func (r *Repo) UpdateUserDetails(ctx context.Context, details *DBUserDetails) er
 		Where(squirrel.Eq{"user_uuid": details.UserUUID}).
 		ToSql()
 	if err != nil {
-		return &errors.ErrDBProcedure{
+		return &repo_errors.ErrDBProcedure{
 			Procedure: "UpdateUserDetails",
 			Step:      "Query setup",
 			Err:       err,
@@ -172,7 +172,7 @@ func (r *Repo) UpdateUserDetails(ctx context.Context, details *DBUserDetails) er
 
 	_, err = r.pool.Exec(ctx, query, args...)
 	if err != nil {
-		return &errors.ErrDBProcedure{
+		return &repo_errors.ErrDBProcedure{
 			Procedure: "UpdateUserDetails",
 			Step:      "Query execution",
 			Err:       err,
@@ -188,7 +188,7 @@ func (r *Repo) UpdateUserContacts(ctx context.Context, contacts *DBUserContacts)
 		Where(squirrel.Eq{"user_uuid": contacts.UserUUID}).
 		ToSql()
 	if err != nil {
-		return &errors.ErrDBProcedure{
+		return &repo_errors.ErrDBProcedure{
 			Procedure: "UpdateUserContacts",
 			Step:      "Query setup",
 			Err:       err,
@@ -197,7 +197,7 @@ func (r *Repo) UpdateUserContacts(ctx context.Context, contacts *DBUserContacts)
 
 	_, err = r.pool.Exec(ctx, query, args...)
 	if err != nil {
-		return &errors.ErrDBProcedure{
+		return &repo_errors.ErrDBProcedure{
 			Procedure: "UpdateUserContacts",
 			Step:      "Query execution",
 			Err:       err,
@@ -216,7 +216,7 @@ func (r *Repo) ExistsByTelegramID(ctx context.Context, telegramID int) (bool, er
 		Column(squirrel.Expr("EXISTS(?)", subquery)).
 		ToSql()
 	if err != nil {
-		return false, &errors.ErrDBProcedure{
+		return false, &repo_errors.ErrDBProcedure{
 			Procedure: "ExistsByTelegramID",
 			Step:      "Query setup",
 			Err:       err,
@@ -226,7 +226,7 @@ func (r *Repo) ExistsByTelegramID(ctx context.Context, telegramID int) (bool, er
 	var exists bool
 	err = r.pool.QueryRow(ctx, query, args...).Scan(&exists)
 	if err != nil {
-		return false, &errors.ErrDBProcedure{
+		return false, &repo_errors.ErrDBProcedure{
 			Procedure: "ExistsByTelegramID",
 			Step:      "Row scanning",
 			Err:       err,

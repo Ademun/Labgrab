@@ -9,5 +9,5 @@ type ErrDBProcedure struct {
 }
 
 func (e *ErrDBProcedure) Error() string {
-	return fmt.Sprintf("%s: %s: %s", e.Procedure, e.Step, e.Err)
+	return fmt.Sprintf("Repository error. %s: %s: %s", e.Procedure, e.Step, e.Err)
 }
