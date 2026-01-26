@@ -3,7 +3,7 @@ package subscription
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"labgrab/internal/shared/errors"
 	"time"
 
 	"github.com/Masterminds/squirrel"
@@ -28,10 +28,22 @@ func (r *Repo) CreateSubscription(ctx context.Context, sub *DBSubscription) (uui
 		Values(subscriptionUUID, sub.LabType, sub.LabTopic, sub.LabNumber, sub.LabAuditorium, sub.CreatedAt, sub.UserUUID).
 		ToSql()
 	if err != nil {
-		return subscriptionUUID, err
+		return uuid.Nil, &errors.ErrDBProcedure{
+			Procedure: "CreateSubscription",
+			Step:      "Query setup",
+			Err:       err,
+		}
 	}
 
 	_, err = r.pool.Exec(ctx, query, args...)
+	if err != nil {
+		return uuid.Nil, &errors.ErrDBProcedure{
+			Procedure: "CreateSubscription",
+			Step:      "Query execution",
+			Err:       err,
+		}
+	}
+
 	return subscriptionUUID, err
 }
 
@@ -50,7 +62,12 @@ func (r *Repo) GetSubscription(ctx context.Context, subscriptionUUID uuid.UUID) 
 		Where(squirrel.Eq{"subscription_uuid": subscriptionUUID}).
 		ToSql()
 	if err != nil {
-		return nil, err
+		return nil,
+			&errors.ErrDBProcedure{
+				Procedure: "GetSubscription",
+				Step:      "Query setup",
+				Err:       err,
+			}
 	}
 
 	var sub DBSubscription
@@ -65,7 +82,11 @@ func (r *Repo) GetSubscription(ctx context.Context, subscriptionUUID uuid.UUID) 
 		&sub.UserUUID,
 	)
 	if err != nil {
-		return nil, err
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "GetSubscription",
+			Step:      "Query execution",
+			Err:       err,
+		}
 	}
 
 	return &sub, nil
@@ -86,12 +107,20 @@ func (r *Repo) GetSubscriptions(ctx context.Context, userUUID uuid.UUID) ([]DBSu
 		Where(squirrel.Eq{"user_uuid": userUUID}).
 		ToSql()
 	if err != nil {
-		return nil, err
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "GetSubscriptions",
+			Step:      "Query setup",
+			Err:       err,
+		}
 	}
 
 	rows, err := r.pool.Query(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "GetSubscriptions",
+			Step:      "Query execution",
+			Err:       err,
+		}
 	}
 	defer rows.Close()
 
@@ -109,13 +138,21 @@ func (r *Repo) GetSubscriptions(ctx context.Context, userUUID uuid.UUID) ([]DBSu
 			&sub.UserUUID,
 		)
 		if err != nil {
-			return nil, err
+			return nil, &errors.ErrDBProcedure{
+				Procedure: "GetSubscriptions",
+				Step:      "Row scanning",
+				Err:       err,
+			}
 		}
 		subscriptions = append(subscriptions, sub)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, err
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "GetSubscriptions",
+			Step:      "Row error check",
+			Err:       err,
+		}
 	}
 
 	return subscriptions, nil
@@ -130,11 +167,22 @@ func (r *Repo) UpdateSubscription(ctx context.Context, sub *DBSubscription) erro
 		Where(squirrel.Eq{"subscription_uuid": sub.SubscriptionUUID}).
 		ToSql()
 	if err != nil {
-		return err
+		return &errors.ErrDBProcedure{
+			Procedure: "UpdateSubscription",
+			Step:      "Query setup",
+			Err:       err,
+		}
 	}
 
 	_, err = r.pool.Exec(ctx, query, args...)
-	return err
+	if err != nil {
+		return &errors.ErrDBProcedure{
+			Procedure: "UpdateSubscription",
+			Step:      "Query execution",
+			Err:       err,
+		}
+	}
+	return nil
 }
 
 func (r *Repo) CloseSubscription(ctx context.Context, subscriptionUUID uuid.UUID) error {
@@ -143,11 +191,22 @@ func (r *Repo) CloseSubscription(ctx context.Context, subscriptionUUID uuid.UUID
 		Where(squirrel.Eq{"subscription_uuid": subscriptionUUID}).
 		ToSql()
 	if err != nil {
-		return err
+		return &errors.ErrDBProcedure{
+			Procedure: "CloseSubscription",
+			Step:      "Query setup",
+			Err:       err,
+		}
 	}
 
 	_, err = r.pool.Exec(ctx, query, args...)
-	return err
+	if err != nil {
+		return &errors.ErrDBProcedure{
+			Procedure: "CloseSubscription",
+			Step:      "Query execution",
+			Err:       err,
+		}
+	}
+	return nil
 }
 
 func (r *Repo) RestoreSubscription(ctx context.Context, subscriptionUUID uuid.UUID) error {
@@ -156,11 +215,22 @@ func (r *Repo) RestoreSubscription(ctx context.Context, subscriptionUUID uuid.UU
 		Where(squirrel.Eq{"subscription_uuid": subscriptionUUID}).
 		ToSql()
 	if err != nil {
-		return err
+		return &errors.ErrDBProcedure{
+			Procedure: "RestoreSubscription",
+			Step:      "Query setup",
+			Err:       err,
+		}
 	}
 
 	_, err = r.pool.Exec(ctx, query, args...)
-	return err
+	if err != nil {
+		return &errors.ErrDBProcedure{
+			Procedure: "RestoreSubscription",
+			Step:      "Query execution",
+			Err:       err,
+		}
+	}
+	return nil
 }
 
 func (r *Repo) DeleteSubscription(ctx context.Context, subscriptionUUID uuid.UUID) error {
@@ -168,11 +238,22 @@ func (r *Repo) DeleteSubscription(ctx context.Context, subscriptionUUID uuid.UUI
 		Where(squirrel.Eq{"subscription_uuid": subscriptionUUID}).
 		ToSql()
 	if err != nil {
-		return err
+		return &errors.ErrDBProcedure{
+			Procedure: "DeleteSubscription",
+			Step:      "Query setup",
+			Err:       err,
+		}
 	}
 
 	_, err = r.pool.Exec(ctx, query, args...)
-	return err
+	if err != nil {
+		return &errors.ErrDBProcedure{
+			Procedure: "DeleteSubscription",
+			Step:      "Query execution",
+			Err:       err,
+		}
+	}
+	return nil
 }
 
 func (r *Repo) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, data *DBUserSubscriptionData) error {
@@ -182,13 +263,21 @@ func (r *Repo) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, data *DBUs
 		ToSql()
 	if err != nil {
 		tx.Rollback(ctx)
-		return err
+		return &errors.ErrDBProcedure{
+			Procedure: "CreateSubscriptionData",
+			Step:      "Query setup",
+			Err:       err,
+		}
 	}
 
 	_, err = tx.Exec(ctx, detailsQuery, detailsArgs...)
 	if err != nil {
 		tx.Rollback(ctx)
-		return err
+		return &errors.ErrDBProcedure{
+			Procedure: "CreateSubscriptionData",
+			Step:      "Query execution",
+			Err:       err,
+		}
 	}
 
 	teacherQuery, teacherArgs, err := r.sq.Insert("subscription_service.teacher_preferences").
@@ -197,13 +286,21 @@ func (r *Repo) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, data *DBUs
 		ToSql()
 	if err != nil {
 		tx.Rollback(ctx)
-		return err
+		return &errors.ErrDBProcedure{
+			Procedure: "CreateSubscriptionData",
+			Step:      "Query setup",
+			Err:       err,
+		}
 	}
 
 	_, err = tx.Exec(ctx, teacherQuery, teacherArgs...)
 	if err != nil {
 		tx.Rollback(ctx)
-		return err
+		return &errors.ErrDBProcedure{
+			Procedure: "CreateSubscriptionData",
+			Step:      "Query execution",
+			Err:       err,
+		}
 	}
 
 	for day, lessons := range data.TimePreferences {
@@ -213,13 +310,21 @@ func (r *Repo) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, data *DBUs
 			ToSql()
 		if err != nil {
 			tx.Rollback(ctx)
-			return err
+			return &errors.ErrDBProcedure{
+				Procedure: "CreateSubscriptionData",
+				Step:      "Query setup",
+				Err:       err,
+			}
 		}
 
 		_, err = tx.Exec(ctx, timeQuery, timeArgs...)
 		if err != nil {
 			tx.Rollback(ctx)
-			return err
+			return &errors.ErrDBProcedure{
+				Procedure: "CreateSubscriptionData",
+				Step:      "Query execution",
+				Err:       err,
+			}
 		}
 	}
 
@@ -229,7 +334,11 @@ func (r *Repo) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, data *DBUs
 func (r *Repo) GetMatchingSubscriptionsBySlot(ctx context.Context, search *DBSubscriptionSearch) ([]DBSubscriptionMatchResult, error) {
 	availableSlotsJSON, err := convertAvailableSlotsToJSON(search.AvailableSlots)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert available slots to JSON: %w", err)
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "GetMatchingSubscriptionsBySlot",
+			Step:      "JSON conversion",
+			Err:       err,
+		}
 	}
 
 	query := `
@@ -301,7 +410,11 @@ ORDER BY
 		availableSlotsJSON,
 	)
 	if err != nil {
-		return nil, err
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "GetMatchingSubscriptionsBySlot",
+			Step:      "Query execution",
+			Err:       err,
+		}
 	}
 	defer rows.Close()
 
@@ -324,12 +437,19 @@ ORDER BY
 			&matchingTimeslotsJSON,
 		)
 		if err != nil {
-			return nil, err
+			return nil, &errors.ErrDBProcedure{
+				Procedure: "GetMatchingSubscriptionsBySlot",
+				Step:      "Row scanning",
+			}
 		}
 
 		matchingTimeslots, err := convertJSONToMatchingTimeslots(matchingTimeslotsJSON)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse matching timeslots: %w", err)
+			return nil, &errors.ErrDBProcedure{
+				Procedure: "GetMatchingSubscriptionsBySlot",
+				Step:      "JSON conversion",
+				Err:       err,
+			}
 		}
 
 		results = append(results, DBSubscriptionMatchResult{
@@ -342,7 +462,11 @@ ORDER BY
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, err
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "GetMatchingSubscriptionsBySlot",
+			Step:      "Row error check",
+			Err:       err,
+		}
 	}
 
 	return results, nil
