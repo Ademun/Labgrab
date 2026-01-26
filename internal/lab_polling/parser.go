@@ -97,6 +97,9 @@ func (p *Parser) ParseSlot(slot *dikidi.APISlotData) ([]Event, error) {
 				errors = append(errors, err)
 				continue
 			}
+			if _, ok := schedule[dayOfWeek]; !ok {
+				schedule[dayOfWeek] = make(map[Lesson][]Teacher)
+			}
 			schedule[dayOfWeek][lesson] = make([]Teacher, 0)
 		}
 		event.Schedule = schedule
@@ -184,12 +187,12 @@ func (p *Parser) parseSpot(username, serviceName string) (*int, error) {
 
 func (p *Parser) parseTopic(username, serviceName string) (Topic, error) {
 	if match := p.topicRegexp.FindStringSubmatch(username); match != nil {
-		if topic, ok := p.topicMap[strings.ToLower(match[1])]; ok {
+		if topic, ok := p.topicMap[match[1]]; ok {
 			return topic, nil
 		}
 	}
 	if match := p.topicRegexp.FindStringSubmatch(serviceName); match != nil {
-		if topic, ok := p.topicMap[strings.ToLower(match[1])]; ok {
+		if topic, ok := p.topicMap[match[1]]; ok {
 			return topic, nil
 		}
 	}

@@ -63,7 +63,7 @@ func main() {
 	log.Info("Connected to postgresql server")
 
 	log.Info("Establishing redis connection")
-	_ = redis.NewClient(&redis.Options{
+	cache := redis.NewClient(&redis.Options{
 		Addr:     cfg.InfraConfig.RedisConfig.Address,
 		Password: cfg.InfraConfig.RedisConfig.Password,
 		DB:       cfg.InfraConfig.RedisConfig.DB,
@@ -89,7 +89,8 @@ func main() {
 
 	log.Info("Setting up subscription service")
 	subscriptionRepo := subscription.NewRepo(pool)
-	subscriptionService := subscription.NewService(subscriptionRepo, log)
+	deduplicator := subscription.NewDeduplicator(cache, cfg.SubscriptionServiceConfig.DeduplicatorConfig)
+	subscriptionService := subscription.NewService(subscriptionRepo, deduplicator, log)
 	log.Info("Finished setting up subscription service")
 
 	log.Info("Setting up user service")

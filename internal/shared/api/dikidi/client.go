@@ -23,6 +23,15 @@ func NewClient(cfg *config.DikidiClientConfig, httpClient *AdaptiveHTTPClient) *
 	}
 }
 
+func (c *Client) UpdateSlotSourceIDs(ctx context.Context) error {
+	slots, err := c.ScrapeSlotSourcesIDs(ctx, c.cfg.SourcesConfig.SourcesIDsProviderURL)
+	if err != nil {
+		return err
+	}
+	c.slotSourceIDs = slots
+	return nil
+}
+
 func (c *Client) GetSlotStream(ctx context.Context) chan *SlotResult {
 	results := make(chan *SlotResult)
 	rate := make(chan struct{}, 50)
