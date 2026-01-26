@@ -2,15 +2,12 @@ package subscription
 
 import (
 	"context"
-	"errors"
-	"fmt"
+	"labgrab/internal/shared/errors"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -29,16 +26,6 @@ func (s *Service) CreateSubscription(ctx context.Context, req *CreateSubscriptio
 	ctx, span := tracer.Start(ctx, "subscription.service.CreateSubscription")
 	defer span.End()
 
-	span.SetAttributes(attribute.String("user.uuid", req.UserUUID.String()))
-
-	_, validationSpan := tracer.Start(ctx, "subscription.service.CreateSubscription.validate")
-	validationErr := s.validateSubscriptionReq(req.LabType, req.LabTopic, req.LabNumber, req.LabAuditorium)
-	validationSpan.End()
-
-	if validationErr != nil {
-		return uuid.Nil, s.handleValidationError(validationErr, validationSpan, span, req.UserUUID, "subscription")
-	}
-
 	dbSub := &DBSubscription{
 		LabType:       req.LabType,
 		LabTopic:      req.LabTopic,
@@ -51,22 +38,15 @@ func (s *Service) CreateSubscription(ctx context.Context, req *CreateSubscriptio
 
 	subscriptionUUID, err := s.repo.CreateSubscription(ctx, dbSub)
 	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "CreateSubscription",
+			Step:      "Repository call",
+			Err:       err,
+		}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to create subscription")
-		s.logger.Errorw("failed to create subscription in repository",
-			"user_uuid", req.UserUUID,
-			"subscription_uuid", subscriptionUUID,
-			"error", err)
-		return subscriptionUUID, fmt.Errorf("%w: %v", ErrCreateSubscription, err)
+		span.SetStatus(codes.Error, err.Error())
+		return subscriptionUUID, err
 	}
-
-	span.SetAttributes(attribute.String("subscription.uuid", subscriptionUUID.String()))
-	s.logger.Infow("subscription created successfully",
-		"user_uuid", req.UserUUID,
-		"subscription_uuid", subscriptionUUID,
-		"lab_type", req.LabType,
-		"lab_topic", req.LabTopic,
-		"lab_number", req.LabNumber)
 
 	return subscriptionUUID, nil
 }
@@ -74,8 +54,6 @@ func (s *Service) CreateSubscription(ctx context.Context, req *CreateSubscriptio
 func (s *Service) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, req *CreateSubscriptionDataReq) error {
 	ctx, span := tracer.Start(ctx, "subscription.service.CreateSubscriptionData")
 	defer span.End()
-
-	span.SetAttributes(attribute.String("user.uuid", req.UserUUID.String()))
 
 	data := &DBUserSubscriptionData{
 		TimePreferences:            req.TimePreferences,
@@ -87,16 +65,15 @@ func (s *Service) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, req *Cr
 
 	err := s.repo.CreateSubscriptionData(ctx, tx, data)
 	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "CreateSubscriptionData",
+			Step:      "Repository call",
+			Err:       err,
+		}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to create subscription data")
-		s.logger.Errorw("failed to create subscription data in repository",
-			"user_uuid", req.UserUUID,
-			"error", err)
-		return fmt.Errorf("%w: %v", ErrCreateSubscription, err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
-
-	s.logger.Infow("subscription data created successfully",
-		"user_uuid", req.UserUUID)
 
 	return nil
 }
@@ -105,25 +82,17 @@ func (s *Service) GetSubscription(ctx context.Context, subscriptionUUID uuid.UUI
 	ctx, span := tracer.Start(ctx, "subscription.service.GetSubscription")
 	defer span.End()
 
-	span.SetAttributes(attribute.String("subscription.uuid", subscriptionUUID.String()))
-
 	sub, err := s.repo.GetSubscription(ctx, subscriptionUUID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			span.SetStatus(codes.Error, "subscription not found")
-			s.logger.Warnw("subscription not found", "subscription_uuid", subscriptionUUID)
-			return nil, ErrSubscriptionNotFound
+		err = &errors.ErrServiceProcedure{
+			Procedure: "GetSubscription",
+			Step:      "Repository call",
+			Err:       err,
 		}
-
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to get subscription")
-		s.logger.Errorw("failed to get subscription from repository",
-			"subscription_uuid", subscriptionUUID,
-			"error", err)
-		return nil, fmt.Errorf("failed to get subscription: %w", err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
-
-	s.logger.Infow("subscription retrieved successfully", "subscription_uuid", subscriptionUUID)
 
 	return &GetSubscriptionRes{
 		SubscriptionUUID: sub.SubscriptionUUID,
@@ -140,21 +109,17 @@ func (s *Service) GetSubscriptions(ctx context.Context, userUUID uuid.UUID) ([]G
 	ctx, span := tracer.Start(ctx, "subscription.service.GetSubscriptions")
 	defer span.End()
 
-	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
-
 	subs, err := s.repo.GetSubscriptions(ctx, userUUID)
 	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "GetSubscriptions",
+			Step:      "Repository call",
+			Err:       err,
+		}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to get subscriptions")
-		s.logger.Errorw("failed to get subscriptions from repository",
-			"user_uuid", userUUID,
-			"error", err)
-		return nil, fmt.Errorf("failed to get subscriptions: %w", err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
-
-	s.logger.Infow("subscriptions retrieved successfully",
-		"user_uuid", userUUID,
-		"count", len(subs))
 
 	result := make([]GetSubscriptionRes, len(subs))
 	for i, sub := range subs {
@@ -176,16 +141,6 @@ func (s *Service) UpdateSubscription(ctx context.Context, req *UpdateSubscriptio
 	ctx, span := tracer.Start(ctx, "subscription.service.UpdateSubscription")
 	defer span.End()
 
-	span.SetAttributes(attribute.String("user.uuid", req.UserUUID.String()))
-
-	_, validationSpan := tracer.Start(ctx, "subscription.service.UpdateSubscription.validate")
-	validationErr := s.validateSubscriptionReq(req.LabType, req.LabTopic, req.LabNumber, req.LabAuditorium)
-	validationSpan.End()
-
-	if validationErr != nil {
-		return s.handleValidationError(validationErr, validationSpan, span, req.UserUUID, "subscription")
-	}
-
 	subscription := &DBSubscription{
 		SubscriptionUUID: req.SubscriptionUUID,
 		LabType:          req.LabType,
@@ -197,21 +152,15 @@ func (s *Service) UpdateSubscription(ctx context.Context, req *UpdateSubscriptio
 
 	err := s.repo.UpdateSubscription(ctx, subscription)
 	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "UpdateSubscription",
+			Step:      "Repository call",
+			Err:       err,
+		}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to update subscription")
-		s.logger.Errorw("failed to update subscription in repository",
-			"user_uuid", req.UserUUID,
-			"subscription_uuid", req.SubscriptionUUID,
-			"error", err)
-		return fmt.Errorf("%w: %v", ErrUpdateSubscription, err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
-
-	s.logger.Infow("subscription updated successfully",
-		"user_uuid", req.UserUUID,
-		"subscription_uuid", req.SubscriptionUUID,
-		"lab_type", req.LabType,
-		"lab_topic", req.LabTopic,
-		"lab_number", req.LabNumber)
 
 	return nil
 }
@@ -220,20 +169,17 @@ func (s *Service) CloseSubscription(ctx context.Context, subscriptionUUID uuid.U
 	ctx, span := tracer.Start(ctx, "subscription.service.CloseSubscription")
 	defer span.End()
 
-	span.SetAttributes(attribute.String("subscription.uuid", subscriptionUUID.String()))
-
 	err := s.repo.CloseSubscription(ctx, subscriptionUUID)
 	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "CloseSubscription",
+			Step:      "Repository call",
+			Err:       err,
+		}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to close subscription")
-		s.logger.Errorw("failed to close subscription in repository",
-			"subscription_uuid", subscriptionUUID,
-			"error", err)
-		return fmt.Errorf("%w: %v", ErrCloseSubscription, err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
-
-	s.logger.Infow("subscription closed successfully",
-		"subscription_uuid", subscriptionUUID)
 
 	return nil
 }
@@ -242,20 +188,17 @@ func (s *Service) RestoreSubscription(ctx context.Context, subscriptionUUID uuid
 	ctx, span := tracer.Start(ctx, "subscription.service.RestoreSubscription")
 	defer span.End()
 
-	span.SetAttributes(attribute.String("subscription.uuid", subscriptionUUID.String()))
-
 	err := s.repo.RestoreSubscription(ctx, subscriptionUUID)
 	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "RestoreSubscription",
+			Step:      "Repository call",
+			Err:       err,
+		}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to restore subscription")
-		s.logger.Errorw("failed to restore subscription in repository",
-			"subscription_uuid", subscriptionUUID,
-			"error", err)
-		return fmt.Errorf("%w: %v", ErrRestoreSubscription, err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
-
-	s.logger.Infow("subscription restored successfully",
-		"subscription_uuid", subscriptionUUID)
 
 	return nil
 }
@@ -264,20 +207,17 @@ func (s *Service) DeleteSubscription(ctx context.Context, subscriptionUUID uuid.
 	ctx, span := tracer.Start(ctx, "subscription.service.DeleteSubscription")
 	defer span.End()
 
-	span.SetAttributes(attribute.String("subscription.uuid", subscriptionUUID.String()))
-
 	err := s.repo.DeleteSubscription(ctx, subscriptionUUID)
 	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "DeleteSubscription",
+			Step:      "Repository call",
+			Err:       err,
+		}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to delete subscription")
-		s.logger.Errorw("failed to delete subscription in repository",
-			"subscription_uuid", subscriptionUUID,
-			"error", err)
-		return fmt.Errorf("%w: %v", ErrDeleteSubscription, err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
-
-	s.logger.Infow("subscription deleted successfully",
-		"subscription_uuid", subscriptionUUID)
 
 	return nil
 }
@@ -285,13 +225,6 @@ func (s *Service) DeleteSubscription(ctx context.Context, subscriptionUUID uuid.
 func (s *Service) GetMatchingSubscriptions(ctx context.Context, req *GetMatchingSubscriptionsReq) ([]GetMatchingSubscriptionsRes, error) {
 	ctx, span := tracer.Start(ctx, "subscription.service.GetMatchingSubscriptions")
 	defer span.End()
-
-	span.SetAttributes(
-		attribute.String("lab.type", string(req.LabType)),
-		attribute.String("lab.topic", string(req.LabTopic)),
-		attribute.Int("lab.number", req.LabNumber),
-		attribute.Int("lab.auditorium", req.LabAuditorium),
-	)
 
 	search := &DBSubscriptionSearch{
 		LabType:        req.LabType,
@@ -303,21 +236,15 @@ func (s *Service) GetMatchingSubscriptions(ctx context.Context, req *GetMatching
 
 	matches, err := s.repo.GetMatchingSubscriptionsBySlot(ctx, search)
 	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "GetMatchingSubscriptions",
+			Step:      "Repository call",
+			Err:       err,
+		}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to get matching subscriptions")
-		s.logger.Errorw("failed to get matching subscriptions from repository",
-			"lab_type", req.LabType,
-			"lab_topic", req.LabTopic,
-			"lab_number", req.LabNumber,
-			"error", err)
-		return nil, fmt.Errorf("failed to get matching subscriptions: %w", err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
-
-	s.logger.Infow("matching subscriptions retrieved successfully",
-		"lab_type", req.LabType,
-		"lab_topic", req.LabTopic,
-		"lab_number", req.LabNumber,
-		"matches_count", len(matches))
 
 	result := make([]GetMatchingSubscriptionsRes, len(matches))
 	for i, match := range matches {
@@ -331,46 +258,4 @@ func (s *Service) GetMatchingSubscriptions(ctx context.Context, req *GetMatching
 	}
 
 	return result, nil
-}
-
-func (s *Service) validateSubscriptionReq(labType LabType, labTopic LabTopic, labNumber int, labAuditorium *int) *ValidationError {
-	valErr := NewValidationError()
-
-	if !ValidateLabType(labType) {
-		valErr.Add("LabType", "must be either Defence or Performance")
-	}
-
-	if !ValidateLabTopic(labTopic) {
-		valErr.Add("LabTopic", "must be one of Virtual, Electricity, or Mechanics")
-	}
-
-	if !ValidateLabNumber(labNumber) {
-		valErr.Add("LabNumber", "must be between 1 and 255")
-	}
-
-	if labType == LabTypePerformance && labAuditorium == nil {
-		valErr.Add("LabAuditorium", "must not be nil for Performance lab type")
-	}
-
-	if labType == LabTypeDefence && labAuditorium != nil {
-		valErr.Add("LabAuditorium", "must be nil for Defence lab type")
-	}
-
-	if valErr.HasErrors() {
-		return valErr
-	}
-
-	return nil
-}
-
-func (s *Service) handleValidationError(validationErr *ValidationError, validationSpan, parentSpan trace.Span, userUUID uuid.UUID, operation string) error {
-	validationSpan.RecordError(validationErr)
-	validationSpan.SetStatus(codes.Error, "validation failed")
-	parentSpan.RecordError(validationErr)
-	parentSpan.SetStatus(codes.Error, "validation failed")
-	s.logger.Errorw(operation+" validation failed",
-		"user_uuid", userUUID,
-		"error", validationErr.Error(),
-		"validation_errors", validationErr.Errors)
-	return validationErr
 }
