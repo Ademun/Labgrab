@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"labgrab/internal/application/subscription/dto"
@@ -54,35 +55,22 @@ func (h *Handler) GetSubscriptions(w http.ResponseWriter, r *http.Request) {
 		SubscriptionUUID: subscriptionUUIDPtr,
 	}
 
-	h.logger.Infow("handling get subscriptions request",
-		"user_uuid", userUUID,
-		"subscription_uuid", subscriptionUUID)
-
 	resp, err := h.getSubscriptions.Exec(ctx, req)
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to get subscriptions")
-		h.logger.Errorw("failed to get subscriptions",
-			"user_uuid", userUUID,
-			"error", err)
+		span.SetStatus(codes.Error, err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		err = fmt.Errorf("failed to write response: %w", err)
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to encode response")
-		h.logger.Errorw("failed to encode response",
-			"user_uuid", userUUID,
-			"error", err)
+		span.SetStatus(codes.Error, err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	h.logger.Infow("successfully retrieved subscriptions",
-		"user_uuid", userUUID,
-		"count", len(resp))
 }
 
 func (h *Handler) NewSubscription(w http.ResponseWriter, r *http.Request) {
@@ -94,29 +82,19 @@ func (h *Handler) NewSubscription(w http.ResponseWriter, r *http.Request) {
 
 	var req dto.NewSubscriptionReqDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		err = fmt.Errorf("failed to decode request: %w", err)
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "invalid request payload")
-		h.logger.Errorw("failed to decode request",
-			"user_uuid", userUUID,
-			"error", err)
+		span.SetStatus(codes.Error, err.Error())
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
 	req.UserUUID = userUUID
 
-	h.logger.Infow("handling new subscription request",
-		"user_uuid", userUUID,
-		"lab_type", req.LabType,
-		"lab_topic", req.LabTopic)
-
 	resp, err := h.newSubscription.Exec(ctx, &req)
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to create subscription")
-		h.logger.Errorw("failed to create subscription",
-			"user_uuid", userUUID,
-			"error", err)
+		span.SetStatus(codes.Error, err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -124,18 +102,12 @@ func (h *Handler) NewSubscription(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		err = fmt.Errorf("failed to write response: %w", err)
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to encode response")
-		h.logger.Errorw("failed to encode response",
-			"user_uuid", userUUID,
-			"error", err)
+		span.SetStatus(codes.Error, err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	h.logger.Infow("successfully created subscription",
-		"user_uuid", userUUID,
-		"subscription_uuid", resp.UUID)
 }
 
 func (h *Handler) EditSubscription(w http.ResponseWriter, r *http.Request) {
@@ -148,12 +120,9 @@ func (h *Handler) EditSubscription(w http.ResponseWriter, r *http.Request) {
 
 	var req dto.EditSubscriptionReqDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		err = fmt.Errorf("failed to decode request: %w", err)
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "invalid request payload")
-		h.logger.Errorw("failed to decode request",
-			"user_uuid", userUUID,
-			"subscription_uuid", subscriptionUUID,
-			"error", err)
+		span.SetStatus(codes.Error, err.Error())
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
@@ -161,37 +130,22 @@ func (h *Handler) EditSubscription(w http.ResponseWriter, r *http.Request) {
 	req.UserUUID = userUUID
 	req.SubscriptionUUID = subscriptionUUID
 
-	h.logger.Infow("handling edit subscription request",
-		"user_uuid", userUUID,
-		"subscription_uuid", subscriptionUUID)
-
 	resp, err := h.editSubscription.Exec(ctx, &req)
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to edit subscription")
-		h.logger.Errorw("failed to edit subscription",
-			"user_uuid", userUUID,
-			"subscription_uuid", subscriptionUUID,
-			"error", err)
+		span.SetStatus(codes.Error, err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		err = fmt.Errorf("failed to write response: %w", err)
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to encode response")
-		h.logger.Errorw("failed to encode response",
-			"user_uuid", userUUID,
-			"subscription_uuid", subscriptionUUID,
-			"error", err)
+		span.SetStatus(codes.Error, err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	h.logger.Infow("successfully edited subscription",
-		"user_uuid", userUUID,
-		"subscription_uuid", subscriptionUUID)
 }
 
 func (h *Handler) RegisterRoutes(r *mux.Router) {
