@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"labgrab/internal/shared/errors"
+	"labgrab/internal/shared/types"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,19 +22,7 @@ const (
 	LabTopicElectricity LabTopic = "Electricity"
 	LabTopicMechanics   LabTopic = "Mechanics"
 	LabTopicOptics      LabTopic = "Optics"
-	LabTopicsRigidBody  LabTopic = "RigidBody"
-)
-
-type DayOfWeek string
-
-const (
-	DayMon DayOfWeek = "MON"
-	DayTue DayOfWeek = "TUE"
-	DayWed DayOfWeek = "WED"
-	DayThu DayOfWeek = "THU"
-	DayFri DayOfWeek = "FRI"
-	DaySat DayOfWeek = "SAT"
-	DaySun DayOfWeek = "SUN"
+	LabTopicsRigidBody  LabTopic = "Rigid Body"
 )
 
 // DBSubscription subscription_service.subscriptions
@@ -50,9 +39,9 @@ type DBSubscription struct {
 
 // DBTimePreferences subscription_service.time_preferences
 type DBTimePreferences struct {
-	DayOfWeek DayOfWeek `db:"day_of_week"`
-	Lessons   []int     `db:"lessons"`
-	UserUUID  uuid.UUID `db:"user_uuid"`
+	DayOfWeek types.DayOfWeek `db:"day_of_week"`
+	Lessons   []int           `db:"lessons"`
+	UserUUID  uuid.UUID       `db:"user_uuid"`
 }
 
 // DBTeacherPreferences subscription_service.teacher_preferences
@@ -69,7 +58,7 @@ type DBDetails struct {
 }
 
 type DBUserSubscriptionData struct {
-	TimePreferences            map[DayOfWeek][]int
+	TimePreferences            map[types.DayOfWeek][]int
 	BlacklistedTeachers        []string
 	SuccessfulSubscriptions    int
 	LastSuccessfulSubscription *time.Time
@@ -81,7 +70,7 @@ type DBSubscriptionSearch struct {
 	LabTopic       LabTopic
 	LabNumber      int
 	LabAuditorium  int
-	AvailableSlots map[DayOfWeek]map[int][]string
+	AvailableSlots map[types.DayOfWeek]map[int][]string
 }
 
 type DBSubscriptionMatchResult struct {
@@ -89,7 +78,7 @@ type DBSubscriptionMatchResult struct {
 	SubscriptionUUID           uuid.UUID
 	SuccessfulSubscriptions    int
 	LastSuccessfulSubscription *time.Time
-	MatchingTimeslots          map[DayOfWeek][]int
+	MatchingTimeslots          map[types.DayOfWeek][]int
 }
 
 type CreateSubscriptionReq struct {
@@ -117,7 +106,7 @@ func (r CreateSubscriptionReq) Validate() error {
 
 type CreateSubscriptionDataReq struct {
 	UserUUID            uuid.UUID
-	TimePreferences     map[DayOfWeek][]int
+	TimePreferences     map[types.DayOfWeek][]int
 	BlacklistedTeachers []string
 }
 
@@ -149,7 +138,7 @@ type GetMatchingSubscriptionsReq struct {
 	LabTopic       LabTopic
 	LabNumber      int
 	LabAuditorium  int
-	AvailableSlots map[DayOfWeek]map[int][]string
+	AvailableSlots map[types.DayOfWeek]map[int][]string
 }
 
 type GetSubscriptionRes struct {
@@ -167,7 +156,7 @@ type GetMatchingSubscriptionsRes struct {
 	SubscriptionUUID           uuid.UUID
 	SuccessfulSubscriptions    int
 	LastSuccessfulSubscription *time.Time
-	MatchingTimeslots          map[DayOfWeek][]int
+	MatchingTimeslots          map[types.DayOfWeek][]int
 }
 
 type keyGenerationParams struct {
@@ -176,6 +165,6 @@ type keyGenerationParams struct {
 	labTopic         LabTopic
 	labNumber        int
 	labAuditorium    int
-	day              DayOfWeek
+	day              types.DayOfWeek
 	lesson           int
 }

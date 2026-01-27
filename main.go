@@ -83,7 +83,7 @@ func main() {
 			err,
 		)
 	}
-	_ = lab_polling.NewService(dikidiClient, slotParser, log)
+	labPollingService := lab_polling.NewService(dikidiClient, slotParser, log)
 	log.Info("Finished setting up polling service")
 
 	log.Info("Setting up subscription service")
@@ -101,6 +101,11 @@ func main() {
 	authService := auth.NewService(&cfg.AuthServiceConfig, log)
 	log.Info("Finished setting up auth service")
 
+	log.Info("Setting up schedulers")
+	subscriptionScheduler := api_subscription.NewScheduler(dikidiClient, labPollingService, subscriptionService, log)
+	if err := subscriptionScheduler.Start(ctx); err != nil {
+		log.Fatal("Fatal error occurred when starting subscription scheduler", "error", err)
+	}
 	log.Info("Setting up routes")
 	r := mux.NewRouter()
 	log.Info("Setting up user domain routes")

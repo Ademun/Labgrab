@@ -3,7 +3,10 @@ package subscription
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"labgrab/internal/shared/errors"
+	"labgrab/internal/shared/types"
+	"log/slog"
 	"time"
 
 	"github.com/Masterminds/squirrel"
@@ -340,6 +343,7 @@ func (r *Repo) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, data *DBUs
 
 func (r *Repo) GetMatchingSubscriptionsBySlot(ctx context.Context, search *DBSubscriptionSearch) ([]DBSubscriptionMatchResult, error) {
 	availableSlotsJSON, err := convertAvailableSlotsToJSON(search.AvailableSlots)
+	fmt.Println(availableSlotsJSON)
 	if err != nil {
 		return nil, &errors.ErrDBProcedure{
 			Procedure: "GetMatchingSubscriptionsBySlot",
@@ -477,22 +481,26 @@ ORDER BY
 		}
 	}
 
+	for _, result := range results {
+		slog.Info("result", result)
+	}
+
 	return results, nil
 }
 
-func convertAvailableSlotsToJSON(slots map[DayOfWeek]map[int][]string) ([]byte, error) {
+func convertAvailableSlotsToJSON(slots map[types.DayOfWeek]map[int][]string) ([]byte, error) {
 	return json.Marshal(slots)
 }
 
-func convertJSONToMatchingTimeslots(data []byte) (map[DayOfWeek][]int, error) {
+func convertJSONToMatchingTimeslots(data []byte) (map[types.DayOfWeek][]int, error) {
 	var raw map[string][]int
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return nil, err
 	}
 
-	result := make(map[DayOfWeek][]int)
+	result := make(map[types.DayOfWeek][]int)
 	for day, lessons := range raw {
-		result[DayOfWeek(day)] = lessons
+		result[types.DayOfWeek(day)] = lessons
 	}
 
 	return result, nil

@@ -19,7 +19,7 @@ polling_service:
     timezone: 'Europe/Moscow'
     topic_map:
       'Оптика': 'Optics'
-      'Тв. тело': 'SolidBody'
+      'Тв. тело': 'Rigid Body'
       'Электричество': 'Electricity'
       'Механика': 'Mechanics'
       'Виртуальная лаб.': 'Virtual'

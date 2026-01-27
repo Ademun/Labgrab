@@ -1,5 +1,7 @@
 package lab_polling
 
+import "labgrab/internal/shared/types"
+
 type Type string
 
 const (
@@ -14,26 +16,8 @@ const (
 	TopicElectricity Topic = "Electricity"
 	TopicMechanics   Topic = "Mechanics"
 	TopicOptics      Topic = "Optics"
-	TopicSolidBody   Topic = "SolidBody"
+	TopicRigidBody   Topic = "Rigid Body"
 )
-
-type DayOfWeek string
-
-const (
-	DayMon DayOfWeek = "MON"
-	DayTue DayOfWeek = "TUE"
-	DayWed DayOfWeek = "WED"
-	DayThu DayOfWeek = "THU"
-	DayFri DayOfWeek = "FRI"
-	DaySat DayOfWeek = "SAT"
-	DaySun DayOfWeek = "SUN"
-)
-
-type Lesson int
-
-type Teacher string
-
-type Schedule map[DayOfWeek]map[Lesson][]Teacher
 
 type Event struct {
 	Name       string
@@ -42,5 +26,5 @@ type Event struct {
 	Number     int
 	Auditorium int
 	Spot       *int
-	Schedule   Schedule
+	Schedule   map[types.DayOfWeek]map[int][]string
 }

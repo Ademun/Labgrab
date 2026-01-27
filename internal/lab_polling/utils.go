@@ -1,6 +1,7 @@
 package lab_polling
 
 import (
+	"labgrab/internal/shared/types"
 	"math"
 	"time"
 )
@@ -9,7 +10,7 @@ type LessonSchedule struct {
 	Start, End time.Time
 }
 
-var LessonLookup = map[Lesson]LessonSchedule{
+var LessonLookup = map[int]LessonSchedule{
 	1: {parseLessonTime("08:50"), parseLessonTime("10:20")},
 	2: {parseLessonTime("10:35"), parseLessonTime("12:05")},
 	3: {parseLessonTime("12:35"), parseLessonTime("14:05")},
@@ -20,28 +21,28 @@ var LessonLookup = map[Lesson]LessonSchedule{
 	8: {parseLessonTime("20:40"), parseLessonTime("22:00")},
 }
 
-func nativeWeekdayToDayOfWeek(day time.Weekday) DayOfWeek {
-	var dayOfWeek DayOfWeek
+func nativeWeekdayToDayOfWeek(day time.Weekday) types.DayOfWeek {
+	var dayOfWeek types.DayOfWeek
 	switch day {
 	case time.Monday:
-		dayOfWeek = DayMon
+		dayOfWeek = types.DayMon
 	case time.Tuesday:
-		dayOfWeek = DayTue
+		dayOfWeek = types.DayTue
 	case time.Wednesday:
-		dayOfWeek = DayWed
+		dayOfWeek = types.DayWed
 	case time.Thursday:
-		dayOfWeek = DayThu
+		dayOfWeek = types.DayThu
 	case time.Friday:
-		dayOfWeek = DayFri
+		dayOfWeek = types.DayFri
 	case time.Saturday:
-		dayOfWeek = DaySat
+		dayOfWeek = types.DaySat
 	case time.Sunday:
-		dayOfWeek = DaySun
+		dayOfWeek = types.DaySun
 	}
 	return dayOfWeek
 }
 
-func localTimeToLesson(lTime time.Time) Lesson {
+func localTimeToLesson(lTime time.Time) int {
 	minute := float64(lTime.Minute())
 	roundedMinute := int(math.Round(minute/10.0) * 10)
 

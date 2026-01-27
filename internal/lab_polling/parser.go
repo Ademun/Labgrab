@@ -3,6 +3,7 @@ package lab_polling
 import (
 	"fmt"
 	"labgrab/internal/shared/api/dikidi"
+	"labgrab/internal/shared/types"
 	"labgrab/pkg/config"
 	"regexp"
 	"strconv"
@@ -89,7 +90,7 @@ func (p *Parser) ParseSlot(slot *dikidi.APISlotData) ([]Event, error) {
 			continue
 		}
 
-		schedule := make(Schedule)
+		schedule := make(map[types.DayOfWeek]map[int][]string)
 		times := slot.Data.Times
 		for _, timeStr := range times[id] {
 			dayOfWeek, lesson, err := p.parseTimeString(timeStr)
@@ -98,9 +99,9 @@ func (p *Parser) ParseSlot(slot *dikidi.APISlotData) ([]Event, error) {
 				continue
 			}
 			if _, ok := schedule[dayOfWeek]; !ok {
-				schedule[dayOfWeek] = make(map[Lesson][]Teacher)
+				schedule[dayOfWeek] = make(map[int][]string)
 			}
-			schedule[dayOfWeek][lesson] = make([]Teacher, 0)
+			schedule[dayOfWeek][lesson] = make([]string, 0)
 		}
 		event.Schedule = schedule
 		events = append(events, *event)
@@ -208,10 +209,10 @@ func (p *Parser) parseType(username, serviceName string) Type {
 	return p.defaultType
 }
 
-func (p *Parser) parseTimeString(timeString string) (DayOfWeek, Lesson, error) {
+func (p *Parser) parseTimeString(timeString string) (types.DayOfWeek, int, error) {
 	datetime, err := time.ParseInLocation("2006-01-02 15:04:05", timeString, p.timezone)
 	if err != nil {
-		return DayMon, 0, err
+		return types.DayMon, 0, err
 	}
 	dayOfWeek := nativeWeekdayToDayOfWeek(datetime.Weekday())
 	lesson := localTimeToLesson(datetime)

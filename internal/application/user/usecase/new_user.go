@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"labgrab/internal/application/user/dto"
+	"labgrab/internal/shared/types"
 	"labgrab/internal/subscription"
 	"labgrab/internal/user"
 )
@@ -33,7 +34,7 @@ func (uc *NewUserUseCase) Exec(ctx context.Context, data *dto.NewUserReqDTO) (*d
 
 	subReq := &subscription.CreateSubscriptionDataReq{
 		UserUUID:            userResp.UUID,
-		TimePreferences:     make(map[subscription.DayOfWeek][]int),
+		TimePreferences:     make(map[types.DayOfWeek][]int),
 		BlacklistedTeachers: make([]string, 0),
 	}
 
