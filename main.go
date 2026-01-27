@@ -4,7 +4,6 @@ import (
 	"context"
 	api_subscription "labgrab/internal/application/subscription"
 	api_user "labgrab/internal/application/user"
-	user_usecase "labgrab/internal/application/user/usecase"
 	"labgrab/internal/auth"
 	"labgrab/internal/lab_polling"
 	"labgrab/internal/shared/api/dikidi"
@@ -109,11 +108,8 @@ func main() {
 	log.Info("Setting up routes")
 	r := mux.NewRouter()
 	log.Info("Setting up user domain routes")
-	authUserUseCase := user_usecase.NewAuthUserUseCase(authService, userService)
-	newUserUseCase := user_usecase.NewNewUserUseCase(userService, subscriptionService)
-	userHandler := api_user.NewHandler(authUserUseCase, newUserUseCase)
-	r.HandleFunc("/api/user/auth", userHandler.Auth).Methods(http.MethodPost)
-	r.HandleFunc("/api/user/new", userHandler.NewUser).Methods(http.MethodPost)
+	userHandler := api_user.NewHandler(authService, userService, subscriptionService, pool, log)
+	userHandler.RegisterRoutes(r)
 	log.Info("Finished setting up user domain routes")
 	log.Info("Setting up subscription domain routes")
 	subscriptionHandler := api_subscription.NewHandler(subscriptionService, log)

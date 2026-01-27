@@ -19,30 +19,20 @@ func NewRepo(pool *pgxpool.Pool) *Repo {
 	return &Repo{pool: pool, sq: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)}
 }
 
-func (r *Repo) CreateUser(ctx context.Context, details *DBUserDetails, contacts *DBUserContacts) (uuid.UUID, pgx.Tx, error) {
+func (r *Repo) CreateUser(ctx context.Context, details *DBUserDetails, contacts *DBUserContacts, tx pgx.Tx) (uuid.UUID, error) {
 	userUUID := uuid.New()
 	query, args, err := r.sq.Insert("user_service.users").Columns("uuid").Values(userUUID).ToSql()
 	if err != nil {
-		return userUUID, nil, &repo_errors.ErrDBProcedure{
+		return userUUID, &repo_errors.ErrDBProcedure{
 			Procedure: "CreateUser",
 			Step:      "Query setup",
 			Err:       err,
 		}
 	}
 
-	tx, err := r.pool.Begin(ctx)
-	if err != nil {
-		return userUUID, nil, &repo_errors.ErrDBProcedure{
-			Procedure: "CreateUser",
-			Step:      "Transaction setup",
-			Err:       err,
-		}
-	}
-
 	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
-		tx.Rollback(ctx)
-		return userUUID, nil, &repo_errors.ErrDBProcedure{
+		return userUUID, &repo_errors.ErrDBProcedure{
 			Procedure: "CreateUser",
 			Step:      "Query execution",
 			Err:       err,
@@ -53,16 +43,14 @@ func (r *Repo) CreateUser(ctx context.Context, details *DBUserDetails, contacts 
 	contacts.UserUUID = userUUID
 
 	if err = r.createUserDetails(ctx, details, tx); err != nil {
-		tx.Rollback(ctx)
-		return userUUID, nil, err
+		return userUUID, err
 	}
 
 	if err = r.createUserContacts(ctx, contacts, tx); err != nil {
-		tx.Rollback(ctx)
-		return userUUID, nil, err
+		return userUUID, err
 	}
 
-	return userUUID, tx, err
+	return userUUID, err
 }
 
 func (r *Repo) createUserDetails(ctx context.Context, details *DBUserDetails, tx pgx.Tx) error {

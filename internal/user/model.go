@@ -38,6 +38,7 @@ type CreateUserReq struct {
 	GroupCode   string
 	PhoneNumber string
 	TelegramID  int
+	Tx          pgx.Tx
 }
 
 type CreateUserRes struct {

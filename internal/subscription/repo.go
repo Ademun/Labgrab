@@ -266,13 +266,12 @@ func (r *Repo) DeleteSubscription(ctx context.Context, subscriptionUUID uuid.UUI
 	return nil
 }
 
-func (r *Repo) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, data *DBUserSubscriptionData) error {
+func (r *Repo) CreateSubscriptionData(ctx context.Context, data *DBUserSubscriptionData, tx pgx.Tx) error {
 	detailsQuery, detailsArgs, err := r.sq.Insert("subscription_service.details").
 		Columns("successful_subscriptions", "last_successful_subscription", "user_uuid").
 		Values(data.SuccessfulSubscriptions, data.LastSuccessfulSubscription, data.UserUUID).
 		ToSql()
 	if err != nil {
-		tx.Rollback(ctx)
 		return &errors.ErrDBProcedure{
 			Procedure: "CreateSubscriptionData",
 			Step:      "Query setup",
@@ -282,7 +281,6 @@ func (r *Repo) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, data *DBUs
 
 	_, err = tx.Exec(ctx, detailsQuery, detailsArgs...)
 	if err != nil {
-		tx.Rollback(ctx)
 		return &errors.ErrDBProcedure{
 			Procedure: "CreateSubscriptionData",
 			Step:      "Query execution",
@@ -295,7 +293,6 @@ func (r *Repo) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, data *DBUs
 		Values(data.BlacklistedTeachers, data.UserUUID).
 		ToSql()
 	if err != nil {
-		tx.Rollback(ctx)
 		return &errors.ErrDBProcedure{
 			Procedure: "CreateSubscriptionData",
 			Step:      "Query setup",
@@ -305,7 +302,6 @@ func (r *Repo) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, data *DBUs
 
 	_, err = tx.Exec(ctx, teacherQuery, teacherArgs...)
 	if err != nil {
-		tx.Rollback(ctx)
 		return &errors.ErrDBProcedure{
 			Procedure: "CreateSubscriptionData",
 			Step:      "Query execution",
@@ -319,7 +315,6 @@ func (r *Repo) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, data *DBUs
 			Values(day, lessons, data.UserUUID).
 			ToSql()
 		if err != nil {
-			tx.Rollback(ctx)
 			return &errors.ErrDBProcedure{
 				Procedure: "CreateSubscriptionData",
 				Step:      "Query setup",
@@ -329,7 +324,6 @@ func (r *Repo) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, data *DBUs
 
 		_, err = tx.Exec(ctx, timeQuery, timeArgs...)
 		if err != nil {
-			tx.Rollback(ctx)
 			return &errors.ErrDBProcedure{
 				Procedure: "CreateSubscriptionData",
 				Step:      "Query execution",

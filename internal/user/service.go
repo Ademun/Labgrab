@@ -21,7 +21,7 @@ func NewService(repo *Repo, logger *zap.SugaredLogger) *Service {
 	return &Service{repo: repo, logger: logger}
 }
 
-func (s *Service) CreateUser(ctx context.Context, req *CreateUserReq) (*CreateUserRes, error) {
+func (s *Service) CreateUser(ctx context.Context, req *CreateUserReq) (uuid.UUID, error) {
 	ctx, span := tracer.Start(ctx, "user.service.CreateUser")
 	defer span.End()
 
@@ -37,7 +37,7 @@ func (s *Service) CreateUser(ctx context.Context, req *CreateUserReq) (*CreateUs
 		TelegramID:  req.TelegramID,
 	}
 
-	userUUID, tx, err := s.repo.CreateUser(ctx, details, contacts)
+	userUUID, err := s.repo.CreateUser(ctx, details, contacts, req.Tx)
 	if err != nil {
 		err = &errors.ErrServiceProcedure{
 			Procedure: "CreateUser",
@@ -46,10 +46,10 @@ func (s *Service) CreateUser(ctx context.Context, req *CreateUserReq) (*CreateUs
 		}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, err
+		return uuid.Nil, err
 	}
 
-	return &CreateUserRes{UUID: userUUID, Tx: tx}, nil
+	return userUUID, nil
 }
 
 func (s *Service) GetUserInfo(ctx context.Context, userUUID string) (*GetUserInfoRes, error) {

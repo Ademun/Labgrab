@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type LabType string
@@ -108,6 +109,7 @@ type CreateSubscriptionDataReq struct {
 	UserUUID            uuid.UUID
 	TimePreferences     map[types.DayOfWeek][]int
 	BlacklistedTeachers []string
+	Tx                  pgx.Tx
 }
 
 type UpdateSubscriptionDataReq struct {

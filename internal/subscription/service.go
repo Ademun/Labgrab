@@ -5,7 +5,6 @@ import (
 	"labgrab/internal/shared/errors"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.uber.org/zap"
@@ -58,7 +57,7 @@ func (s *Service) CreateSubscription(ctx context.Context, req *CreateSubscriptio
 	return subscriptionUUID, nil
 }
 
-func (s *Service) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, req *CreateSubscriptionDataReq) error {
+func (s *Service) CreateSubscriptionData(ctx context.Context, req *CreateSubscriptionDataReq) error {
 	ctx, span := tracer.Start(ctx, "subscription.service.CreateSubscriptionData")
 	defer span.End()
 
@@ -70,7 +69,7 @@ func (s *Service) CreateSubscriptionData(ctx context.Context, tx pgx.Tx, req *Cr
 		UserUUID:                   req.UserUUID,
 	}
 
-	err := s.repo.CreateSubscriptionData(ctx, tx, data)
+	err := s.repo.CreateSubscriptionData(ctx, data, req.Tx)
 	if err != nil {
 		err = &errors.ErrServiceProcedure{
 			Procedure: "CreateSubscriptionData",
