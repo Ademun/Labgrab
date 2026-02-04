@@ -7,6 +7,7 @@ import (
 	"labgrab/internal/auth"
 	"labgrab/internal/lab_polling"
 	"labgrab/internal/shared/api/dikidi"
+	"labgrab/internal/shared/routing"
 	"labgrab/internal/subscription"
 	"labgrab/internal/user"
 	"labgrab/pkg/config"
@@ -66,6 +67,9 @@ func main() {
 		Password: cfg.InfraConfig.RedisConfig.Password,
 		DB:       cfg.InfraConfig.RedisConfig.DB,
 	})
+	if cache.Ping(ctx).Err() != nil {
+		log.Fatal("Fatal error occurred when connecting to redis server", "error", err)
+	}
 	log.Info("Connected to redis server")
 
 	log.Info("Setting up dikidi client")
@@ -97,7 +101,7 @@ func main() {
 	log.Info("Finished setting up user service")
 
 	log.Info("Setting up auth service")
-	authService := auth.NewService(&cfg.AuthServiceConfig, log)
+	authService := auth.NewService(cache, &cfg.AuthServiceConfig, log)
 	log.Info("Finished setting up auth service")
 
 	log.Info("Setting up schedulers")
@@ -108,14 +112,14 @@ func main() {
 	log.Info("Setting up routes")
 	r := mux.NewRouter()
 	log.Info("Setting up user domain routes")
-	userHandler := api_user.NewHandler(authService, userService, subscriptionService, pool, log)
+	userHandler := api_user.NewHandler(authService, userService, pool, log)
 	userHandler.RegisterRoutes(r)
 	log.Info("Finished setting up user domain routes")
 	log.Info("Setting up subscription domain routes")
-	subscriptionHandler := api_subscription.NewHandler(subscriptionService, log)
+	subscriptionHandler := api_subscription.NewHandler(authService, subscriptionService, log)
 	subscriptionHandler.RegisterRoutes(r)
 	log.Info("Finished setting up subscription domain routes")
-	if err := http.ListenAndServe(":8080", r); err != nil {
+	if err := http.ListenAndServe("127.0.0.1:8080", routing.CORSMiddleware(r)); err != nil {
 		log.Fatal("Failed to start http server", "error", err)
 	}
 	log.Info("Finished setting up routes")

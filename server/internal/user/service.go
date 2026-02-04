@@ -25,19 +25,15 @@ func (s *Service) CreateUser(ctx context.Context, req *CreateUserReq) (uuid.UUID
 	ctx, span := tracer.Start(ctx, "user.service.CreateUser")
 	defer span.End()
 
-	details := &DBUserDetails{
+	user := &DBUser{
 		Name:       req.Name,
 		Surname:    req.Surname,
-		Patronymic: req.Patronymic,
-		GroupCode:  req.GroupCode,
+		TelegramID: req.TelegramID,
+		Username:   req.Username,
+		PhotoUrl:   req.PhotoUrl,
 	}
 
-	contacts := &DBUserContacts{
-		PhoneNumber: req.PhoneNumber,
-		TelegramID:  req.TelegramID,
-	}
-
-	userUUID, err := s.repo.CreateUser(ctx, details, contacts, req.Tx)
+	userUUID, err := s.repo.CreateUser(ctx, user, req.Tx)
 	if err != nil {
 		err = &errors.ErrServiceProcedure{
 			Procedure: "CreateUser",
@@ -52,23 +48,11 @@ func (s *Service) CreateUser(ctx context.Context, req *CreateUserReq) (uuid.UUID
 	return userUUID, nil
 }
 
-func (s *Service) GetUserInfo(ctx context.Context, userUUID string) (*GetUserInfoRes, error) {
+func (s *Service) GetUser(ctx context.Context, userUUID uuid.UUID) (*GetUserRes, error) {
 	ctx, span := tracer.Start(ctx, "user.service.GetUserInfo")
 	defer span.End()
 
-	parsedUUID, err := parseUUID(userUUID)
-	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "GetUserInfo",
-			Step:      "UUID parsing",
-			Err:       err,
-		}
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return nil, err
-	}
-
-	userInfo, err := s.repo.GetUserInfo(ctx, parsedUUID)
+	user, err := s.repo.GetUser(ctx, userUUID)
 	if err != nil {
 		err = &errors.ErrServiceProcedure{
 			Procedure: "GetUserInfo",
@@ -80,58 +64,35 @@ func (s *Service) GetUserInfo(ctx context.Context, userUUID string) (*GetUserInf
 		return nil, err
 	}
 
-	return &GetUserInfoRes{
-		UUID:        userInfo.UUID,
-		Name:        userInfo.Name,
-		Surname:     userInfo.Surname,
-		Patronymic:  userInfo.Patronymic,
-		GroupCode:   userInfo.GroupCode,
-		PhoneNumber: userInfo.PhoneNumber,
-		TelegramID:  userInfo.TelegramID,
+	return &GetUserRes{
+		Username:    user.Username,
+		Name:        user.Name,
+		Surname:     user.Surname,
+		Patronymic:  user.Patronymic,
+		GroupCode:   user.GroupCode,
+		PhoneNumber: user.PhoneNumber,
+		PhotoUrl:    user.PhotoUrl,
 	}, nil
 }
 
-func (s *Service) UpdateUserDetails(ctx context.Context, req *UpdateUserDetailsReq) error {
+func (s *Service) UpdateUser(ctx context.Context, req *UpdateUserReq) error {
 	ctx, span := tracer.Start(ctx, "user.service.UpdateUserDetails")
 	defer span.End()
 
-	details := &DBUserDetails{
-		Name:       req.Name,
-		Surname:    req.Surname,
-		Patronymic: req.Patronymic,
-		GroupCode:  req.GroupCode,
-		UserUUID:   req.UserUUID,
+	user := &DBUser{
+		UUID:        req.UserUUID,
+		Name:        req.Name,
+		Surname:     req.Surname,
+		Patronymic:  req.Patronymic,
+		GroupCode:   req.GroupCode,
+		PhoneNumber: req.PhoneNumber,
+		PhotoUrl:    req.PhotoUrl,
 	}
 
-	err := s.repo.UpdateUserDetails(ctx, details)
+	err := s.repo.UpdateUser(ctx, user)
 	if err != nil {
 		err = &errors.ErrServiceProcedure{
 			Procedure: "UpdateUserDetails",
-			Step:      "Repository call",
-			Err:       err,
-		}
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err
-	}
-
-	return nil
-}
-
-func (s *Service) UpdateUserContacts(ctx context.Context, req *UpdateUserContactsReq) error {
-	ctx, span := tracer.Start(ctx, "user.service.UpdateUserContacts")
-	defer span.End()
-
-	contacts := &DBUserContacts{
-		PhoneNumber: req.PhoneNumber,
-		TelegramID:  req.TelegramID,
-		UserUUID:    req.UserUUID,
-	}
-
-	err := s.repo.UpdateUserContacts(ctx, contacts)
-	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "UpdateUserContacts",
 			Step:      "Repository call",
 			Err:       err,
 		}
@@ -162,6 +123,21 @@ func (s *Service) ExistsByTelegramID(ctx context.Context, telegramID int) (bool,
 	return exists, nil
 }
 
-func parseUUID(uuidStr string) (uuid.UUID, error) {
-	return uuid.Parse(uuidStr)
+func (s *Service) GetUserUUIDByTelegramID(ctx context.Context, telegramID int) (uuid.UUID, error) {
+	ctx, span := tracer.Start(ctx, "user.service.ExistsByTelegramID")
+	defer span.End()
+
+	userUUID, err := s.repo.GetUserUUIDByTelegramID(ctx, telegramID)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "ExistsByTelegramID",
+			Step:      "Repository call",
+			Err:       err,
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return uuid.Nil, err
+	}
+
+	return userUUID, nil
 }

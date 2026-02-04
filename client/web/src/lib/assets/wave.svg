@@ -1,0 +1,26 @@
+<svg width="800" height="400" viewBox="0 0 800 400" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<mask id="mask0_36_21" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="800" height="400">
+<rect width="800" height="400" fill="url(#paint0_linear_36_21)"/>
+</mask>
+<g mask="url(#mask0_36_21)">
+<path d="M296.444 140.377C164.192 36.0287 0 140.377 0 140.377V2.5H800V400C800 400 701.684 264.197 548.971 230.247C396.257 196.296 428.696 244.725 296.444 140.377Z" fill="url(#pattern0_36_21)"/>
+</g>
+<defs>
+<linearGradient id="paint0_linear_36_21" x1="800" y1="4.33922e-05" x2="72" y2="301.5" gradientUnits="userSpaceOnUse">
+<stop stop-color="white"/>
+<stop offset="1" stop-color="white" stop-opacity="0.2"/>
+</linearGradient>
+<pattern id="pattern0_36_21" patternUnits="userSpaceOnUse" patternTransform="matrix(36 0 0 36 5 7.5)" preserveAspectRatio="none" viewBox="5 5 36 36" width="1" height="1">
+<g id="pattern0_36_21_inner">
+<circle cx="18" cy="6" r="1" fill="#FAAF72"/>
+<circle cx="6" cy="6" r="1" fill="#FAAF72"/>
+<circle cx="30" cy="6" r="1" fill="#FAAF72"/>
+<circle cx="18" cy="18" r="1" fill="#FAAF72"/>
+<circle cx="6" cy="18" r="1" fill="#FAAF72"/>
+<circle cx="30" cy="18" r="1" fill="#FAAF72"/>
+<circle cx="18" cy="30" r="1" fill="#FAAF72"/>
+<circle cx="6" cy="30" r="1" fill="#FAAF72"/>
+<circle cx="30" cy="30" r="1" fill="#FAAF72"/>
+</g>
+</pattern></defs>
+</svg>

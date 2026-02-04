@@ -5,40 +5,25 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// DBUserDetails user_service.users_details
-type DBUserDetails struct {
-	Name       string    `db:"name"`
-	Surname    string    `db:"surname"`
-	Patronymic string    `db:"patronymic"`
-	GroupCode  string    `db:"group_code"`
-	UserUUID   uuid.UUID `db:"user_uuid"`
+// DBUser user_service.user
+type DBUser struct {
+	UUID        uuid.UUID
+	Name        *string `db:"name"`
+	Surname     *string `db:"surname"`
+	Patronymic  *string `db:"patronymic"`
+	GroupCode   *string `db:"group_code"`
+	PhoneNumber *string `db:"phone_number"`
+	TelegramID  int     `db:"telegram_id"`
+	Username    string  `db:"username"`
+	PhotoUrl    *string `db:"photo_url"`
 }
-
-// DBUserContacts user_service.users_contacts
-type DBUserContacts struct {
-	PhoneNumber string    `db:"phone_number"`
-	TelegramID  int       `db:"telegram_id"`
-	UserUUID    uuid.UUID `db:"user_uuid"`
-}
-
-type DBUserInfo struct {
-	UUID        uuid.UUID `db:"uuid"`
-	Name        string    `db:"name"`
-	Surname     string    `db:"surname"`
-	Patronymic  string    `db:"patronymic"`
-	GroupCode   string    `db:"group_code"`
-	PhoneNumber string    `db:"phone_number"`
-	TelegramID  int       `db:"telegram_id"`
-}
-
 type CreateUserReq struct {
-	Name        string
-	Surname     string
-	Patronymic  string
-	GroupCode   string
-	PhoneNumber string
-	TelegramID  int
-	Tx          pgx.Tx
+	TelegramID int
+	Name       *string
+	Surname    *string
+	Username   string
+	PhotoUrl   *string
+	Tx         pgx.Tx
 }
 
 type CreateUserRes struct {
@@ -46,26 +31,22 @@ type CreateUserRes struct {
 	Tx   pgx.Tx
 }
 
-type GetUserInfoRes struct {
-	UUID        uuid.UUID
-	Name        string
-	Surname     string
-	Patronymic  string
-	GroupCode   string
-	PhoneNumber string
-	TelegramID  int
+type GetUserRes struct {
+	Username    string
+	Name        *string
+	Surname     *string
+	Patronymic  *string
+	GroupCode   *string
+	PhoneNumber *string
+	PhotoUrl    *string
 }
 
-type UpdateUserDetailsReq struct {
-	UserUUID   uuid.UUID
-	Name       string
-	Surname    string
-	Patronymic string
-	GroupCode  string
-}
-
-type UpdateUserContactsReq struct {
+type UpdateUserReq struct {
 	UserUUID    uuid.UUID
-	PhoneNumber string
-	TelegramID  int
+	Name        *string
+	Surname     *string
+	Patronymic  *string
+	GroupCode   *string
+	PhoneNumber *string
+	PhotoUrl    *string
 }

@@ -2,8 +2,8 @@ package usecase
 
 import (
 	"context"
-	"fmt"
 	"labgrab/internal/application/subscription/dto"
+	"labgrab/internal/auth"
 	"labgrab/internal/subscription"
 	"time"
 
@@ -13,28 +13,31 @@ import (
 )
 
 type NewSubscriptionUseCase struct {
+	authSvc         *auth.Service
 	subscriptionSvc *subscription.Service
 	logger          *zap.SugaredLogger
 }
 
-func NewNewSubscriptionUseCase(subscriptionSvc *subscription.Service, logger *zap.SugaredLogger) *NewSubscriptionUseCase {
+func NewNewSubscriptionUseCase(authSvc *auth.Service, subscriptionSvc *subscription.Service, logger *zap.SugaredLogger) *NewSubscriptionUseCase {
 	return &NewSubscriptionUseCase{
+		authSvc:         authSvc,
 		subscriptionSvc: subscriptionSvc,
 		logger:          logger,
 	}
 }
 
-func (uc *NewSubscriptionUseCase) Exec(ctx context.Context, data *dto.NewSubscriptionReqDTO) (uuid.UUID, error) {
-	ctx, span := tracer.Start(ctx, "subscription.usecase.NewSubscription")
-	defer span.End()
-
-	userUUID, err := uuid.Parse(data.UserUUID)
-	if err != nil {
-		err = fmt.Errorf("invalid user uuid: %w", err)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+func (uc *NewSubscriptionUseCase) Exec(ctx context.Context, session string, data *dto.NewSubscriptionReqDTO) (uuid.UUID, error) {
+	if err := uc.authSvc.ValidateSession(ctx, session); err != nil {
 		return uuid.Nil, err
 	}
+
+	userUUID, err := uc.authSvc.GetSessionData(ctx, session)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	ctx, span := tracer.Start(ctx, "subscription.usecase.NewSubscription")
+	defer span.End()
 
 	req := &subscription.CreateSubscriptionReq{
 		UserUUID:      userUUID,

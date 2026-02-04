@@ -7,8 +7,10 @@ dikidi_client:
     min_rate: 0.1
     burst: 2
   sources:
-    sources_ids_provider: https://dikidi.net/550001?p=1.pi-ssm-sd&s=7937920&rl=0_0
-    slots_source: https://dikidi.net/ru/mobile/ajax/newrecord/get_datetimes/?company_id=550001
+    sources_ids_provider: 'https://dikidi.net/550001?p=1.pi-ssm-sd&s=7937920&rl=0_0'
+    slots_source: 'https://dikidi.net/ru/mobile/ajax/newrecord/get_datetimes/?company_id=550001'
+auth_service:
+  key_prefix: 'session'
 polling_service:
   parser:
     number_pattern: '№\s*(\d+)'
@@ -30,5 +32,5 @@ polling_service:
 
 subscription_service:
   deduplicator:
-    key_prefix: slot
+    key_prefix: 'slot'
     ttl: 5m

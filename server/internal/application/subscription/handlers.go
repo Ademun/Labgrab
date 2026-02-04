@@ -2,7 +2,9 @@ package subscription
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"labgrab/internal/auth"
 	"labgrab/internal/subscription"
 	"net/http"
 
@@ -24,12 +26,12 @@ type Handler struct {
 	logger           *zap.SugaredLogger
 }
 
-func NewHandler(subscriptionSvc *subscription.Service,
+func NewHandler(authSvc *auth.Service, subscriptionSvc *subscription.Service,
 	logger *zap.SugaredLogger,
 ) *Handler {
 	return &Handler{
-		getSubscriptions: usecase.NewGetSubscriptionsUseCase(subscriptionSvc, logger),
-		newSubscription:  usecase.NewNewSubscriptionUseCase(subscriptionSvc, logger),
+		getSubscriptions: usecase.NewGetSubscriptionsUseCase(authSvc, subscriptionSvc, logger),
+		newSubscription:  usecase.NewNewSubscriptionUseCase(authSvc, subscriptionSvc, logger),
 		editSubscription: usecase.NewEditSubscriptionUseCase(subscriptionSvc, logger),
 		logger:           logger,
 	}
@@ -39,9 +41,6 @@ func (h *Handler) GetSubscriptions(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracer.Start(r.Context(), "subscription.handler.GetSubscriptions")
 	defer span.End()
 
-	vars := mux.Vars(r)
-	userUUID := vars["user_uuid"]
-
 	subscriptionUUID := r.URL.Query().Get("subscription_uuid")
 	var subscriptionUUIDPtr *string
 	if subscriptionUUID != "" {
@@ -49,15 +48,31 @@ func (h *Handler) GetSubscriptions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req := &dto.GetSubscriptionsReqDTO{
-		UserUUID:         userUUID,
 		SubscriptionUUID: subscriptionUUIDPtr,
 	}
 
-	resp, err := h.getSubscriptions.Exec(ctx, req)
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		if errors.Is(err, http.ErrNoCookie) {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			h.logger.Error(err)
+			return
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		http.Error(w, "Failed to read cookie", http.StatusInternalServerError)
+		h.logger.Error(err)
+		return
+	}
+
+	resp, err := h.getSubscriptions.Exec(ctx, cookie.Value, req)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Error(err)
 		return
 	}
 
@@ -67,6 +82,7 @@ func (h *Handler) GetSubscriptions(w http.ResponseWriter, r *http.Request) {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Error(err)
 		return
 	}
 }
@@ -75,25 +91,38 @@ func (h *Handler) NewSubscription(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracer.Start(r.Context(), "subscription.handler.NewSubscription")
 	defer span.End()
 
-	vars := mux.Vars(r)
-	userUUID := vars["user_uuid"]
-
 	var req dto.NewSubscriptionReqDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		err = fmt.Errorf("failed to decode request: %w", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		h.logger.Error(err)
 		return
 	}
 
-	req.UserUUID = userUUID
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		if errors.Is(err, http.ErrNoCookie) {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			h.logger.Error(err)
+			return
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		http.Error(w, "Failed to read cookie", http.StatusInternalServerError)
+		h.logger.Error(err)
+		return
+	}
 
-	resp, err := h.newSubscription.Exec(ctx, &req)
+	resp, err := h.newSubscription.Exec(ctx, cookie.Value, &req)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Error(err)
 		return
 	}
 
@@ -104,6 +133,7 @@ func (h *Handler) NewSubscription(w http.ResponseWriter, r *http.Request) {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Error(err)
 		return
 	}
 }
@@ -147,8 +177,8 @@ func (h *Handler) EditSubscription(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) RegisterRoutes(r *mux.Router) {
-	r.HandleFunc("/api/subscriptions/{user_uuid}", h.GetSubscriptions).Methods(http.MethodGet)
-	r.HandleFunc("/api/subscriptions/{user_uuid}", h.NewSubscription).Methods(http.MethodPost)
-	r.HandleFunc("/api/subscriptions/{user_uuid}/{id}", h.GetSubscriptions).Methods(http.MethodGet)
-	r.HandleFunc("/api/subscriptions/{user_uuid}/{id}", h.EditSubscription).Methods(http.MethodPatch)
+	r.HandleFunc("/api/subscriptions", h.GetSubscriptions).Methods(http.MethodGet)
+	r.HandleFunc("/api/subscriptions", h.NewSubscription).Methods(http.MethodPost)
+	r.HandleFunc("/api/subscriptions/{id}", h.GetSubscriptions).Methods(http.MethodGet)
+	r.HandleFunc("/api/subscriptions/{id}", h.EditSubscription).Methods(http.MethodPatch)
 }

@@ -11,5 +11,6 @@ type AuthUserReqDTO struct {
 }
 
 type AuthUserRespDTO struct {
-	Exists bool `json:"exists"`
+	Session string
+	IsNew   bool `json:"is_new"`
 }

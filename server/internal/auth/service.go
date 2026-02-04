@@ -3,15 +3,20 @@ package auth
 import (
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"labgrab/internal/shared/errors"
 	"labgrab/pkg/config"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.uber.org/zap"
@@ -20,43 +25,108 @@ import (
 var tracer = otel.Tracer("auth-service")
 
 type Service struct {
+	cache  *redis.Client
 	cfg    *config.AuthServiceConfig
 	logger *zap.SugaredLogger
 }
 
-func NewService(cfg *config.AuthServiceConfig, logger *zap.SugaredLogger) *Service {
-	return &Service{cfg: cfg, logger: logger}
+func NewService(cache *redis.Client, cfg *config.AuthServiceConfig, logger *zap.SugaredLogger) *Service {
+	return &Service{
+		cache:  cache,
+		cfg:    cfg,
+		logger: logger,
+	}
+}
+
+func (s *Service) CreateSession(ctx context.Context, userUUID uuid.UUID) (string, error) {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", &errors.ErrServiceProcedure{
+			Procedure: "CreateSession",
+			Step:      "Random number generation",
+			Err:       err,
+		}
+	}
+
+	session := base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(b)
+	key := fmt.Sprintf("%s:%s", s.cfg.KeyPrefix, session)
+
+	if err := s.cache.Set(ctx, key, userUUID, time.Hour*24).Err(); err != nil {
+		return "", &errors.ErrServiceProcedure{
+			Procedure: "CreateSession",
+			Step:      "Store session key",
+			Err:       err,
+		}
+	}
+
+	return session, nil
+}
+
+func (s *Service) ValidateSession(ctx context.Context, session string) error {
+	key := fmt.Sprintf("%s:%s", s.cfg.KeyPrefix, session)
+	if err := s.cache.Exists(ctx, key).Err(); err != nil {
+		return &errors.ErrServiceProcedure{
+			Procedure: "ValidateSession",
+			Step:      "Check session key",
+			Err:       err,
+		}
+	}
+	return nil
+}
+
+func (s *Service) GetSessionData(ctx context.Context, session string) (uuid.UUID, error) {
+	key := fmt.Sprintf("%s:%s", s.cfg.KeyPrefix, session)
+
+	result, err := s.cache.Get(ctx, key).Bytes()
+	if err != nil {
+		return uuid.Nil, &errors.ErrServiceProcedure{
+			Procedure: "GetSessionData",
+			Step:      "Retrieve session data",
+			Err:       err,
+		}
+	}
+
+	userUUID, err := uuid.FromBytes(result)
+	if err != nil {
+		return uuid.Nil, &errors.ErrServiceProcedure{
+			Procedure: "GetSessionData",
+			Step:      "Unmarshal session data",
+			Err:       err,
+		}
+	}
+
+	return userUUID, nil
 }
 
 func (s *Service) ValidateTelegramAuthData(ctx context.Context, data *TelegramAuthData) error {
 	ctx, span := tracer.Start(ctx, "auth.service.ValidateTelegramAuthData")
 	defer span.End()
 
-	_, hashSpan := tracer.Start(ctx, "auth.service.VerifyHash")
-	hashErr := s.verifyHash(data)
-	hashSpan.End()
+	err := s.verifyHash(data)
 
-	if hashErr != nil {
-		hashSpan.RecordError(hashErr)
-		hashSpan.SetStatus(codes.Error, hashErr.Error())
-		span.RecordError(hashErr)
-		span.SetStatus(codes.Error, hashErr.Error())
-		s.logger.Errorw(hashErr.Error())
+	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "ValidateTelegramAuthData",
+			Step:      "Hash verification",
+			Err:       err,
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 	}
 
-	_, dateSpan := tracer.Start(ctx, "auth.service.VerifyAuthDate")
-	dateErr := s.verifyAuthDate(data.AuthDate)
-	dateSpan.End()
+	err = s.verifyAuthDate(data.AuthDate)
 
-	if dateErr != nil {
-		dateSpan.RecordError(dateErr)
-		dateSpan.SetStatus(codes.Error, dateErr.Error())
-		span.RecordError(hashErr)
-		span.SetStatus(codes.Error, dateErr.Error())
-		s.logger.Errorw(dateErr.Error())
+	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "ValidateTelegramAuthData",
+			Step:      "Auth date verification",
+			Err:       err,
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		s.logger.Errorw(err.Error())
 	}
-
-	s.logger.Info("telegram auth data verified successfully")
 
 	return nil
 }
@@ -82,11 +152,20 @@ func (s *Service) buildDataCheckString(data *TelegramAuthData) string {
 	fields := make(map[string]string)
 
 	fields["id"] = strconv.Itoa(data.Id)
-	fields["first_name"] = data.FirstName
-	fields["last_name"] = data.LastName
-	fields["username"] = data.Username
-	fields["photo_url"] = data.PhotoURL
 	fields["auth_date"] = strconv.Itoa(data.AuthDate)
+
+	if data.FirstName != "" {
+		fields["first_name"] = data.FirstName
+	}
+	if data.LastName != "" {
+		fields["last_name"] = data.LastName
+	}
+	if data.Username != "" {
+		fields["username"] = data.Username
+	}
+	if data.PhotoURL != "" {
+		fields["photo_url"] = data.PhotoURL
+	}
 
 	keys := make([]string, 0, len(fields))
 	for k := range fields {
