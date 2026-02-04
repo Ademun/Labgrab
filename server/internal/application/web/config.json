@@ -1,0 +1,43 @@
+{
+  "lab_types": [
+    {
+      "id": "Performance",
+      "name_ru": "Выполнение",
+      "name_en": "Performance",
+      "needs_auditorium": true
+    },
+    {
+      "id": "Defence",
+      "name_ru": "Защита",
+      "name_en": "Defence",
+      "needs_auditorium": false
+    }
+  ],
+  "lab_topics": [
+    {
+      "id": "Mechanics",
+      "name_ru": "Механика",
+      "name_en": "Mechanics"
+    },
+    {
+      "id": "Electricity",
+      "name_ru": "Электричество",
+      "name_en": "Electricity"
+    },
+    {
+      "id": "Virtual",
+      "name_ru": "Виртуальная",
+      "name_en": "Virtual"
+    },
+    {
+      "id": "Optics",
+      "name_ru": "Оптика",
+      "name_en": "Optics"
+    },
+    {
+      "id": "RigidBody",
+      "name_ru": "Твёрдое тело",
+      "name_en": "Rigid Body"
+    }
+  ]
+}
