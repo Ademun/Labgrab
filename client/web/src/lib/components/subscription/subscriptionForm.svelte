@@ -5,57 +5,130 @@
     import {Checkbox} from "$lib/components/ui/checkbox";
     import {Button} from "$lib/components/ui/button";
     import {cn} from "$lib/utils.ts";
-    import {LAB_TYPE_COLORS, needsAuditorium, type NewSubscription} from "$lib/types/subscription.ts";
-    import {invalidateAll} from "$app/navigation";
     import {fade} from "svelte/transition";
-    import {translateTopicToEnglish} from "$lib/utils/translations.ts";
+    import type {CreateSubscriptionRequest} from "$lib/api/types";
 
-    let {open = $bindable(false)}: { open: boolean } = $props();
+    import {api} from "$lib/api/client";
+    import {toast} from "$lib/utils/toast";
+    import {findLabType, labTopics, labTypes} from "$lib/stores/config";
 
-    let labType = $state<string>('Performance')
-    let labTopic = $state<string>()
-    let labNum = $state<number>()
-    let labAuditorium = $state<number>()
-    let autoSign = $state<boolean>(false)
-    let anyDate = $state<boolean>(false)
+    let {
+        open = $bindable(false),
+        onCreated,
+    }: {
+        open: boolean;
+        onCreated?: () => void | Promise<void>;
+    } = $props();
 
-    const createSubscription = async (event: Event) => {
-        event.preventDefault()
+    let labType = $state<string>('Performance');
+    let labTopic = $state<string | undefined>();
+    let labNum = $state<number | undefined>();
+    let labAuditorium = $state<number | undefined>();
+    let autoSign = $state<boolean>(false);
+    let anyDate = $state<boolean>(false);
 
-        const subscription: NewSubscription = {
-            lab_type: labType,
-            lab_topic: translateTopicToEnglish(labTopic ?? ""),
-            lab_number: Number(labNum ?? -1),
-            lab_auditorium: labAuditorium != null ? Number(labAuditorium) : undefined,
-            created_at: Math.round(new Date().getTime() / 1000)
-        }
+    let isSubmitting = $state<boolean>(false);
 
-        const response = await fetch("/api/subscriptions", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            credentials: "include",
-            body: JSON.stringify(subscription)
-        })
+    const needsAuditorium = $derived(() => {
+        const type = findLabType(labType);
+        return type?.needs_auditorium ?? false;
+    });
 
-        if (!response.ok) {
-            console.error(response)
-            return
-        }
-
-        open = false
-        await invalidateAll()
-    }
+    const isDefence = $derived(labType === 'Defence');
+    const colors = $derived(
+        isDefence ? "blue-500" : "primary"
+    );
 
     $effect(() => {
-        if (labType === 'Defence') {
+        if (!needsAuditorium()) {
             labAuditorium = undefined;
         }
     });
 
-    const isDefence = $derived(labType === 'Defence');
-    const colors = $derived(isDefence ? LAB_TYPE_COLORS.Defence : LAB_TYPE_COLORS.Performance);
+    function validateForm(): boolean {
+        if (!labTopic) {
+            toast.error('Выберите тему лабораторной работы');
+            return false;
+        }
+
+        if (labNum === undefined || labNum < 1) {
+            toast.error('Укажите корректный номер работы', {
+                description: 'Номер должен быть больше нуля'
+            });
+            return false;
+        }
+
+        if (needsAuditorium() && !labAuditorium) {
+            toast.error('Укажите аудиторию', {
+                description: 'Для работы типа "Выполнение" аудитория обязательна'
+            });
+            return false;
+        }
+
+        if (labAuditorium !== undefined && labAuditorium < 1) {
+            toast.error('Укажите корректный номер аудитории', {
+                description: 'Номер должен быть больше нуля'
+            });
+            return false;
+        }
+
+        return true;
+    }
+
+    const createSubscription = async (event: Event) => {
+        event.preventDefault();
+
+        if (!validateForm()) {
+            return;
+        }
+
+        const subscriptionData: CreateSubscriptionRequest = {
+            lab_type: labType,
+            lab_topic: labTopic!,
+            lab_number: labNum!,
+            lab_auditorium: labAuditorium,
+            auto_enroll: autoSign,
+            any_date: anyDate,
+        };
+
+        isSubmitting = true;
+
+        try {
+            await toast.promise(
+                api.createSubscription(subscriptionData),
+                {
+                    loading: 'Создаём подписку...',
+                    success: 'Подписка создана успешно!',
+                    error: (err) => {
+                        if (err && typeof err === 'object' && 'message' in err) {
+                            return err.message;
+                        }
+                        return 'Не удалось создать подписку';
+                    }
+                }
+            );
+
+            resetForm();
+
+            open = false;
+
+            await onCreated?.();
+
+        } catch (error) {
+            console.error('Failed to create subscription:', error);
+        } finally {
+            isSubmitting = false;
+        }
+    };
+
+    function resetForm() {
+        labType = 'Performance';
+        labTopic = undefined;
+        labNum = undefined;
+        labAuditorium = undefined;
+        autoSign = false;
+        anyDate = false;
+    }
 </script>
 
 <div>
@@ -73,30 +146,20 @@
                         Тип работы <span class="text-primary">*</span>
                     </Label>
                     <div class="flex justify-between items-center gap-3">
-                        <Button
-                                type="button"
-                                class={cn(
-                                "w-[48%] py-5 font-semibold text-sm uppercase tracking-wide",
-                                labType === 'Performance' && colors.bg,
-                                labType === 'Performance' && colors.hover
-                            )}
-                                variant={labType === 'Performance' ? 'default' : 'outline'}
-                                onclick={() => labType = 'Performance'}
-                        >
-                            Выполнение
-                        </Button>
-                        <Button
-                                type="button"
-                                class={cn(
-                                "w-[48%] py-5 font-semibold text-sm uppercase tracking-wide",
-                                labType === 'Defence' && colors.bg,
-                                labType === 'Defence' && colors.hover
-                            )}
-                                variant={labType === 'Defence' ? 'default' : 'outline'}
-                                onclick={() => labType = 'Defence'}
-                        >
-                            Защита
-                        </Button>
+                        {#each $labTypes as type}
+                            <Button
+                                    type="button"
+                                    class={cn(
+                                    "w-[48%] py-5 font-semibold text-sm uppercase tracking-wide",
+                                    labType === type.id && `bg-${colors}`,
+                                )}
+                                    variant={labType === type.id ? 'default' : 'outline'}
+                                    onclick={() => labType = type.id}
+                                    disabled={isSubmitting}
+                            >
+                                {type.name_ru}
+                            </Button>
+                        {/each}
                     </div>
                 </Field>
 
@@ -104,16 +167,20 @@
                     <Label class="text-sm font-medium mb-2">
                         Тема работы <span class="text-primary">*</span>
                     </Label>
-                    <Root required type='single' bind:value={labTopic}>
+                    <Root required type='single' bind:value={labTopic} disabled={isSubmitting}>
                         <Trigger class="w-full">
-                            <span>{labTopic || "Выберите тему из списка"}</span>
+                            <span>
+                                {#if labTopic}
+                                    {$labTopics.find(t => t.id === labTopic)?.name_ru || labTopic}
+                                {:else}
+                                    Выберите тему из списка
+                                {/if}
+                            </span>
                         </Trigger>
                         <Content>
-                            <Item value="Механика">Механика</Item>
-                            <Item value="Электричество">Электричество</Item>
-                            <Item value="Виртуальная">Виртуальная</Item>
-                            <Item value="Оптика">Оптика</Item>
-                            <Item value="Твёрдое тело">Твёрдое тело</Item>
+                            {#each $labTopics as topic}
+                                <Item value={topic.id}>{topic.name_ru}</Item>
+                            {/each}
                         </Content>
                     </Root>
                 </Field>
@@ -128,23 +195,24 @@
                             min="1"
                             placeholder="Например: 3"
                             bind:value={labNum}
+                            disabled={isSubmitting}
                             class="py-5"
                     />
                 </Field>
 
-                {#if needsAuditorium(labType)}
-                    <div transition:fade={{duration: 300}}>
+                {#if needsAuditorium()}
+                    <div transition:fade={{ duration: 300 }}>
                         <Field>
                             <Label class="text-sm font-medium mb-2">
-                                Аудитория
-                                <span class="text-primary">
-                                    *
-                                </span>
+                                Аудитория <span class="text-primary">*</span>
                             </Label>
                             <Input
+                                    required
                                     type="number"
+                                    min="1"
                                     placeholder="205"
                                     bind:value={labAuditorium}
+                                    disabled={isSubmitting}
                                     class="py-5"
                             />
                         </Field>
@@ -169,6 +237,7 @@
                             isDefence && "data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
                         )}
                             bind:checked={autoSign}
+                            disabled={isSubmitting}
                     />
                     <Label for="subscription-auto" class="cursor-pointer">
                         <div class="flex flex-col gap-1">
@@ -188,6 +257,7 @@
                             isDefence && "data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
                         )}
                             bind:checked={anyDate}
+                            disabled={isSubmitting}
                     />
                     <Label for="subscription-any-date" class="cursor-pointer">
                         <div class="flex flex-col gap-1">
@@ -206,11 +276,18 @@
                     type="submit"
                     class={cn(
                     "w-full py-5 font-semibold text-sm uppercase tracking-wide",
-                    colors.bg,
-                    colors.hover
+                    `bg-${colors}`
                 )}
+                    disabled={isSubmitting}
             >
-                Создать подписку
+                {#if isSubmitting}
+                    <span class="flex items-center gap-2">
+                        <span class="animate-spin">⏳</span>
+                        Создаём...
+                    </span>
+                {:else}
+                    Создать подписку
+                {/if}
             </Button>
         </Field>
     </form>
