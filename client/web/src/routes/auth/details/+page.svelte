@@ -2,252 +2,266 @@
     import {Field, Group, Label, Legend, Set} from "$lib/components/ui/field";
     import {Input} from "$lib/components/ui/input";
     import {Button} from "$lib/components/ui/button";
-    import {fade, fly, scale} from 'svelte/transition';
+    import {fade, scale} from 'svelte/transition';
     import {goto} from "$app/navigation";
-    import type {UserDetails} from "$lib/types/user.ts";
+    import type {UserUpdateRequest} from "$lib/api/types";
 
-    let name = $state<string>()
-    let surname = $state<string>()
-    let patronymic = $state<string>()
-    let group_code = $state<string>()
-    let phone_number = $state<string>()
+    import {api} from "$lib/api/client";
+    import {handleApiError, toast} from "$lib/utils/toast";
+
+    let name = $state<string>('');
+    let surname = $state<string>('');
+    let patronymic = $state<string>('');
+    let group_code = $state<string>('');
+    let phone_number = $state<string>('');
+
+    let isSubmitting = $state<boolean>(false);
+
+    function validatePhoneNumber(phone: string): boolean {
+        if (!phone) return true;
+
+        const cleaned = phone.replace(/[\s-]/g, '');
+
+        const phoneRegex = /^(\+7|8)\d{10}$/;
+        return phoneRegex.test(cleaned);
+    }
 
     const submitDetails = async () => {
-        const details: UserDetails = {
-            name: name,
-            surname: surname,
-            patronymic: patronymic,
-            group_code: group_code,
-            phone_number: phone_number,
+        if (!validatePhoneNumber(phone_number)) {
+            toast.error('Неверный формат номера телефона', {
+                description: 'Используйте формат: +7 978 621 48 21 или 8 978 621 48 21'
+            });
+            return;
         }
 
-        const response = await fetch("/api/users", {
-            method: "PATCH",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            credentials: "include",
-            body: JSON.stringify(details)
-        })
+        const updates: UserUpdateRequest = {};
+        if (name.trim()) updates.name = name.trim();
+        if (surname.trim()) updates.surname = surname.trim();
+        if (patronymic.trim()) updates.patronymic = patronymic.trim();
+        if (group_code.trim()) updates.group_code = group_code.trim();
+        if (phone_number.trim()) updates.phone_number = phone_number.trim();
 
-        if (!response.ok) {
-            console.error(response)
-            return
+        if (Object.keys(updates).length === 0) {
+            await skip();
+            return;
         }
 
-        await goto("/account");
-    }
+        isSubmitting = true;
 
+        try {
+            await api.updateUser(updates);
+
+            toast.success('Профиль обновлён', {
+                description: 'Данные успешно сохранены'
+            });
+
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            await goto("/account");
+
+        } catch (error) {
+            console.error('Failed to update profile:', error);
+            handleApiError(error, 'Не удалось обновить профиль');
+        } finally {
+            isSubmitting = false;
+        }
+    };
 
     const skip = async () => {
+        toast.info('Вы можете заполнить профиль позже в настройках');
         await goto("/account");
-    }
+    };
 </script>
 
 <div class="flex flex-col items-center h-full w-full mx-auto px-8 py-8">
-    <div class="my-auto bg-card text-center rounded-2xl shadow-lg p-6"
-         in:scale={{
+    <div
+            class="my-auto bg-card text-center rounded-2xl shadow-lg p-6 max-w-md w-full"
+            in:scale={{
             delay: 100,
             duration: 300,
             start: 0.95
-         }}
-         out:scale={{
+        }}
+            out:scale={{
             duration: 250,
             start: 0.95,
             delay: 0
-         }}>
-
-        <h1 class="text-xl font-bold font-archivo-black tracking-wider" in:fade={{
+        }}
+    >
+        <h1
+                class="text-xl font-bold font-archivo-black tracking-wider mb-2"
+                in:fade={{
                 delay: 200,
                 duration: 300
             }}
-            out:fade={{
+                out:fade={{
                 duration: 250,
                 delay: 0
-            }}>
+            }}
+        >
             Уточним информацию?
         </h1>
 
-        <div in:fade={{
+        <p
+                class="text-sm text-muted-foreground mb-6"
+                in:fade={{
                 delay: 250,
                 duration: 300
-             }}
-             out:fade={{
+            }}
+                out:fade={{
                 duration: 250,
                 delay: 50
-             }}>
-            <Set class="py-6">
-
-                <div in:fade={{
-                        delay: 300,
-                        duration: 250
-                    }}
-                     out:fade={{
-                        duration: 200,
-                        delay: 100
-                    }}>
-                    <Legend class="text-left">
-                        <span class="text-muted-foreground text-sm font-semibold tracking-wide">
-                            Эта информация необходима для автозаписи
-                        </span>
-                    </Legend>
-                </div>
-
-                <div in:fade={{
-                      delay: 350,
-                      duration: 300
-                   }}
-                     out:fade={{
-                      duration: 250,
-                      delay: 150
-                   }}>
-                    <Group onsubmit={submitDetails}>
-
-                        <div in:fly={{
-                                y: 10,
-                                duration: 250,
-                                delay: 400,
-                                opacity: 0
-                            }}
-                             out:fly={{
-                                y: 10,
-                                duration: 200,
-                                delay: 0,
-                                opacity: 0
-                            }}>
-                            <Field>
-                                <Label class="text-sm font-medium">
-                                    Имя <span class="text-primary">*</span>
-                                </Label>
-                                <Input required type="text" placeholder="Иван" bind:value={name}/>
-                            </Field>
-                        </div>
-
-                        <div in:fly={{
-                                y: 10,
-                                duration: 250,
-                                delay: 450,
-                                opacity: 0
-                            }}
-                             out:fly={{
-                                y: 10,
-                                duration: 200,
-                                delay: 50,
-                                opacity: 0
-                            }}>
-                            <Field>
-                                <Label class="text-sm font-medium">
-                                    Фамилия <span class="text-primary">*</span>
-                                </Label>
-                                <Input required type="text" placeholder="Иванов" bind:value={surname}/>
-                            </Field>
-                        </div>
-
-                        <div in:fly={{
-                                y: 10,
-                                duration: 250,
-                                delay: 500,
-                                opacity: 0
-                            }}
-                             out:fly={{
-                                y: 10,
-                                duration: 200,
-                                delay: 100,
-                                opacity: 0
-                            }}>
-                            <Field>
-                                <Label class="text-sm font-medium">
-                                    Отчество <span class="text-primary">*</span>
-                                </Label>
-                                <Input required type="text" placeholder="Иванович" bind:value={patronymic}/>
-                            </Field>
-                        </div>
-
-                        <div in:fly={{
-                                y: 10,
-                                duration: 250,
-                                delay: 550,
-                                opacity: 0
-                            }}
-                             out:fly={{
-                                y: 10,
-                                duration: 200,
-                                delay: 150,
-                                opacity: 0
-                            }}>
-                            <Field>
-                                <Label class="text-sm font-medium">
-                                    Группа <span class="text-primary">*</span>
-                                </Label>
-                                <Input required type="text" placeholder="ИН-24-8" bind:value={group_code}/>
-                            </Field>
-                        </div>
-
-                        <div in:fly={{
-                                y: 10,
-                                duration: 250,
-                                delay: 600,
-                                opacity: 0
-                            }}
-                             out:fly={{
-                                y: 10,
-                                duration: 200,
-                                delay: 200,
-                                opacity: 0
-                            }}>
-                            <Field>
-                                <Label class="text-sm font-medium">
-                                    Телефон <span class="text-primary">*</span>
-                                </Label>
-                                <Input required type="tel" placeholder="+7 978 621 48 21" bind:value={phone_number}/>
-                            </Field>
-                        </div>
-                    </Group>
-                </div>
-            </Set>
-        </div>
-
-        <div in:scale={{
-                delay: 650,
-                duration: 300,
-                start: 0.9
             }}
-             out:scale={{
-                duration: 250,
-                start: 0.9,
-                delay: 250
-            }}>
-            <Field>
-                <div in:scale={{
-                        delay: 700,
-                        duration: 250,
-                        start: 0.95
-                    }}
-                     out:scale={{
-                        duration: 200,
-                        start: 0.95,
-                        delay: 0
-                    }}>
-                    <Button type="submit" class="w-full py-5 font-semibold text-sm uppercase tracking-wide"
-                            onclick={submitDetails}>
-                        ПРОДОЛЖИТЬ
-                    </Button>
-                </div>
+        >
+            Эти данные помогут автоматически записывать вас на лабораторные
+        </p>
 
-                <div in:fade={{
-                        delay: 750,
-                        duration: 250
+        <div
+                in:fade={{
+                delay: 250,
+                duration: 300
+            }}
+                out:fade={{
+                duration: 250,
+                delay: 50
+            }}
+        >
+            <form onsubmit={submitDetails}>
+                <Set class="py-6">
+                    <div
+                            in:fade={{
+                            delay: 300,
+                            duration: 250
+                        }}
+                            out:fade={{
+                            duration: 200,
+                            delay: 100
+                        }}
+                    >
+                        <Legend class="text-left mb-4">
+                            <span class="text-muted-foreground text-xs font-semibold uppercase tracking-wide">
+                                Все поля опциональны
+                            </span>
+                        </Legend>
+                    </div>
+
+                    <div
+                            in:fade={{
+                            delay: 350,
+                            duration: 300
+                        }}
+                            out:fade={{
+                            duration: 250,
+                            delay: 150
+                        }}
+                    >
+                        <Group class="space-y-4">
+                            <Field>
+                                <Label class="text-sm font-medium text-left">
+                                    Имя
+                                </Label>
+                                <Input
+                                        type="text"
+                                        placeholder="Иван"
+                                        bind:value={name}
+                                        disabled={isSubmitting}
+                                        class="py-5"
+                                />
+                            </Field>
+
+                            <Field>
+                                <Label class="text-sm font-medium text-left">
+                                    Фамилия
+                                </Label>
+                                <Input
+                                        type="text"
+                                        placeholder="Иванов"
+                                        bind:value={surname}
+                                        disabled={isSubmitting}
+                                        class="py-5"
+                                />
+                            </Field>
+
+                            <Field>
+                                <Label class="text-sm font-medium text-left">
+                                    Отчество
+                                </Label>
+                                <Input
+                                        type="text"
+                                        placeholder="Иванович"
+                                        bind:value={patronymic}
+                                        disabled={isSubmitting}
+                                        class="py-5"
+                                />
+                            </Field>
+
+                            <Field>
+                                <Label class="text-sm font-medium text-left">
+                                    Группа
+                                </Label>
+                                <Input
+                                        type="text"
+                                        placeholder="ИН-24-8"
+                                        bind:value={group_code}
+                                        disabled={isSubmitting}
+                                        class="py-5"
+                                />
+                            </Field>
+
+                            <Field>
+                                <Label class="text-sm font-medium text-left">
+                                    Телефон
+                                </Label>
+                                <Input
+                                        type="tel"
+                                        placeholder="+7 978 621 48 21"
+                                        bind:value={phone_number}
+                                        disabled={isSubmitting}
+                                        class="py-5"
+                                />
+                            </Field>
+                        </Group>
+                    </div>
+                </Set>
+
+                <div
+                        class="space-y-3"
+                        in:scale={{
+                        delay: 650,
+                        duration: 300,
+                        start: 0.9
                     }}
-                     out:fade={{
-                        duration: 200,
-                        delay: 50
-                    }}>
-                    <Button variant="outline" class="w-full py-5 font-semibold text-sm uppercase tracking-wide"
-                            onclick={skip}>
-                        ПРОПУСТИТЬ
+                        out:scale={{
+                        duration: 250,
+                        start: 0.9,
+                        delay: 250
+                    }}
+                >
+                    <Button
+                            type="submit"
+                            class="w-full py-5 font-semibold text-sm uppercase tracking-wide"
+                            disabled={isSubmitting}
+                    >
+                        {#if isSubmitting}
+                            <span class="flex items-center gap-2">
+                                <span class="animate-spin">⏳</span>
+                                Сохраняем...
+                            </span>
+                        {:else}
+                            Сохранить и продолжить
+                        {/if}
+                    </Button>
+
+                    <Button
+                            type="button"
+                            variant="outline"
+                            class="w-full py-5 font-semibold text-sm uppercase tracking-wide"
+                            onclick={skip}
+                            disabled={isSubmitting}
+                    >
+                        Пропустить
                     </Button>
                 </div>
-            </Field>
+            </form>
         </div>
     </div>
 </div>
