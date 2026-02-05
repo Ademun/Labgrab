@@ -84,7 +84,7 @@ class ApiClient {
     }
 
     async getConfig(): Promise<AppConfig> {
-        return this.request<AppConfig>('/api/config');
+        return this.request<AppConfig>('/api/web/config');
     }
 
     async getCurrentUser(): Promise<User> {
