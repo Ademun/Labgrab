@@ -4,7 +4,7 @@
     import {Content, Item, Root, Trigger} from "$lib/components/ui/select";
     import {Checkbox} from "$lib/components/ui/checkbox";
     import {Button} from "$lib/components/ui/button";
-    import {cn} from "$lib/utils/utils.ts";
+    import {cn} from "$lib/utils.ts";
     import {LAB_TYPE_COLORS, needsAuditorium, type NewSubscription} from "$lib/types/subscription.ts";
     import {invalidateAll} from "$app/navigation";
     import {fade} from "svelte/transition";

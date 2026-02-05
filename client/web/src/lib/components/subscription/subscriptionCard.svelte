@@ -1,6 +1,6 @@
 <script lang="ts">
     import {Button} from "$lib/components/ui/button";
-    import {cn, formatShortDate} from "$lib/utils/utils.ts";
+    import {cn, formatShortDate} from "$lib/utils.ts";
     import {LAB_TYPE_COLORS, type Subscription} from "$lib/types/subscription.ts";
     import {translateLabTopic, translateLabType} from "$lib/utils/translations.ts";
     import {fade, scale} from 'svelte/transition';

@@ -2,7 +2,7 @@
 	import { SubscriptionCard, SubscriptionForm } from '$lib/components/subscription';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import { Content, Description, Header, Root, Title, Trigger } from '$lib/components/ui/dialog';
-	import { cn } from '$lib/utils/utils.ts';
+	import { cn } from '$lib/utils.ts';
 	import type { PageProps } from '../../../../.svelte-kit/types/src/routes/subscriptions/$types';
 	import { fade, fly, scale } from 'svelte/transition';
 	import { backOut } from 'svelte/easing';
