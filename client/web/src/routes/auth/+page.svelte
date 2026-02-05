@@ -7,6 +7,7 @@
 
     import {api} from "$lib/api/client";
     import {handleApiError, toast} from "$lib/utils/toast";
+    import {Spinner} from "$lib/components/ui/spinner";
 
     let isAuthenticating = $state<boolean>(false);
 
@@ -15,12 +16,6 @@
 
         try {
             await api.authenticateWithTelegram(user);
-
-            toast.success('Вы успешно авторизовались', {
-                description: 'Сейчас перенаправим вас в приложение'
-            });
-
-            await new Promise(resolve => setTimeout(resolve, 500));
 
             await goto("/auth/details");
 
@@ -31,9 +26,9 @@
                 error,
                 'Не удалось авторизоваться через Telegram'
             );
-
-            isAuthenticating = false;
         }
+
+        isAuthenticating = false;
     }
 
     onMount(() => {
@@ -147,15 +142,7 @@
             }}
         >
             {#if isAuthenticating}
-                <div
-                        class="flex flex-col items-center gap-3 py-4"
-                        in:fade={{ duration: 200 }}
-                >
-                    <div class="animate-spin text-3xl">⏳</div>
-                    <p class="text-sm text-muted-foreground">
-                        Авторизация...
-                    </p>
-                </div>
+                <Spinner/>
             {:else}
                 <script
                         async

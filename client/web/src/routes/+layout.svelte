@@ -7,6 +7,7 @@
     import {onMount} from "svelte";
     import {userStore} from "$lib/stores/user.ts";
     import {page} from '$app/state';
+    import {Toaster, toast} from "svelte-sonner";
 
     let {children} = $props();
 
@@ -15,6 +16,9 @@
             await configStore.load()
         } catch (error) {
             console.log('Failed to load app config', error)
+            toast.error('Не удалось загрузить настройки приложения', {
+                description: 'Некоторые функции могут работать некорректно'
+            });
         }
     })
 
@@ -31,6 +35,12 @@
     <link rel="icon" href={favicon}/>
 </svelte:head>
 <ModeWatcher/>
+<Toaster
+        richColors
+        closeButton
+        position="bottom-center"
+        theme={undefined}
+/>
 <div class="h-screen pb-24">
     {@render children?.()}
 </div>

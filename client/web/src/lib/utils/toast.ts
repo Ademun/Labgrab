@@ -1,4 +1,4 @@
-import {type ExternalToast} from "svelte-sonner";
+import {type ExternalToast, toast as sonnerToast} from "svelte-sonner";
 
 const defaultOptions: ExternalToast = {
     duration: 4000,
@@ -7,14 +7,14 @@ const defaultOptions: ExternalToast = {
 
 export const toast = {
     success(message: string, options?: ExternalToast): any {
-        return toast.success(message, {
+        return sonnerToast.success(message, {
             ...defaultOptions,
             ...options,
         });
     },
 
     error(message: string, options?: ExternalToast): any {
-        return toast.error(message, {
+        return sonnerToast.error(message, {
             ...defaultOptions,
             duration: 5000,
             ...options,
@@ -22,21 +22,21 @@ export const toast = {
     },
 
     info(message: string, options?: ExternalToast): any {
-        return toast.info(message, {
+        return sonnerToast.info(message, {
             ...defaultOptions,
             ...options,
         });
     },
 
     warning(message: string, options?: ExternalToast): any {
-        return toast.warning(message, {
+        return sonnerToast.warning(message, {
             ...defaultOptions,
             ...options,
         });
     },
 
     loading(message: string, options?: ExternalToast): any {
-        return toast.loading(message, {
+        return sonnerToast.loading(message, {
             ...defaultOptions,
             duration: Infinity,
             ...options,
@@ -44,14 +44,14 @@ export const toast = {
     },
 
     message(message: string, options?: ExternalToast): any {
-        return toast.message(message, {
+        return sonnerToast.message(message, {
             ...defaultOptions,
             ...options,
         });
     },
 
     dismiss(toastId?: string | number): any {
-        return toast.dismiss(toastId);
+        return sonnerToast.dismiss(toastId);
     },
 
     promise<T>(
@@ -61,39 +61,35 @@ export const toast = {
             success: string | ((data: T) => string);
             error: string | ((error: any) => string);
         },
-        options?: ExternalToast
     ): any {
-        return toast.promise(promise, messages, {
-            ...defaultOptions,
-            ...options,
-        });
+        return sonnerToast.promise(promise, messages);
     },
 }
 
 export function handleApiError(error: unknown, defaultMessage: string = 'Произошла ошибка'): void {
     import('$lib/api/errors').then(({ApiError, NetworkError}) => {
         if (error instanceof NetworkError) {
-            toast.error('Проверьте подключение к интернету', {
+            sonnerToast.error('Проверьте подключение к интернету', {
                 description: error.message,
             });
         } else if (error instanceof ApiError) {
             if (error.isValidationError()) {
-                toast.error('Проверьте правильность заполнения полей', {
+                sonnerToast.error('Проверьте правильность заполнения полей', {
                     description: error.message,
                 });
             } else if (error.isServerError()) {
-                toast.error('Ошибка на сервере', {
+                sonnerToast.error('Ошибка на сервере', {
                     description: 'Попробуйте позже или обратитесь в поддержку',
                 });
             } else {
-                toast.error(error.message || defaultMessage);
+                sonnerToast.error(error.message || defaultMessage);
             }
         } else if (error instanceof Error) {
-            toast.error(defaultMessage, {
+            sonnerToast.error(defaultMessage, {
                 description: error.message,
             });
         } else {
-            toast.error(defaultMessage);
+            sonnerToast.error(defaultMessage);
         }
     });
 }

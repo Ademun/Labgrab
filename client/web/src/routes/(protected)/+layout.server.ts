@@ -2,14 +2,14 @@ import {error, redirect} from "@sveltejs/kit";
 import type {LayoutServerLoad} from "../../../.svelte-kit/types/src/routes/(protected)/$types";
 
 export const load: LayoutServerLoad = async ({cookies, fetch}) => {
-    const sessionCookie = cookies.get('session');
+    const sessionCookie = cookies.get('session_id');
 
     if (!sessionCookie) {
         throw redirect(303, '/auth');
     }
 
     try {
-        const response = await fetch('api/users', {
+        const response = await fetch('/api/users', {
             credentials: "include",
         })
 
