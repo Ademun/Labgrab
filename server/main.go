@@ -4,6 +4,7 @@ import (
 	"context"
 	api_subscription "labgrab/internal/application/subscription"
 	api_user "labgrab/internal/application/user"
+	"labgrab/internal/application/web"
 	"labgrab/internal/auth"
 	"labgrab/internal/lab_polling"
 	"labgrab/internal/shared/api/dikidi"
@@ -119,6 +120,10 @@ func main() {
 	subscriptionHandler := api_subscription.NewHandler(authService, subscriptionService, log)
 	subscriptionHandler.RegisterRoutes(r)
 	log.Info("Finished setting up subscription domain routes")
+	log.Info("Setting up web domain routes")
+	webHandler := web.NewHandler(log)
+	webHandler.RegisterRoutes(r)
+	log.Info("Finished setting up web domain routes")
 	if err := http.ListenAndServe("127.0.0.1:8080", routing.CORSMiddleware(r)); err != nil {
 		log.Fatal("Failed to start http server", "error", err)
 	}
