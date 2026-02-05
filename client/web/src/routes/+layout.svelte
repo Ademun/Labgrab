@@ -5,7 +5,7 @@
     import {Navigation} from "$lib/components/navigation";
     import {configStore} from "$lib/stores/config.ts";
     import {onMount} from "svelte";
-    import {userStore} from "$lib/stores/client.ts";
+    import {userStore} from "$lib/stores/user.ts";
     import {page} from '$app/state';
 
     let {children} = $props();
