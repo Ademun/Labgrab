@@ -16,6 +16,7 @@
     import {handleApiError, toast} from "$lib/utils/toast";
     import {getLabTopicName, getLabTypeName} from "$lib/stores/config";
     import type {Subscription} from "$lib/api/types.ts";
+    import {Spinner} from "$lib/components/ui/spinner";
 
     let {
         subscription,
@@ -82,12 +83,7 @@
 </script>
 
 <div
-        class="bg-card rounded-2xl w-full overflow-hidden
-        shadow-[0_2px_8px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.06)]
-        border border-border/40
-        hover:shadow-[0_4px_12px_rgba(0,0,0,0.06),0_2px_4px_rgba(0,0,0,0.08)]
-        hover:-translate-y-0.5
-        transition-all duration-200"
+        class="bg-card rounded-2xl w-full overflow-hidden shadow-xl"
         in:fade={{
         delay: 0,
         duration: 300
@@ -250,7 +246,6 @@
             </div>
         </div>
 
-        <!-- Кнопки действий -->
         <div
                 class="flex flex-col items-center gap-2.5 mt-6"
                 in:scale={{
@@ -264,7 +259,6 @@
                 delay: 200
             }}
         >
-            <!-- Кнопка паузы/возобновления -->
             <div class="w-full">
                 {#if isPaused}
                     <Button
@@ -306,8 +300,7 @@
 
             <div class="w-full">
                 <Button
-                        variant="outline"
-                        class="w-full py-5 font-semibold text-sm uppercase tracking-wide hover:bg-accent"
+                        class={cn("w-full py-5 font-semibold text-sm uppercase tracking-wide", `bg-${colors}`)}
                         disabled={isPausing || isResuming || isDeleting}
                 >
                     Настроить
@@ -316,21 +309,16 @@
 
             <div class="w-full">
                 <AlertRoot>
-                    <AlertTrigger>
+                    <AlertTrigger class="w-full">
                         <Button
                                 variant="outline"
-                                class="w-full py-5 font-semibold text-sm uppercase tracking-wide
-                                text-muted-foreground
-                                hover:bg-destructive hover:text-destructive-foreground hover:border-destructive"
+                                class="w-full py-5 font-semibold text-sm uppercase tracking-wide"
                                 disabled={isPausing || isResuming || isDeleting}
                         >
                             {#if isDeleting}
-                                <span class="flex items-center gap-2">
-                                    <span class="animate-spin">⏳</span>
-                                    Удаление...
-                                </span>
+                                <Spinner />
                             {:else}
-                                Отменить подписку
+                                Отменить
                             {/if}
                         </Button>
                     </AlertTrigger>

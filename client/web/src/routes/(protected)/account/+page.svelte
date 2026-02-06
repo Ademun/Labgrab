@@ -206,7 +206,7 @@
                         onclick={navigateToSchedule}
                 >
                     <span class="flex items-center gap-2">
-                        <Calendar class="w-5 h-5"/>
+                        <Calendar class="w-5 h-5 text-[#007AFF]"/>
                         Расписание
                     </span>
                     <ChevronRight class="w-5 h-5"/>
@@ -218,7 +218,7 @@
                         onclick={navigateToBlacklist}
                 >
                     <span class="flex items-center gap-2">
-                        <Ban class="w-5 h-5"/>
+                        <Ban class="w-5 h-5  text-[#FF3B30]"/>
                         Черный список
                     </span>
                     <ChevronRight class="w-5 h-5"/>
@@ -230,7 +230,7 @@
                         onclick={navigateToStats}
                 >
                     <span class="flex items-center gap-2">
-                        <ChartNoAxesCombined class="w-5 h-5"/>
+                        <ChartNoAxesCombined class="w-5 h-5 text-[#34C759]"/>
                         Статистика
                     </span>
                     <ChevronRight class="w-5 h-5"/>
@@ -261,7 +261,6 @@
                         onclick={navigateToAbout}
                 >
                     <span class="flex items-center gap-2">
-                        <CircleQuestionMark class="w-5 h-5"/>
                         О сервисе
                     </span>
                     <ChevronRight class="w-5 h-5"/>
@@ -273,7 +272,6 @@
                         onclick={navigateToSupport}
                 >
                     <span class="flex items-center gap-2">
-                        <Headset class="w-5 h-5"/>
                         Техподдержка
                     </span>
                     <ChevronRight class="w-5 h-5"/>
@@ -285,7 +283,6 @@
                         onclick={navigateToDonate}
                 >
                     <span class="flex items-center gap-2">
-                        <CircleDollarSign class="w-5 h-5"/>
                         Поддержать разработчика
                     </span>
                     <ChevronRight class="w-5 h-5"/>
@@ -306,7 +303,7 @@
         }}
     >
         <AlertRoot>
-            <AlertTrigger>
+            <AlertTrigger class="w-full">
                 <Button
                         variant="outline"
                         class="text-destructive text-md font-semibold w-full py-6 mt-8
@@ -329,11 +326,11 @@
             <AlertContent>
                 <AlertTitle>Выйти из аккаунта?</AlertTitle>
                 <AlertDescription>
-                    Вам придётся войти заново через Telegram для доступа к подпискам.
+                    Вам придётся войти заново через Telegram для доступа к сервису.
                 </AlertDescription>
-                <div class="flex justify-end gap-3 mt-4">
-                    <AlertCancel>Отмена</AlertCancel>
-                    <AlertAction onclick={handleLogout}>
+                <div class="flex justify-between gap-3 mt-4">
+                    <AlertCancel class="flex-1">Отмена</AlertCancel>
+                    <AlertAction class="flex-1" onclick={handleLogout}>
                         Да, выйти
                     </AlertAction>
                 </div>
