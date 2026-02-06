@@ -4,15 +4,13 @@
       "id": "Performance",
       "name_ru": "Выполнение",
       "name_en": "Performance",
-      "needs_auditorium": true,
-      "color_code": "#FF6900"
+      "needs_auditorium": true
     },
     {
       "id": "Defence",
       "name_ru": "Защита",
       "name_en": "Defence",
-      "needs_auditorium": false,
-      "color_code": "#3B82F6"
+      "needs_auditorium": false
     }
   ],
   "lab_topics": [

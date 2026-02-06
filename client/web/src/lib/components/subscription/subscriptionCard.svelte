@@ -35,7 +35,7 @@
     let isDeleting = $state<boolean>(false);
 
     const isPerformance = $derived(subscription.lab_type === "Performance");
-    const colors = $derived(isPerformance ? "primary" : "blue-500");
+    const colors = $derived(isPerformance ? "accent-performance" : "accent-defence");
 
     const isPaused = $derived(subscription.status === 'paused');
 
@@ -316,7 +316,7 @@
                                 disabled={isPausing || isResuming || isDeleting}
                         >
                             {#if isDeleting}
-                                <Spinner />
+                                <Spinner/>
                             {:else}
                                 Отменить
                             {/if}

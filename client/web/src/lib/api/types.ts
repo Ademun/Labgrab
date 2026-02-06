@@ -3,7 +3,6 @@ export interface LabType {
     name_ru: string;
     name_en: string;
     needs_auditorium: boolean;
-    color_code: string;
 }
 
 export interface LabTopic {
