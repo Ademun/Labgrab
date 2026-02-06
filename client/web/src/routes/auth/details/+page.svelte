@@ -51,12 +51,6 @@
         try {
             await api.updateUser(updates);
 
-            toast.success('Профиль обновлён', {
-                description: 'Данные успешно сохранены'
-            });
-
-            await new Promise(resolve => setTimeout(resolve, 500));
-
             await goto("/account");
 
         } catch (error) {
@@ -102,7 +96,7 @@
         </h1>
 
         <p
-                class="text-sm text-muted-foreground mb-6"
+                class="text-sm text-muted-foreground"
                 in:fade={{
                 delay: 250,
                 duration: 300
@@ -126,7 +120,7 @@
             }}
         >
             <form onsubmit={submitDetails}>
-                <Set class="py-6">
+                <Set class="py-2">
                     <div
                             in:fade={{
                             delay: 300,
@@ -137,11 +131,6 @@
                             delay: 100
                         }}
                     >
-                        <Legend class="text-left mb-4">
-                            <span class="text-muted-foreground text-xs font-semibold uppercase tracking-wide">
-                                Все поля опциональны
-                            </span>
-                        </Legend>
                     </div>
 
                     <div
@@ -154,10 +143,10 @@
                             delay: 150
                         }}
                     >
-                        <Group class="space-y-4">
+                        <Group class="mb-6">
                             <Field>
                                 <Label class="text-sm font-medium text-left">
-                                    Имя
+                                    Имя <span class="text-primary">*</span>
                                 </Label>
                                 <Input
                                         type="text"
@@ -170,7 +159,7 @@
 
                             <Field>
                                 <Label class="text-sm font-medium text-left">
-                                    Фамилия
+                                    Фамилия <span class="text-primary">*</span>
                                 </Label>
                                 <Input
                                         type="text"
@@ -183,7 +172,7 @@
 
                             <Field>
                                 <Label class="text-sm font-medium text-left">
-                                    Отчество
+                                    Отчество <span class="text-primary">*</span>
                                 </Label>
                                 <Input
                                         type="text"
@@ -196,7 +185,7 @@
 
                             <Field>
                                 <Label class="text-sm font-medium text-left">
-                                    Группа
+                                    Группа <span class="text-primary">*</span>
                                 </Label>
                                 <Input
                                         type="text"
@@ -209,7 +198,7 @@
 
                             <Field>
                                 <Label class="text-sm font-medium text-left">
-                                    Телефон
+                                    Телефон <span class="text-primary">*</span>
                                 </Label>
                                 <Input
                                         type="tel"
@@ -247,7 +236,7 @@
                                 Сохраняем...
                             </span>
                         {:else}
-                            Сохранить и продолжить
+                            Продолжить
                         {/if}
                     </Button>
 
