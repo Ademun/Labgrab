@@ -38,6 +38,7 @@ type GetUserRes struct {
 	Patronymic  *string
 	GroupCode   *string
 	PhoneNumber *string
+	TelegramID  int
 	PhotoUrl    *string
 }
 

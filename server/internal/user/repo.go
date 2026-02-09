@@ -53,6 +53,7 @@ func (r *Repo) GetUser(ctx context.Context, userUUID uuid.UUID) (*DBUser, error)
 		"patronymic",
 		"group_code",
 		"phone_number",
+		"telegram_id",
 		"photo_url",
 	).
 		From("user_service.users").
@@ -73,6 +74,7 @@ func (r *Repo) GetUser(ctx context.Context, userUUID uuid.UUID) (*DBUser, error)
 		&userInfo.Patronymic,
 		&userInfo.GroupCode,
 		&userInfo.PhoneNumber,
+		&userInfo.TelegramID,
 		&userInfo.PhotoUrl,
 	)
 

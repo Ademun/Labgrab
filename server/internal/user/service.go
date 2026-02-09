@@ -71,6 +71,7 @@ func (s *Service) GetUser(ctx context.Context, userUUID uuid.UUID) (*GetUserRes,
 		Patronymic:  user.Patronymic,
 		GroupCode:   user.GroupCode,
 		PhoneNumber: user.PhoneNumber,
+		TelegramID:  user.TelegramID,
 		PhotoUrl:    user.PhotoUrl,
 	}, nil
 }
