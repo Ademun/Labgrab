@@ -4,7 +4,10 @@ import (
 	"context"
 	"labgrab/internal/lab_polling"
 	"labgrab/internal/subscription"
+	"labgrab/internal/telegram"
+	"labgrab/internal/user"
 	"sync"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -12,20 +15,23 @@ import (
 type ProcessNewSlotsUseCase struct {
 	labPollingSvc   *lab_polling.Service
 	subscriptionSvc *subscription.Service
+	userSvc         *user.Service
+	telegramSvc     *telegram.Service
 	logger          *zap.SugaredLogger
 }
 
-func NewProcessNewSlotsUseCase(labPollingSvc *lab_polling.Service, subscriptionSvc *subscription.Service, logger *zap.SugaredLogger) *ProcessNewSlotsUseCase {
+func NewProcessNewSlotsUseCase(labPollingSvc *lab_polling.Service, subscriptionSvc *subscription.Service, userSvc *user.Service, telegramSvc *telegram.Service, logger *zap.SugaredLogger) *ProcessNewSlotsUseCase {
 	return &ProcessNewSlotsUseCase{
 		labPollingSvc:   labPollingSvc,
 		subscriptionSvc: subscriptionSvc,
+		userSvc:         userSvc,
+		telegramSvc:     telegramSvc,
 		logger:          logger,
 	}
 }
 
 func (uc *ProcessNewSlotsUseCase) Exec(ctx context.Context) error {
 	currentEvents := uc.labPollingSvc.GetLabEventsStream(ctx)
-	targetSubscriptions := make(chan subscription.GetMatchingSubscriptionsRes)
 	sem := make(chan struct{}, 50)
 	wg := sync.WaitGroup{}
 	totalEvents, matchedSubscriptions := 0, 0
@@ -39,27 +45,21 @@ func (uc *ProcessNewSlotsUseCase) Exec(ctx context.Context) error {
 					wg.Done()
 				}()
 				sem <- struct{}{}
-				err := uc.HandleEvent(ctx, event, targetSubscriptions)
+				err := uc.HandleEvent(ctx, event)
 				if err != nil {
 					uc.logger.Errorw("error handling event", "event", event, "err", err)
 				}
 			}()
 		}
 		wg.Wait()
-		close(targetSubscriptions)
 		close(sem)
 	}()
-
-	for sub := range targetSubscriptions {
-		matchedSubscriptions++
-		uc.logger.Infow("Processing subscription", "subscription", sub)
-	}
 	uc.logger.Infow("Processing complete", "total events", totalEvents, "matched subscriptions", matchedSubscriptions)
 
 	return nil
 }
 
-func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_polling.Event, subsChan chan subscription.GetMatchingSubscriptionsRes) error {
+func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_polling.Event) error {
 	searchReq := &subscription.GetMatchingSubscriptionsReq{
 		LabType:        subscription.LabType(event.Type),
 		LabTopic:       subscription.LabTopic(event.Topic),
@@ -77,7 +77,24 @@ func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_po
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case subsChan <- sub:
+		default:
+			userData, err := uc.userSvc.GetUser(ctx, sub.UserUUID)
+			if err != nil {
+				return err
+			}
+
+			notifyReq := telegram.NotifyUserReq{
+				UserID:        userData.TelegramID,
+				LabName:       event.Name,
+				LabType:       string(event.Type),
+				LabTopic:      string(event.Topic),
+				LabNumber:     event.Number,
+				LabAuditorium: event.Auditorium,
+				Schedule:      make(map[time.Time]map[int][]string), // TODO: include
+				PageURL:       "stub",                               // TODO: include
+			}
+
+			return uc.telegramSvc.NotifyUser(ctx, notifyReq)
 		}
 	}
 
