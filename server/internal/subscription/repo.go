@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"labgrab/internal/shared/domain"
 	"labgrab/internal/shared/errors"
-	"labgrab/internal/shared/types"
 	"log/slog"
 	"time"
 
@@ -349,26 +349,29 @@ func (r *Repo) GetMatchingSubscriptionsBySlot(ctx context.Context, search *DBSub
 	query := `
 WITH available_slots_expanded AS (
     SELECT 
-        days.key::text AS day_of_week,
+        times.key::text AS time,
+		TO_CHAR(times.key::timestamp, 'DY') AS weekday,
         lessons.key::int AS lesson,
         lessons.value AS teachers
-    FROM jsonb_each($5::jsonb) AS days,
-         LATERAL jsonb_each(days.value) AS lessons
+    FROM jsonb_each($5::jsonb) AS times,
+         LATERAL jsonb_each(times.value) AS lessons
 ),
+
 matching_subscriptions AS (
     SELECT 
         s.subscription_uuid,
         s.user_uuid,
         d.successful_subscriptions,
         d.last_successful_subscription,
-        ase.day_of_week::day_of_week,
+        ase.time::timestamp,
+		ase.weekday::day_of_week,
         ase.lesson
     FROM subscription_service.subscriptions s
     INNER JOIN subscription_service.details d ON s.user_uuid = d.user_uuid
     CROSS JOIN available_slots_expanded ase
     INNER JOIN subscription_service.time_preferences tp 
         ON s.user_uuid = tp.user_uuid 
-        AND tp.day_of_week = ase.day_of_week::day_of_week
+        AND tp.day_of_week = ase.weekday::day_of_week
         AND ase.lesson = ANY(tp.lessons)
     INNER JOIN subscription_service.teacher_preferences teachp 
         ON s.user_uuid = teachp.user_uuid
@@ -389,17 +392,18 @@ grouped_by_day AS (
         subscription_uuid,
         successful_subscriptions,
         last_successful_subscription,
-        day_of_week,
+        time,
+		weekday,
         jsonb_agg(DISTINCT lesson ORDER BY lesson) as lessons_array
     FROM matching_subscriptions
-    GROUP BY user_uuid, subscription_uuid, successful_subscriptions, last_successful_subscription, day_of_week
-)
+    GROUP BY user_uuid, subscription_uuid, successful_subscriptions, last_successful_subscription, time, weekday
+),
 SELECT 
     user_uuid,
     subscription_uuid,
     successful_subscriptions,
     last_successful_subscription,
-    jsonb_object_agg(day_of_week, lessons_array) as matching_timeslots
+    jsonb_object_agg(time, lessons_array) as matching_timeslots
 FROM grouped_by_day
 GROUP BY user_uuid, subscription_uuid, successful_subscriptions, last_successful_subscription
 ORDER BY 
@@ -482,19 +486,14 @@ ORDER BY
 	return results, nil
 }
 
-func convertAvailableSlotsToJSON(slots map[types.DayOfWeek]map[int][]string) ([]byte, error) {
+func convertAvailableSlotsToJSON(slots domain.Schedule) ([]byte, error) {
 	return json.Marshal(slots)
 }
 
-func convertJSONToMatchingTimeslots(data []byte) (map[types.DayOfWeek][]int, error) {
-	var raw map[string][]int
-	if err := json.Unmarshal(data, &raw); err != nil {
+func convertJSONToMatchingTimeslots(data []byte) (domain.Schedule, error) {
+	var result domain.Schedule
+	if err := json.Unmarshal(data, &result); err != nil {
 		return nil, err
-	}
-
-	result := make(map[types.DayOfWeek][]int)
-	for day, lessons := range raw {
-		result[types.DayOfWeek(day)] = lessons
 	}
 
 	return result, nil

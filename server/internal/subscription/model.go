@@ -1,6 +1,7 @@
 package subscription
 
 import (
+	"labgrab/internal/shared/domain"
 	"labgrab/internal/shared/errors"
 	"labgrab/internal/shared/types"
 	"time"
@@ -9,39 +10,22 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-type LabType string
-
-const (
-	LabTypeDefence     LabType = "Defence"
-	LabTypePerformance LabType = "Performance"
-)
-
-type LabTopic string
-
-const (
-	LabTopicVirtual     LabTopic = "Virtual"
-	LabTopicElectricity LabTopic = "Electricity"
-	LabTopicMechanics   LabTopic = "Mechanics"
-	LabTopicOptics      LabTopic = "Optics"
-	LabTopicsRigidBody  LabTopic = "Rigid Body"
-)
-
 // DBSubscription subscription_service.subscriptions
 type DBSubscription struct {
-	SubscriptionUUID uuid.UUID  `db:"subscription_uuid"`
-	LabType          LabType    `db:"lab_type"`
-	LabTopic         LabTopic   `db:"lab_topic"`
-	LabNumber        int        `db:"lab_number"`
-	LabAuditorium    *int       `db:"lab_auditorium"` // Defence can happen in any auditorium
-	CreatedAt        time.Time  `db:"created_at"`
-	ClosedAt         *time.Time `db:"closed_at"`
-	UserUUID         uuid.UUID  `db:"user_uuid"`
+	SubscriptionUUID uuid.UUID       `db:"subscription_uuid"`
+	LabType          domain.LabType  `db:"lab_type"`
+	LabTopic         domain.LabTopic `db:"lab_topic"`
+	LabNumber        int             `db:"lab_number"`
+	LabAuditorium    *int            `db:"lab_auditorium"` // Defence can happen in any auditorium
+	CreatedAt        time.Time       `db:"created_at"`
+	ClosedAt         *time.Time      `db:"closed_at"`
+	UserUUID         uuid.UUID       `db:"user_uuid"`
 }
 
 // DBTimePreferences subscription_service.time_preferences
 type DBTimePreferences struct {
 	DayOfWeek types.DayOfWeek `db:"day_of_week"`
-	Lessons   []int           `db:"lessons"`
+	Lessons   []domain.Lesson `db:"lessons"`
 	UserUUID  uuid.UUID       `db:"user_uuid"`
 }
 
@@ -59,7 +43,7 @@ type DBDetails struct {
 }
 
 type DBUserSubscriptionData struct {
-	TimePreferences            map[types.DayOfWeek][]int
+	TimePreferences            map[types.DayOfWeek][]domain.Lesson
 	BlacklistedTeachers        []string
 	SuccessfulSubscriptions    int
 	LastSuccessfulSubscription *time.Time
@@ -67,11 +51,11 @@ type DBUserSubscriptionData struct {
 }
 
 type DBSubscriptionSearch struct {
-	LabType        LabType
-	LabTopic       LabTopic
+	LabType        domain.LabType
+	LabTopic       domain.LabTopic
 	LabNumber      int
 	LabAuditorium  int
-	AvailableSlots map[types.DayOfWeek]map[int][]string
+	AvailableSlots domain.Schedule
 }
 
 type DBSubscriptionMatchResult struct {
@@ -79,13 +63,13 @@ type DBSubscriptionMatchResult struct {
 	SubscriptionUUID           uuid.UUID
 	SuccessfulSubscriptions    int
 	LastSuccessfulSubscription *time.Time
-	MatchingTimeslots          map[types.DayOfWeek][]int
+	MatchingTimeslots          domain.Schedule
 }
 
 type CreateSubscriptionReq struct {
 	UserUUID      uuid.UUID
-	LabType       LabType
-	LabTopic      LabTopic
+	LabType       domain.LabType
+	LabTopic      domain.LabTopic
 	LabNumber     int
 	LabAuditorium *int
 	CreatedAt     time.Time
@@ -93,10 +77,10 @@ type CreateSubscriptionReq struct {
 
 func (r CreateSubscriptionReq) Validate() error {
 	err := errors.NewValidationError()
-	if r.LabType == LabTypePerformance && r.LabAuditorium == nil {
+	if r.LabType == domain.LabTypePerformance && r.LabAuditorium == nil {
 		err.Add("lab_type & lab_auditorium", "If lab type is equal to 'Performance' lab auditorium should be provided")
 	}
-	if r.LabType == LabTypeDefence && r.LabAuditorium != nil {
+	if r.LabType == domain.LabTypeDefence && r.LabAuditorium != nil {
 		err.Add("lab_type & lab_auditorium", "If lab type is equal to 'Defence' lab auditorium should not be provided")
 	}
 	if err.HasErrors() {
@@ -107,7 +91,7 @@ func (r CreateSubscriptionReq) Validate() error {
 
 type CreateSubscriptionDataReq struct {
 	UserUUID            uuid.UUID
-	TimePreferences     map[types.DayOfWeek][]int
+	TimePreferences     map[types.DayOfWeek][]domain.Lesson
 	BlacklistedTeachers []string
 	Tx                  pgx.Tx
 }
@@ -115,18 +99,18 @@ type CreateSubscriptionDataReq struct {
 type UpdateSubscriptionDataReq struct {
 	UserUUID         uuid.UUID
 	SubscriptionUUID uuid.UUID
-	LabType          LabType
-	LabTopic         LabTopic
+	LabType          domain.LabType
+	LabTopic         domain.LabTopic
 	LabNumber        int
 	LabAuditorium    *int
 }
 
 func (r UpdateSubscriptionDataReq) Validate() error {
 	err := errors.NewValidationError()
-	if r.LabType == LabTypePerformance && r.LabAuditorium == nil {
+	if r.LabType == domain.LabTypePerformance && r.LabAuditorium == nil {
 		err.Add("lab_type & lab_auditorium", "If lab type is equal to 'Performance' lab auditorium should be provided")
 	}
-	if r.LabType == LabTypeDefence && r.LabAuditorium != nil {
+	if r.LabType == domain.LabTypeDefence && r.LabAuditorium != nil {
 		err.Add("lab_type & lab_auditorium", "If lab type is equal to 'Defence' lab auditorium should not be provided")
 	}
 	if err.HasErrors() {
@@ -136,17 +120,17 @@ func (r UpdateSubscriptionDataReq) Validate() error {
 }
 
 type GetMatchingSubscriptionsReq struct {
-	LabType        LabType
-	LabTopic       LabTopic
+	LabType        domain.LabType
+	LabTopic       domain.LabTopic
 	LabNumber      int
 	LabAuditorium  int
-	AvailableSlots map[types.DayOfWeek]map[int][]string
+	AvailableSlots domain.Schedule
 }
 
 type GetSubscriptionRes struct {
 	SubscriptionUUID uuid.UUID
-	LabType          LabType
-	LabTopic         LabTopic
+	LabType          domain.LabType
+	LabTopic         domain.LabTopic
 	LabNumber        int
 	LabAuditorium    *int
 	CreatedAt        time.Time
@@ -158,15 +142,15 @@ type GetMatchingSubscriptionsRes struct {
 	SubscriptionUUID           uuid.UUID
 	SuccessfulSubscriptions    int
 	LastSuccessfulSubscription *time.Time
-	MatchingTimeslots          map[types.DayOfWeek][]int
+	MatchingTimeslots          domain.Schedule
 }
 
 type keyGenerationParams struct {
 	subscriptionUUID uuid.UUID
-	labType          LabType
-	labTopic         LabTopic
+	labType          domain.LabType
+	labTopic         domain.LabTopic
 	labNumber        int
 	labAuditorium    int
-	day              types.DayOfWeek
-	lesson           int
+	time             time.Time
+	lesson           domain.Lesson
 }

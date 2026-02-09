@@ -1,7 +1,7 @@
 package lab_polling
 
 import (
-	"labgrab/internal/shared/types"
+	"labgrab/internal/shared/domain"
 	"math"
 	"time"
 )
@@ -21,28 +21,7 @@ var LessonLookup = map[int]LessonSchedule{
 	8: {parseLessonTime("20:40"), parseLessonTime("22:00")},
 }
 
-func nativeWeekdayToDayOfWeek(day time.Weekday) types.DayOfWeek {
-	var dayOfWeek types.DayOfWeek
-	switch day {
-	case time.Monday:
-		dayOfWeek = types.DayMon
-	case time.Tuesday:
-		dayOfWeek = types.DayTue
-	case time.Wednesday:
-		dayOfWeek = types.DayWed
-	case time.Thursday:
-		dayOfWeek = types.DayThu
-	case time.Friday:
-		dayOfWeek = types.DayFri
-	case time.Saturday:
-		dayOfWeek = types.DaySat
-	case time.Sunday:
-		dayOfWeek = types.DaySun
-	}
-	return dayOfWeek
-}
-
-func localTimeToLesson(lTime time.Time) int {
+func localTimeToLesson(lTime time.Time) domain.Lesson {
 	minute := float64(lTime.Minute())
 	roundedMinute := int(math.Round(minute/10.0) * 10)
 
@@ -59,7 +38,7 @@ func localTimeToLesson(lTime time.Time) int {
 		end := schedule.End.Hour()*60 + schedule.End.Minute()
 
 		if totalMinutes >= start && totalMinutes <= end {
-			return lessonNum
+			return domain.Lesson(lessonNum)
 		}
 	}
 

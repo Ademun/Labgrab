@@ -29,8 +29,8 @@ func (d *Deduplicator) Deduplicate(
 	for _, match := range matches {
 		hasNewSlot := false
 
-		for day, lessons := range match.MatchingTimeslots {
-			for _, lesson := range lessons {
+		for time, lessons := range match.MatchingTimeslots {
+			for lesson := range lessons {
 				key := d.generateKey(
 					&keyGenerationParams{
 						subscriptionUUID: match.SubscriptionUUID,
@@ -38,7 +38,7 @@ func (d *Deduplicator) Deduplicate(
 						labTopic:         req.LabTopic,
 						labNumber:        req.LabNumber,
 						labAuditorium:    req.LabAuditorium,
-						day:              day,
+						time:             time,
 						lesson:           lesson,
 					},
 				)
@@ -79,7 +79,7 @@ func (d *Deduplicator) generateKey(params *keyGenerationParams) string {
 		params.labNumber,
 		params.labAuditorium,
 		params.subscriptionUUID.String(),
-		params.day,
+		params.time,
 		params.lesson,
 	)
 
