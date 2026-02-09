@@ -3,6 +3,7 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"labgrab/internal/shared/domain"
 	"labgrab/pkg/config"
 	"strconv"
 	"strings"
@@ -107,10 +108,10 @@ func formatDateTime(dateTime time.Time) string {
 	}
 }
 
-func formatLesson(lesson int) string {
+func formatLesson(lesson domain.Lesson) string {
 	icon, found := lessonIcons[lesson]
 	if !found {
-		icon = strconv.Itoa(lesson)
+		icon = strconv.Itoa(int(lesson))
 	}
 	return fmt.Sprintf("%s пара", icon)
 }

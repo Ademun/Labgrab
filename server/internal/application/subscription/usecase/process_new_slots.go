@@ -7,7 +7,6 @@ import (
 	"labgrab/internal/telegram"
 	"labgrab/internal/user"
 	"sync"
-	"time"
 
 	"go.uber.org/zap"
 )
@@ -61,8 +60,8 @@ func (uc *ProcessNewSlotsUseCase) Exec(ctx context.Context) error {
 
 func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_polling.Event) error {
 	searchReq := &subscription.GetMatchingSubscriptionsReq{
-		LabType:        subscription.LabType(event.Type),
-		LabTopic:       subscription.LabTopic(event.Topic),
+		LabType:        event.Type,
+		LabTopic:       event.Topic,
 		LabNumber:      event.Number,
 		LabAuditorium:  event.Auditorium,
 		AvailableSlots: event.Schedule,
@@ -90,8 +89,8 @@ func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_po
 				LabTopic:      string(event.Topic),
 				LabNumber:     event.Number,
 				LabAuditorium: event.Auditorium,
-				Schedule:      make(map[time.Time]map[int][]string), // TODO: include
-				PageURL:       "stub",                               // TODO: include
+				Schedule:      sub.MatchingTimeslots,
+				PageURL:       "stub", // TODO: include
 			}
 
 			return uc.telegramSvc.NotifyUser(ctx, notifyReq)

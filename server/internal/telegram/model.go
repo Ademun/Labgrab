@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"labgrab/internal/shared/domain"
 	"time"
 )
 
@@ -11,7 +12,7 @@ type NotifyUserReq struct {
 	LabTopic      string
 	LabNumber     int
 	LabAuditorium int
-	Schedule      map[time.Time]map[int][]string
+	Schedule      domain.Schedule
 	PageURL       string
 }
 
@@ -40,7 +41,7 @@ var ruWeekdays = map[time.Weekday]string{
 	time.Sunday:    "воскресенье",
 }
 
-var lessonIcons = map[int]string{
+var lessonIcons = map[domain.Lesson]string{
 	1: "1️⃣",
 	2: "2️⃣",
 	3: "3️⃣",
