@@ -98,7 +98,7 @@
 			lab_auditorium: labAuditorium,
 			auto_enroll: autoSign,
 			any_date: anyDate,
-			created_at: Date.now()
+			created_at: Math.floor(Date.now() / 1000)
 		};
 
 		isSubmitting = true;

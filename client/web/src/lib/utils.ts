@@ -12,8 +12,5 @@ export function formatTimeString(timeStr: string, locale: string = 'ru-RU'): str
 		throw new Error('Invalid date string');
 	}
 
-	const day = date.getDate();
-	const month = date.toLocaleString(locale, { month: 'short' });
-
-	return `${day} ${month}`;
+	return date.toLocaleString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
 }
