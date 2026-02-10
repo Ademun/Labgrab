@@ -10,6 +10,14 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+type Status string
+
+const (
+	StatusActive Status = "Active"
+	StatusPaused Status = "Paused"
+	StatusClosed Status = "Closed"
+)
+
 // DBSubscription subscription_service.subscriptions
 type DBSubscription struct {
 	SubscriptionUUID uuid.UUID       `db:"subscription_uuid"`
@@ -17,6 +25,9 @@ type DBSubscription struct {
 	LabTopic         domain.LabTopic `db:"lab_topic"`
 	LabNumber        int             `db:"lab_number"`
 	LabAuditorium    *int            `db:"lab_auditorium"` // Defence can happen in any auditorium
+	Status           Status          `db:"status"`
+	AutoEnroll       bool            `db:"auto_enroll"`
+	AnyDate          bool            `db:"any_date"`
 	CreatedAt        time.Time       `db:"created_at"`
 	ClosedAt         *time.Time      `db:"closed_at"`
 	UserUUID         uuid.UUID       `db:"user_uuid"`
@@ -72,6 +83,8 @@ type CreateSubscriptionReq struct {
 	LabTopic      domain.LabTopic
 	LabNumber     int
 	LabAuditorium *int
+	AutoEnroll    bool `db:"auto_enroll"`
+	AnyDate       bool `db:"any_date"`
 	CreatedAt     time.Time
 }
 
@@ -103,6 +116,9 @@ type UpdateSubscriptionDataReq struct {
 	LabTopic         domain.LabTopic
 	LabNumber        int
 	LabAuditorium    *int
+	Status           Status `db:"status"`
+	AutoEnroll       bool   `db:"auto_enroll"`
+	AnyDate          bool   `db:"any_date"`
 }
 
 func (r UpdateSubscriptionDataReq) Validate() error {
@@ -133,6 +149,9 @@ type GetSubscriptionRes struct {
 	LabTopic         domain.LabTopic
 	LabNumber        int
 	LabAuditorium    *int
+	Status           Status `db:"status"`
+	AutoEnroll       bool   `db:"auto_enroll"`
+	AnyDate          bool   `db:"any_date"`
 	CreatedAt        time.Time
 	ClosedAt         *time.Time
 }
