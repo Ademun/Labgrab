@@ -158,12 +158,12 @@ func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_po
 			notifyReq := telegram.NotifyUserReq{
 				UserID:        userData.TelegramID,
 				LabName:       event.Data.Name,
-				LabType:       string(event.Data.Type),
-				LabTopic:      string(event.Data.Topic),
+				LabType:       event.Data.Type,
+				LabTopic:      event.Data.Topic,
 				LabNumber:     event.Data.Number,
 				LabAuditorium: event.Data.Auditorium,
 				Schedule:      sub.MatchingTimeslots,
-				PageURL:       "stub", // TODO: include
+				PageURL:       "https://dikidi.net/550001?p=0.pi-ssm-sd&s=5300027&rl=0_undefined", // TODO: include
 			}
 
 			err = uc.telegramSvc.NotifyUser(notifyCtx, notifyReq)

@@ -163,7 +163,7 @@
                     <Trigger class={cn(buttonVariants({ variant: 'default' }), 'px-12')}>
                         СОЗДАТЬ
                     </Trigger>
-                    <Content class="max-w-lg">
+                    <Content class="max-w-lg overflow-y-scroll max-h-screen">
                         <Header class="text-left">
                             <Title>Новая подписка</Title>
                             <Description>

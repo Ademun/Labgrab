@@ -39,7 +39,7 @@ func (s *Service) NotifyUser(ctx context.Context, req NotifyUserReq) error {
 	_, err := s.bot.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:      req.UserID,
 		Text:        msg,
-		ParseMode:   models.ParseModeMarkdown,
+		ParseMode:   models.ParseModeHTML,
 		ReplyMarkup: createLinkButton(req.PageURL),
 		LinkPreviewOptions: &models.LinkPreviewOptions{
 			IsDisabled: bot.True(),
@@ -51,18 +51,19 @@ func (s *Service) NotifyUser(ctx context.Context, req NotifyUserReq) error {
 
 func createNotificationMessage(req NotifyUserReq) string {
 	var sb strings.Builder
-	sb.WriteString(bold("Появилась запись!"))
+	sb.WriteString(bold("🔥 Появилась запись!"))
 	sb.WriteString(breakLine(2))
-	sb.WriteString(bold(fmt.Sprintf("Работа №%d. %s. %s", req.LabNumber, req.LabType, req.LabName)))
+	sb.WriteString(bold(fmt.Sprintf("📚 Работа №%d. %s. %s", req.LabNumber, req.LabType.RU(), req.LabName)))
 	sb.WriteString(breakLine(2))
-	sb.WriteString(bold(fmt.Sprintf("%s", req.LabTopic)))
+	sb.WriteString(bold(fmt.Sprintf("%s %s", req.LabTopic.Icon(), req.LabTopic.RU())))
 	sb.WriteString(breakLine(2))
-	sb.WriteString(bold(fmt.Sprintf("Аудитория №%d", req.LabAuditorium)))
+	sb.WriteString(bold(fmt.Sprintf("🚪 Аудитория №%d", req.LabAuditorium)))
 	sb.WriteString(breakLine(2))
-	sb.WriteString(bold("Расписание:"))
+	sb.WriteString(bold("📅 Расписание:"))
 	sb.WriteString(breakLine(1))
 	for dateTime, info := range req.Schedule {
 		sb.WriteString(bold(ident(formatDateTime(dateTime), 1)))
+		sb.WriteString(breakLine(1))
 		for lesson, teachers := range info {
 			str := fmt.Sprintf("%s: %s", formatLesson(lesson), strings.Join(teachers, ", "))
 			sb.WriteString(bold(ident(str, 2)))
@@ -94,7 +95,7 @@ func ident(s string, n int) string {
 }
 
 func formatDateTime(dateTime time.Time) string {
-	delta := dateTime.Sub(time.Now()).Hours()
+	delta := dateTime.Sub(time.Now().In(dateTime.Location())).Hours()
 	switch {
 	case delta < 24:
 		return "Сегодня"

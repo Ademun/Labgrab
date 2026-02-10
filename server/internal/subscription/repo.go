@@ -347,8 +347,8 @@ func (r *Repo) GetMatchingSubscriptionsBySlot(ctx context.Context, search *DBSub
 	query := `
 WITH available_slots_expanded AS (
     SELECT 
-        times.key::text AS time,
-		TO_CHAR(times.key::timestamp, 'DY') AS weekday,
+        times.key AS time,
+        TO_CHAR(times.key::timestamptz, 'DY') AS weekday,
         lessons.key::int AS lesson,
         lessons.value AS teachers
     FROM jsonb_each($5::jsonb) AS times,
@@ -361,44 +361,52 @@ matching_subscriptions AS (
         s.user_uuid,
         d.successful_subscriptions,
         d.last_successful_subscription,
-        ase.time::timestamp,
-		ase.weekday::day_of_week,
-        ase.lesson
+        ase.time,
+        ase.weekday::day_of_week,
+        ase.lesson,
+        ase.teachers
     FROM subscription_service.subscriptions s
     INNER JOIN subscription_service.details d ON s.user_uuid = d.user_uuid
     CROSS JOIN available_slots_expanded ase
-    INNER JOIN subscription_service.time_preferences tp 
-        ON s.user_uuid = tp.user_uuid 
-        AND tp.day_of_week = ase.weekday::day_of_week
-        AND ase.lesson = ANY(tp.lessons)
-    INNER JOIN subscription_service.teacher_preferences teachp 
+    LEFT JOIN LATERAL (
+        SELECT 
+            true as has_any,
+            bool_or(
+                tp.day_of_week = ase.weekday::day_of_week 
+                AND ase.lesson = ANY(tp.lessons)
+            ) as is_match
+        FROM subscription_service.time_preferences tp
+        WHERE tp.user_uuid = s.user_uuid
+        HAVING count(*) > 0 
+    ) pref ON TRUE
+    LEFT JOIN subscription_service.teacher_preferences teachp 
         ON s.user_uuid = teachp.user_uuid
     WHERE s.lab_type = $1
       AND s.lab_topic = $2
       AND s.lab_number = $3
-      AND (s.lab_auditorium IS NULL OR s.lab_auditorium = $4)
+      AND (s.lab_auditorium = $4 OR (s.lab_auditorium IS NULL AND s.lab_type = 'Defence' AND $1 = 'Defence'))
       AND s.closed_at IS NULL
-      AND NOT (ase.teachers ?| teachp.blacklisted_teachers)
+      AND (pref.has_any IS NULL OR pref.is_match IS TRUE)
+      AND (teachp.user_uuid IS NULL OR NOT (ase.teachers ?| teachp.blacklisted_teachers))
 ),
-grouped_by_day AS (
+grouped_by_time AS (
     SELECT 
         user_uuid,
         subscription_uuid,
         successful_subscriptions,
         last_successful_subscription,
         time,
-		weekday,
-        jsonb_agg(DISTINCT lesson ORDER BY lesson) as lessons_array
+        jsonb_object_agg(lesson::text, teachers ORDER BY lesson) as lessons_map
     FROM matching_subscriptions
-    GROUP BY user_uuid, subscription_uuid, successful_subscriptions, last_successful_subscription, time, weekday
+    GROUP BY user_uuid, subscription_uuid, successful_subscriptions, last_successful_subscription, time
 )
 SELECT 
     user_uuid,
     subscription_uuid,
     successful_subscriptions,
     last_successful_subscription,
-    jsonb_object_agg(time, lessons_array) as matching_timeslots
-FROM grouped_by_day
+    jsonb_object_agg(time, lessons_map) as matching_timeslots
+FROM grouped_by_time
 GROUP BY user_uuid, subscription_uuid, successful_subscriptions, last_successful_subscription
 ORDER BY 
     successful_subscriptions ASC,

@@ -8,8 +8,8 @@ import (
 type NotifyUserReq struct {
 	UserID        int
 	LabName       string
-	LabType       string
-	LabTopic      string
+	LabType       domain.LabType
+	LabTopic      domain.LabTopic
 	LabNumber     int
 	LabAuditorium int
 	Schedule      domain.Schedule
