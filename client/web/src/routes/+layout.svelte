@@ -36,7 +36,7 @@
 </svelte:head>
 <ModeWatcher />
 <Toaster richColors closeButton position="bottom-center" theme={undefined} />
-<div class="h-screen pb-24">
+<div class="h-screen overflow-y-auto pb-24">
 	{@render children?.()}
 </div>
 <Navigation />

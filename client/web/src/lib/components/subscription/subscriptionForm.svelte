@@ -85,7 +85,8 @@
 			lab_number: labNum!,
 			lab_auditorium: labAuditorium,
 			auto_enroll: autoSign,
-			any_date: anyDate
+			any_date: anyDate,
+			created_at: new Date().getSeconds()
 		};
 
 		isSubmitting = true;

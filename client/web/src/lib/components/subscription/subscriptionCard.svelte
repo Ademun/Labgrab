@@ -37,7 +37,7 @@
 
 	const isPerformance = $derived(subscription.lab_type === 'Performance');
 
-	const isPaused = $derived(subscription.status === 'paused');
+	const isPaused = $derived(subscription.status === 'Paused');
 
 	async function handlePause() {
 		isPausing = true;
@@ -70,7 +70,7 @@
 	async function handleDelete() {
 		isDeleting = true;
 		try {
-			await api.deleteSubscription(subscription.uuid);
+			await api.closeSubscription(subscription.uuid);
 
 			onDeleted?.(subscription.uuid);
 		} catch (error) {
@@ -225,26 +225,6 @@
 				</span>
 				<span class="text-[0.9375rem] font-semibold text-foreground">
 					{subscription.lab_auditorium ?? 'Любая'}
-				</span>
-			</div>
-			<div
-				class="flex flex-col gap-1.5"
-				in:scale={{
-					delay: 350,
-					duration: 200,
-					start: 0.95
-				}}
-				out:scale={{
-					duration: 150,
-					start: 0.95,
-					delay: 50
-				}}
-			>
-				<span class="text-[0.65rem] text-muted-foreground uppercase tracking-wider font-medium">
-					Проверок
-				</span>
-				<span class="text-[0.9375rem] font-semibold text-foreground">
-					{subscription.checks_count ?? 0}
 				</span>
 			</div>
 		</div>

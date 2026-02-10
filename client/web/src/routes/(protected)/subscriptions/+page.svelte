@@ -29,10 +29,6 @@
 	}
 
 	async function onSubscriptionCreated() {
-		toast.success('Подписка создана', {
-			description: 'Система начнёт проверять слоты автоматически'
-		});
-
 		isDialogOpen = false;
 
 		await loadSubscriptions();
@@ -52,7 +48,7 @@
 		});
 
 		subscriptions = subscriptions.map((sub) =>
-			sub.uuid === uuid ? { ...sub, status: 'paused' as const } : sub
+			sub.uuid === uuid ? { ...sub, status: 'Paused' as const } : sub
 		);
 	}
 
@@ -62,7 +58,7 @@
 		});
 
 		subscriptions = subscriptions.map((sub) =>
-			sub.uuid === uuid ? { ...sub, status: 'active' as const } : sub
+			sub.uuid === uuid ? { ...sub, status: 'Active' as const } : sub
 		);
 	}
 
