@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"labgrab/internal/auth"
 	"labgrab/internal/shared/domain"
 
 	"labgrab/internal/application/subscription/dto"
@@ -15,28 +16,37 @@ import (
 )
 
 type EditSubscriptionUseCase struct {
+	authSvc         *auth.Service
 	subscriptionSvc *subscription.Service
 	logger          *zap.SugaredLogger
 }
 
-func NewEditSubscriptionUseCase(subscriptionSvc *subscription.Service, logger *zap.SugaredLogger) *EditSubscriptionUseCase {
+func NewEditSubscriptionUseCase(authSvc *auth.Service, subscriptionSvc *subscription.Service, logger *zap.SugaredLogger) *EditSubscriptionUseCase {
 	return &EditSubscriptionUseCase{
+		authSvc:         authSvc,
 		subscriptionSvc: subscriptionSvc,
 		logger:          logger,
 	}
 }
 
-func (uc *EditSubscriptionUseCase) Exec(ctx context.Context, data *dto.EditSubscriptionReqDTO) (*dto.EditSubscriptionResDTO, error) {
+func (uc *EditSubscriptionUseCase) Exec(ctx context.Context, session string, data *dto.EditSubscriptionReqDTO) (*dto.EditSubscriptionResDTO, error) {
 	ctx, span := tracer.Start(ctx, "subscription_usecase.edit_subscription")
 	defer span.End()
 
-	userUUID, err := uuid.Parse(data.UserUUID)
-	if err != nil {
-		err = fmt.Errorf("invalid user uuid: %w", err)
+	if err := uc.authSvc.ValidateSession(ctx, session); err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "invalid user uuid format")
+		span.SetStatus(codes.Error, "session validation failed")
 		return nil, err
 	}
+
+	userUUID, err := uc.authSvc.GetSessionData(ctx, session)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to retrieve session data")
+		return nil, err
+	}
+
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
 
 	subscriptionUUID, err := uuid.Parse(data.SubscriptionUUID)
 	if err != nil {
@@ -78,6 +88,21 @@ func (uc *EditSubscriptionUseCase) Exec(ctx context.Context, data *dto.EditSubsc
 		labAuditorium = data.LabAuditorium
 	}
 
+	status := existingSub.Status
+	if data.Status != nil {
+		status = subscription.Status(*data.Status)
+	}
+
+	autoEnroll := existingSub.AutoEnroll
+	if data.AutoEnroll != nil {
+		autoEnroll = *data.AutoEnroll
+	}
+
+	anyDate := existingSub.AnyDate
+	if data.AnyDate != nil {
+		anyDate = *data.AnyDate
+	}
+
 	req := &subscription.UpdateSubscriptionDataReq{
 		UserUUID:         userUUID,
 		SubscriptionUUID: subscriptionUUID,
@@ -85,6 +110,9 @@ func (uc *EditSubscriptionUseCase) Exec(ctx context.Context, data *dto.EditSubsc
 		LabTopic:         labTopic,
 		LabNumber:        labNumber,
 		LabAuditorium:    labAuditorium,
+		Status:           status,
+		AutoEnroll:       autoEnroll,
+		AnyDate:          anyDate,
 	}
 
 	if err := uc.subscriptionSvc.UpdateSubscription(ctx, req); err != nil {

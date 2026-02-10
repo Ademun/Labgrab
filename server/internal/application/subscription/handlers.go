@@ -30,7 +30,7 @@ func NewHandler(authSvc *auth.Service, subscriptionSvc *subscription.Service,
 	return &Handler{
 		getSubscriptions: usecase.NewGetSubscriptionsUseCase(authSvc, subscriptionSvc, logger),
 		newSubscription:  usecase.NewNewSubscriptionUseCase(authSvc, subscriptionSvc, logger),
-		editSubscription: usecase.NewEditSubscriptionUseCase(subscriptionSvc, logger),
+		editSubscription: usecase.NewEditSubscriptionUseCase(authSvc, subscriptionSvc, logger),
 		logger:           logger,
 	}
 }
@@ -104,7 +104,6 @@ func (h *Handler) NewSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Add request details as span attributes for debugging
 	span.SetAttributes(
 		attribute.String("lab.type", req.LabType),
 		attribute.String("lab.topic", req.LabTopic),
@@ -157,11 +156,25 @@ func (h *Handler) EditSubscription(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	vars := mux.Vars(r)
-	userUUID := vars["user_uuid"]
 	subscriptionUUID := vars["id"]
 
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		if errors.Is(err, http.ErrNoCookie) {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "unauthorized: missing session cookie")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			h.logger.Error(err)
+			return
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to read session cookie")
+		http.Error(w, "Failed to read cookie", http.StatusInternalServerError)
+		h.logger.Error(err)
+		return
+	}
+
 	span.SetAttributes(
-		attribute.String("user.uuid", userUUID),
 		attribute.String("subscription.uuid", subscriptionUUID),
 	)
 
@@ -174,10 +187,9 @@ func (h *Handler) EditSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req.UserUUID = userUUID
 	req.SubscriptionUUID = subscriptionUUID
 
-	resp, err := h.editSubscription.Exec(ctx, &req)
+	resp, err := h.editSubscription.Exec(ctx, cookie.Value, &req)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
