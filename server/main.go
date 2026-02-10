@@ -16,6 +16,7 @@ import (
 	"labgrab/internal/user"
 	"labgrab/pkg/config"
 	"labgrab/pkg/logger"
+	"labgrab/pkg/tracer"
 	"net/http"
 	"os"
 	"os/signal"
@@ -41,6 +42,17 @@ func main() {
 		log.Fatal("Fatal error occurred when loading config", "error", err)
 	}
 	log.Info("Loaded config")
+
+	tp, err := tracer.Init(ctx, &cfg.InfraConfig.OpenTelemetryConfig)
+	if err != nil {
+		log.Fatal("Fatal error occurred when initializing tracer", "error", err)
+	}
+
+	defer func() {
+		if err := tp.Shutdown(ctx); err != nil {
+			log.Fatal("Fatal error occurred when shutting down tracer", "error", err)
+		}
+	}()
 
 	pool, cache, err := initInfrastructure(ctx, cfg, log)
 	if err != nil {

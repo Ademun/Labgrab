@@ -15,7 +15,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.38.0"
 )
 
-func NewTracer(ctx context.Context, cfg *config.OpenTelemetryConfig) (*trace.TracerProvider, error) {
+func Init(ctx context.Context, cfg *config.OpenTelemetryConfig) (*trace.TracerProvider, error) {
 	exporter, err := otlptrace.New(
 		ctx,
 		otlptracehttp.NewClient(
