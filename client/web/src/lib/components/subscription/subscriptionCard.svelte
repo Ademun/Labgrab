@@ -248,16 +248,15 @@
 						variant="default"
 						class={cn(
 							'w-full py-5 font-semibold text-sm uppercase tracking-wide',
-							isPerformance ? 'bg-accent-performance' : 'bg-accent-defence'
+							isPerformance
+								? 'bg-accent-performance hover:bg-accent-performance-hover'
+								: 'bg-accent-defence hover:bg-accent-defence-hover'
 						)}
 						onclick={handleResume}
 						disabled={isResuming || isDeleting}
 					>
 						{#if isResuming}
-							<span class="flex items-center gap-2">
-								<span class="animate-spin">⏳</span>
-								Возобновление...
-							</span>
+							<span class="flex items-center gap-2"> Возобновление... </span>
 						{:else}
 							Возобновить
 						{/if}
@@ -270,10 +269,7 @@
 						disabled={isPausing || isDeleting}
 					>
 						{#if isPausing}
-							<span class="flex items-center gap-2">
-								<span class="animate-spin">⏳</span>
-								Пауза...
-							</span>
+							<span class="flex items-center gap-2"> Пауза... </span>
 						{:else}
 							Пауза
 						{/if}
