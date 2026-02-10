@@ -72,6 +72,7 @@ type DBSubscriptionSearch struct {
 type DBSubscriptionMatchResult struct {
 	UserUUID                   uuid.UUID
 	SubscriptionUUID           uuid.UUID
+	AutoEnroll                 bool
 	SuccessfulSubscriptions    int
 	LastSuccessfulSubscription *time.Time
 	MatchingTimeslots          domain.Schedule
@@ -83,8 +84,8 @@ type CreateSubscriptionReq struct {
 	LabTopic      domain.LabTopic
 	LabNumber     int
 	LabAuditorium *int
-	AutoEnroll    bool `db:"auto_enroll"`
-	AnyDate       bool `db:"any_date"`
+	AutoEnroll    bool
+	AnyDate       bool
 	CreatedAt     time.Time
 }
 
@@ -149,9 +150,7 @@ type GetSubscriptionRes struct {
 	LabTopic         domain.LabTopic
 	LabNumber        int
 	LabAuditorium    *int
-	Status           Status `db:"status"`
-	AutoEnroll       bool   `db:"auto_enroll"`
-	AnyDate          bool   `db:"any_date"`
+	AutoEnroll       bool
 	CreatedAt        time.Time
 	ClosedAt         *time.Time
 }
