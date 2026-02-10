@@ -133,25 +133,23 @@ class ApiClient {
 		return response.subscription;
 	}
 
-	async updateSubscription(uuid: string, data: UpdateSubscriptionRequest): Promise<Subscription> {
-		return this.request<Subscription>(`/api/subscriptions/${uuid}`, {
+	async updateSubscription(uuid: string, data: UpdateSubscriptionRequest): Promise<void> {
+		return this.request<void>(`/api/subscriptions/${uuid}`, {
 			method: 'PATCH',
 			body: JSON.stringify(data)
 		});
 	}
 
-	async deleteSubscription(uuid: string): Promise<void> {
-		await this.request<void>(`/api/subscriptions/${uuid}`, {
-			method: 'DELETE'
-		});
+	async closeSubscription(uuid: string): Promise<void> {
+		return this.updateSubscription(uuid, { status: 'Closed' });
 	}
 
-	async pauseSubscription(uuid: string): Promise<Subscription> {
-		return this.updateSubscription(uuid, { status: 'paused' });
+	async pauseSubscription(uuid: string): Promise<void> {
+		return this.updateSubscription(uuid, { status: 'Paused' });
 	}
 
-	async resumeSubscription(uuid: string): Promise<Subscription> {
-		return this.updateSubscription(uuid, { status: 'active' });
+	async resumeSubscription(uuid: string): Promise<void> {
+		return this.updateSubscription(uuid, { status: 'Active' });
 	}
 }
 

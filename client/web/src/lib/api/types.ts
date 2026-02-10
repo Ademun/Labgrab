@@ -68,13 +68,13 @@ export interface CreateSubscriptionRequest {
 }
 
 export interface UpdateSubscriptionRequest {
-	lab_type: string;
-	lab_topic: string;
-	lab_number: number;
+	lab_type?: string;
+	lab_topic?: string;
+	lab_number?: number;
 	lab_auditorium?: number;
-	status: 'Active' | 'Paused' | 'Closed';
-	auto_enroll: boolean;
-	any_date: boolean;
+	status?: 'Active' | 'Paused' | 'Closed';
+	auto_enroll?: boolean;
+	any_date?: boolean;
 }
 
 export interface CreateSubscriptionResponse {
