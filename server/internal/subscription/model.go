@@ -150,7 +150,9 @@ type GetSubscriptionRes struct {
 	LabTopic         domain.LabTopic
 	LabNumber        int
 	LabAuditorium    *int
+	Status           Status
 	AutoEnroll       bool
+	AnyDate          bool
 	CreatedAt        time.Time
 	ClosedAt         *time.Time
 }
@@ -158,6 +160,7 @@ type GetSubscriptionRes struct {
 type GetMatchingSubscriptionsRes struct {
 	UserUUID                   uuid.UUID
 	SubscriptionUUID           uuid.UUID
+	AutoEnroll                 bool
 	SuccessfulSubscriptions    int
 	LastSuccessfulSubscription *time.Time
 	MatchingTimeslots          domain.Schedule

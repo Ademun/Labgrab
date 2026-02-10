@@ -106,6 +106,9 @@ func (s *Service) GetSubscription(ctx context.Context, subscriptionUUID uuid.UUI
 		LabTopic:         sub.LabTopic,
 		LabNumber:        sub.LabNumber,
 		LabAuditorium:    sub.LabAuditorium,
+		Status:           sub.Status,
+		AutoEnroll:       sub.AutoEnroll,
+		AnyDate:          sub.AnyDate,
 		CreatedAt:        sub.CreatedAt,
 		ClosedAt:         sub.ClosedAt,
 	}, nil
@@ -135,6 +138,9 @@ func (s *Service) GetSubscriptions(ctx context.Context, userUUID uuid.UUID) ([]G
 			LabTopic:         sub.LabTopic,
 			LabNumber:        sub.LabNumber,
 			LabAuditorium:    sub.LabAuditorium,
+			Status:           sub.Status,
+			AutoEnroll:       sub.AutoEnroll,
+			AnyDate:          sub.AnyDate,
 			CreatedAt:        sub.CreatedAt,
 			ClosedAt:         sub.ClosedAt,
 		}
@@ -159,6 +165,9 @@ func (s *Service) UpdateSubscription(ctx context.Context, req *UpdateSubscriptio
 		LabTopic:         req.LabTopic,
 		LabNumber:        req.LabNumber,
 		LabAuditorium:    req.LabAuditorium,
+		Status:           req.Status,
+		AutoEnroll:       req.AutoEnroll,
+		AnyDate:          req.AnyDate,
 		UserUUID:         req.UserUUID,
 	}
 
@@ -166,63 +175,6 @@ func (s *Service) UpdateSubscription(ctx context.Context, req *UpdateSubscriptio
 	if err != nil {
 		err = &errors.ErrServiceProcedure{
 			Procedure: "UpdateSubscription",
-			Step:      "Repository call",
-			Err:       err,
-		}
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err
-	}
-
-	return nil
-}
-
-func (s *Service) CloseSubscription(ctx context.Context, subscriptionUUID uuid.UUID) error {
-	ctx, span := tracer.Start(ctx, "subscription.service.CloseSubscription")
-	defer span.End()
-
-	err := s.repo.CloseSubscription(ctx, subscriptionUUID)
-	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "CloseSubscription",
-			Step:      "Repository call",
-			Err:       err,
-		}
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err
-	}
-
-	return nil
-}
-
-func (s *Service) RestoreSubscription(ctx context.Context, subscriptionUUID uuid.UUID) error {
-	ctx, span := tracer.Start(ctx, "subscription.service.RestoreSubscription")
-	defer span.End()
-
-	err := s.repo.RestoreSubscription(ctx, subscriptionUUID)
-	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "RestoreSubscription",
-			Step:      "Repository call",
-			Err:       err,
-		}
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err
-	}
-
-	return nil
-}
-
-func (s *Service) DeleteSubscription(ctx context.Context, subscriptionUUID uuid.UUID) error {
-	ctx, span := tracer.Start(ctx, "subscription.service.DeleteSubscription")
-	defer span.End()
-
-	err := s.repo.DeleteSubscription(ctx, subscriptionUUID)
-	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "DeleteSubscription",
 			Step:      "Repository call",
 			Err:       err,
 		}
@@ -275,6 +227,7 @@ func (s *Service) GetMatchingSubscriptions(ctx context.Context, req *GetMatching
 		result[i] = GetMatchingSubscriptionsRes{
 			UserUUID:                   match.UserUUID,
 			SubscriptionUUID:           match.SubscriptionUUID,
+			AutoEnroll:                 match.AutoEnroll,
 			SuccessfulSubscriptions:    match.SuccessfulSubscriptions,
 			LastSuccessfulSubscription: match.LastSuccessfulSubscription,
 			MatchingTimeslots:          match.MatchingTimeslots,
