@@ -50,10 +50,11 @@ export interface Subscription {
 	lab_topic: string;
 	lab_number: number;
 	lab_auditorium?: number;
+	status: 'Active' | 'Paused' | 'Closed';
+	auto_enroll: boolean;
+	any_date: boolean;
 	created_at: string;
 	closed_at?: string;
-	status?: 'active' | 'paused' | 'closed';
-	checks_count?: number;
 }
 
 export interface CreateSubscriptionRequest {
@@ -61,14 +62,19 @@ export interface CreateSubscriptionRequest {
 	lab_topic: string;
 	lab_number: number;
 	lab_auditorium?: number;
-	auto_enroll?: boolean;
-	any_date?: boolean;
+	auto_enroll: boolean;
+	any_date: boolean;
+	created_at: number;
 }
 
 export interface UpdateSubscriptionRequest {
-	auto_enroll?: boolean;
-	any_date?: boolean;
-	status?: 'active' | 'paused';
+	lab_type: string;
+	lab_topic: string;
+	lab_number: number;
+	lab_auditorium?: number;
+	status: 'Active' | 'Paused' | 'Closed';
+	auto_enroll: boolean;
+	any_date: boolean;
 }
 
 export interface CreateSubscriptionResponse {
