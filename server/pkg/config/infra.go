@@ -1,8 +1,9 @@
 package config
 
 type InfraConfig struct {
-	RedisConfig    RedisConfig
-	PostgresConfig PostgresConfig
+	RedisConfig         RedisConfig
+	PostgresConfig      PostgresConfig
+	OpenTelemetryConfig OpenTelemetryConfig
 }
 
 type RedisConfig struct {
@@ -13,4 +14,8 @@ type RedisConfig struct {
 
 type PostgresConfig struct {
 	ConnectionString string `envconfig:"POSTGRES_CONN_STRING"`
+}
+
+type OpenTelemetryConfig struct {
+	JaegerEndpoint string `envconfig:"JAEGER_ENDPOINT"`
 }
