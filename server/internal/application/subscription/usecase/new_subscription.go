@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.uber.org/zap"
 )
@@ -28,17 +29,32 @@ func NewNewSubscriptionUseCase(authSvc *auth.Service, subscriptionSvc *subscript
 }
 
 func (uc *NewSubscriptionUseCase) Exec(ctx context.Context, session string, data *dto.NewSubscriptionReqDTO) (uuid.UUID, error) {
+	ctx, span := tracer.Start(ctx, "subscription_usecase.new_subscription")
+	defer span.End()
+
 	if err := uc.authSvc.ValidateSession(ctx, session); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "session validation failed")
 		return uuid.Nil, err
 	}
 
 	userUUID, err := uc.authSvc.GetSessionData(ctx, session)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to retrieve session data")
 		return uuid.Nil, err
 	}
 
-	ctx, span := tracer.Start(ctx, "subscription.usecase.NewSubscription")
-	defer span.End()
+	span.SetAttributes(
+		attribute.String("user.uuid", userUUID.String()),
+		attribute.String("lab.type", data.LabType),
+		attribute.String("lab.topic", data.LabTopic),
+		attribute.Int("lab.number", data.LabNumber),
+	)
+
+	if data.LabAuditorium != nil {
+		span.SetAttributes(attribute.Int("lab.auditorium", *data.LabAuditorium))
+	}
 
 	req := &subscription.CreateSubscriptionReq{
 		UserUUID:      userUUID,
@@ -52,9 +68,12 @@ func (uc *NewSubscriptionUseCase) Exec(ctx context.Context, session string, data
 	subscriptionUUID, err := uc.subscriptionSvc.CreateSubscription(ctx, req)
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		span.SetStatus(codes.Error, "failed to create subscription")
 		return uuid.Nil, err
 	}
+
+	span.SetAttributes(attribute.String("subscription.uuid", subscriptionUUID.String()))
+	span.SetStatus(codes.Ok, "")
 
 	return subscriptionUUID, nil
 }

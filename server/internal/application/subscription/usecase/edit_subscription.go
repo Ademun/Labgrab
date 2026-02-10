@@ -9,6 +9,7 @@ import (
 	"labgrab/internal/subscription"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.uber.org/zap"
 )
@@ -26,14 +27,14 @@ func NewEditSubscriptionUseCase(subscriptionSvc *subscription.Service, logger *z
 }
 
 func (uc *EditSubscriptionUseCase) Exec(ctx context.Context, data *dto.EditSubscriptionReqDTO) (*dto.EditSubscriptionResDTO, error) {
-	ctx, span := tracer.Start(ctx, "subscription.usecase.EditSubscription")
+	ctx, span := tracer.Start(ctx, "subscription_usecase.edit_subscription")
 	defer span.End()
 
 	userUUID, err := uuid.Parse(data.UserUUID)
 	if err != nil {
 		err = fmt.Errorf("invalid user uuid: %w", err)
 		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		span.SetStatus(codes.Error, "invalid user uuid format")
 		return nil, err
 	}
 
@@ -41,14 +42,19 @@ func (uc *EditSubscriptionUseCase) Exec(ctx context.Context, data *dto.EditSubsc
 	if err != nil {
 		err = fmt.Errorf("invalid subscription uuid: %w", err)
 		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		span.SetStatus(codes.Error, "invalid subscription uuid format")
 		return nil, err
 	}
+
+	span.SetAttributes(
+		attribute.String("user.uuid", userUUID.String()),
+		attribute.String("subscription.uuid", subscriptionUUID.String()),
+	)
 
 	existingSub, err := uc.subscriptionSvc.GetSubscription(ctx, subscriptionUUID)
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		span.SetStatus(codes.Error, "failed to retrieve existing subscription")
 		return nil, err
 	}
 
@@ -83,9 +89,11 @@ func (uc *EditSubscriptionUseCase) Exec(ctx context.Context, data *dto.EditSubsc
 
 	if err := uc.subscriptionSvc.UpdateSubscription(ctx, req); err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		span.SetStatus(codes.Error, "failed to update subscription")
 		return nil, err
 	}
+
+	span.SetStatus(codes.Ok, "")
 
 	return &dto.EditSubscriptionResDTO{
 		UUID: subscriptionUUID.String(),
