@@ -331,7 +331,7 @@ matching_subscriptions AS (
       AND s.lab_number = $3
       AND (s.lab_auditorium = $4 OR (s.lab_auditorium IS NULL AND s.lab_type = 'Defence' AND $1 = 'Defence'))
       AND s.status = 'Active'
-      AND (pref.has_any IS NULL OR pref.is_match IS TRUE OR s.any_date)
+      AND (pref.has_any IS NULL OR pref.is_match IS TRUE OR s.any_date IS TRUE)
       AND (teachp.user_uuid IS NULL OR NOT (ase.teachers ?| teachp.blacklisted_teachers))
 ),
 grouped_by_time AS (
