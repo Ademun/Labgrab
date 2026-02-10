@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { cn } from '$lib/utils.ts';
-	import { fade, scale } from 'svelte/transition';
+	import { fade } from 'svelte/transition';
 	import {
 		Action as AlertAction,
 		Cancel as AlertCancel,
@@ -36,14 +36,25 @@
 	let isDeleting = $state<boolean>(false);
 
 	const isPerformance = $derived(subscription.lab_type === 'Performance');
-
 	const isPaused = $derived(subscription.status === 'Paused');
+	const isAnyActionInProgress = $derived(isPausing || isResuming || isDeleting);
+
+	const accentBgClasses = $derived(
+		isPerformance
+			? 'bg-accent-performance hover:bg-accent-performance-hover'
+			: 'bg-accent-defence hover:bg-accent-defence-hover'
+	);
+
+	const accentTextClasses = $derived(
+		isPerformance ? 'text-accent-performance' : 'text-accent-defence'
+	);
+
+	const headerBgClasses = $derived(isPerformance ? 'bg-accent-performance' : 'bg-accent-defence');
 
 	async function handlePause() {
 		isPausing = true;
 		try {
 			await api.pauseSubscription(subscription.uuid);
-
 			onPaused?.(subscription.uuid);
 		} catch (error) {
 			console.error('Failed to pause subscription:', error);
@@ -57,7 +68,6 @@
 		isResuming = true;
 		try {
 			await api.resumeSubscription(subscription.uuid);
-
 			onResumed?.(subscription.uuid);
 		} catch (error) {
 			console.error('Failed to resume subscription:', error);
@@ -71,7 +81,6 @@
 		isDeleting = true;
 		try {
 			await api.closeSubscription(subscription.uuid);
-
 			onDeleted?.(subscription.uuid);
 		} catch (error) {
 			console.error('Failed to delete subscription:', error);
@@ -84,42 +93,13 @@
 
 <div
 	class="bg-card rounded-2xl w-full overflow-hidden shadow-xl"
-	in:fade={{
-		delay: 0,
-		duration: 300
-	}}
-	out:fade={{
-		duration: 250,
-		delay: 0
-	}}
+	in:fade={{ duration: 300 }}
+	out:fade={{ duration: 250 }}
 >
 	<div
-		class={cn(
-			'text-sm font-semibold flex items-center justify-between px-5 py-3',
-			isPerformance ? 'bg-accent-performance' : 'bg-accent-defence'
-		)}
-		in:fade={{
-			delay: 50,
-			duration: 250
-		}}
-		out:fade={{
-			duration: 200,
-			delay: 0
-		}}
+		class={cn('text-sm font-semibold flex items-center justify-between px-5 py-3', headerBgClasses)}
 	>
-		<div
-			class="flex items-center gap-2"
-			in:scale={{
-				delay: 100,
-				duration: 200,
-				start: 0.95
-			}}
-			out:scale={{
-				duration: 150,
-				start: 0.95,
-				delay: 0
-			}}
-		>
+		<div class="flex items-center gap-2">
 			<span
 				class={cn(
 					'w-1.5 h-1.5 rounded-full',
@@ -130,133 +110,50 @@
 				{isPaused ? 'На паузе' : 'Активна'}
 			</span>
 		</div>
-		<span
-			in:fade={{
-				delay: 150,
-				duration: 200
-			}}
-			out:fade={{
-				duration: 150,
-				delay: 0
-			}}
-		>
+		<span>
 			{formatTimeString(subscription.created_at)}
 		</span>
 	</div>
 
 	<div class="px-5 py-6">
-		<div
-			class="mb-5"
-			in:fade={{
-				delay: 100,
-				duration: 300
-			}}
-			out:fade={{
-				duration: 200,
-				delay: 50
-			}}
-		>
-			<div
-				class="flex items-baseline gap-3 mb-3"
-				in:scale={{
-					delay: 150,
-					duration: 250,
-					start: 0.98
-				}}
-				out:scale={{
-					duration: 200,
-					start: 0.98,
-					delay: 0
-				}}
-			>
-				<span class="text-[2rem] font-black leading-none">
+		<div class="mb-5">
+			<div class="flex items-baseline gap-3 mb-3">
+				<span class="text-3xl font-black leading-none">
 					№{subscription.lab_number}
 				</span>
 				<span
-					class={cn(
-						'text-lg font-black uppercase leading-none tracking-tight',
-						isPerformance ? 'text-accent-performance' : 'text-accent-defence'
-					)}
+					class={cn('text-lg font-black uppercase leading-none tracking-tight', accentTextClasses)}
 				>
 					{getLabTypeName(subscription.lab_type)}
 				</span>
 			</div>
-			<span
-				class="text-sm text-muted-foreground font-medium"
-				in:fade={{
-					delay: 200,
-					duration: 250
-				}}
-				out:fade={{
-					duration: 150,
-					delay: 100
-				}}
-			>
+			<span class="text-sm text-muted-foreground font-medium">
 				{getLabTopicName(subscription.lab_topic)}
 			</span>
 		</div>
 
-		<div
-			class="flex items-start gap-12 py-4 border-t border-b border-border/50"
-			in:fade={{
-				delay: 250,
-				duration: 300
-			}}
-			out:fade={{
-				duration: 200,
-				delay: 150
-			}}
-		>
-			<div
-				class="flex flex-col gap-1.5"
-				in:scale={{
-					delay: 300,
-					duration: 200,
-					start: 0.95
-				}}
-				out:scale={{
-					duration: 150,
-					start: 0.95,
-					delay: 0
-				}}
-			>
-				<span class="text-[0.65rem] text-muted-foreground uppercase tracking-wider font-medium">
+		<div class="flex items-start gap-12 py-4 border-t border-b border-border/50">
+			<div class="flex flex-col gap-1.5">
+				<span class="text-xs text-muted-foreground uppercase tracking-wider font-medium">
 					Аудитория
 				</span>
-				<span class="text-[0.9375rem] font-semibold text-foreground">
+				<span class="text-sm font-semibold">
 					{subscription.lab_auditorium ?? 'Любая'}
 				</span>
 			</div>
 		</div>
 
-		<div
-			class="flex flex-col items-center gap-2.5 mt-6"
-			in:scale={{
-				delay: 400,
-				duration: 300,
-				start: 0.9
-			}}
-			out:scale={{
-				duration: 250,
-				start: 0.9,
-				delay: 200
-			}}
-		>
+		<div class="flex flex-col items-center gap-2.5 mt-6">
 			<div class="w-full">
 				{#if isPaused}
 					<Button
 						variant="default"
-						class={cn(
-							'w-full py-5 font-semibold text-sm uppercase tracking-wide',
-							isPerformance
-								? 'bg-accent-performance hover:bg-accent-performance-hover'
-								: 'bg-accent-defence hover:bg-accent-defence-hover'
-						)}
+						class={cn('w-full py-5 font-semibold text-sm uppercase tracking-wide', accentBgClasses)}
 						onclick={handleResume}
-						disabled={isResuming || isDeleting}
+						disabled={isAnyActionInProgress}
 					>
 						{#if isResuming}
-							<span class="flex items-center gap-2"> Возобновление... </span>
+							<span class="flex items-center gap-2">Возобновление...</span>
 						{:else}
 							Возобновить
 						{/if}
@@ -266,10 +163,10 @@
 						variant="outline"
 						class="w-full py-5 font-semibold text-sm uppercase tracking-wide hover:bg-accent"
 						onclick={handlePause}
-						disabled={isPausing || isDeleting}
+						disabled={isAnyActionInProgress}
 					>
 						{#if isPausing}
-							<span class="flex items-center gap-2"> Пауза... </span>
+							<span class="flex items-center gap-2">Пауза...</span>
 						{:else}
 							Пауза
 						{/if}
@@ -279,13 +176,8 @@
 
 			<div class="w-full">
 				<Button
-					class={cn(
-						'w-full py-5 font-semibold text-sm uppercase tracking-wide',
-						isPerformance
-							? 'bg-accent-performance hover:bg-accent-performance-hover'
-							: 'bg-accent-defence hover:bg-accent-defence-hover'
-					)}
-					disabled={isPausing || isResuming || isDeleting}
+					class={cn('w-full py-5 font-semibold text-sm uppercase tracking-wide', accentBgClasses)}
+					disabled={isAnyActionInProgress}
 				>
 					Настроить
 				</Button>
@@ -297,7 +189,7 @@
 						<Button
 							variant="outline"
 							class="w-full py-5 font-semibold text-sm uppercase tracking-wide"
-							disabled={isPausing || isResuming || isDeleting}
+							disabled={isAnyActionInProgress}
 						>
 							{#if isDeleting}
 								<Spinner />

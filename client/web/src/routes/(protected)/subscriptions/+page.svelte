@@ -3,7 +3,7 @@
 	import { buttonVariants } from '$lib/components/ui/button';
 	import { Content, Description, Header, Root, Title, Trigger } from '$lib/components/ui/dialog';
 	import { cn } from '$lib/utils.ts';
-	import { fade, fly, scale } from 'svelte/transition';
+	import { fade, fly } from 'svelte/transition';
 	import { backOut } from 'svelte/easing';
 
 	import { api } from '$lib/api/client';
@@ -30,7 +30,6 @@
 
 	async function onSubscriptionCreated() {
 		isDialogOpen = false;
-
 		await loadSubscriptions();
 	}
 
@@ -63,7 +62,7 @@
 	}
 
 	onMount(() => {
-		if (!subscriptions || subscriptions.length === 0) {
+		if (subscriptions.length === 0) {
 			loadSubscriptions();
 		}
 	});
@@ -71,55 +70,13 @@
 
 <div
 	class="flex flex-col items-center w-full px-8 py-8"
-	in:fly={{
-		y: 20,
-		duration: 400,
-		easing: backOut,
-		opacity: 0
-	}}
-	out:fly={{
-		y: 20,
-		duration: 300,
-		easing: backOut,
-		opacity: 0
-	}}
+	in:fly={{ y: 20, duration: 400, easing: backOut, opacity: 0 }}
+	out:fly={{ y: 20, duration: 300, easing: backOut, opacity: 0 }}
 >
-	<div
-		class="w-full"
-		in:fade={{
-			delay: 150,
-			duration: 300
-		}}
-		out:fade={{
-			duration: 250,
-			delay: 50
-		}}
-	>
-		<div
-			class="flex justify-between items-center"
-			in:scale={{
-				delay: 200,
-				duration: 300,
-				start: 0.95
-			}}
-			out:scale={{
-				duration: 250,
-				start: 0.95,
-				delay: 0
-			}}
-		>
+	<div class="w-full">
+		<div class="flex justify-between items-center">
 			<span class="text-muted-foreground">
-				<span
-					class="text-primary font-bold"
-					in:fade={{
-						delay: 250,
-						duration: 200
-					}}
-					out:fade={{
-						duration: 200,
-						delay: 0
-					}}
-				>
+				<span class="text-primary font-bold">
 					{#if isLoadingSubscriptions}
 						<span class="animate-pulse">—</span>
 					{:else}
@@ -129,55 +86,22 @@
 				ПОДПИСОК
 			</span>
 
-			<div
-				in:scale={{
-					delay: 300,
-					duration: 300,
-					start: 0.9
-				}}
-				out:scale={{
-					duration: 250,
-					start: 0.9,
-					delay: 50
-				}}
-			>
-				<Root bind:open={isDialogOpen}>
-					<Trigger class={cn(buttonVariants({ variant: 'default' }), 'px-12')}>СОЗДАТЬ</Trigger>
-					<Content class="max-w-lg overflow-y-scroll max-h-screen">
-						<Header class="text-left">
-							<Title>Новая подписка</Title>
-							<Description>Настройте параметры отслеживания лабораторной работы</Description>
-						</Header>
+			<Root bind:open={isDialogOpen}>
+				<Trigger class={cn(buttonVariants({ variant: 'default' }), 'px-12')}>СОЗДАТЬ</Trigger>
+				<Content class="max-w-lg overflow-y-scroll max-h-screen">
+					<Header class="text-left">
+						<Title>Новая подписка</Title>
+						<Description>Настройте параметры отслеживания лабораторной работы</Description>
+					</Header>
 
-						<SubscriptionForm bind:open={isDialogOpen} onCreated={onSubscriptionCreated} />
-					</Content>
-				</Root>
-			</div>
+					<SubscriptionForm bind:open={isDialogOpen} onCreated={onSubscriptionCreated} />
+				</Content>
+			</Root>
 		</div>
 
-		<hr
-			class="w-full my-6"
-			in:fade={{
-				delay: 350,
-				duration: 300
-			}}
-			out:fade={{
-				duration: 200,
-				delay: 100
-			}}
-		/>
+		<hr class="w-full my-6" />
 
-		<div
-			class="flex flex-col items-center gap-12"
-			in:fade={{
-				delay: 400,
-				duration: 300
-			}}
-			out:fade={{
-				duration: 250,
-				delay: 150
-			}}
-		>
+		<div class="flex flex-col items-center gap-12">
 			{#if isLoadingSubscriptions}
 				<div class="w-full space-y-12">
 					{#each [1, 2] as i}
@@ -198,18 +122,8 @@
 				{#each subscriptions as subscription, index (subscription.uuid)}
 					<div
 						class="w-full"
-						in:fly={{
-							y: 20,
-							duration: 300,
-							delay: 450 + index * 100,
-							opacity: 0
-						}}
-						out:fly={{
-							y: 20,
-							duration: 250,
-							delay: index * 50,
-							opacity: 0
-						}}
+						in:fly={{ y: 20, duration: 300, delay: 50 + index * 50, opacity: 0 }}
+						out:fly={{ y: 20, duration: 250, delay: index * 30, opacity: 0 }}
 					>
 						<SubscriptionCard
 							{subscription}

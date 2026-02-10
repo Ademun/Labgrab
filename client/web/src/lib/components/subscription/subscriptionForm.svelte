@@ -36,6 +36,18 @@
 
 	const isPerformance = $derived(labType === 'Performance');
 
+	const accentBgClasses = $derived(
+		isPerformance
+			? 'bg-accent-performance hover:bg-accent-performance-hover'
+			: 'bg-accent-defence hover:bg-accent-defence-hover'
+	);
+
+	const accentCheckboxClasses = $derived(
+		isPerformance
+			? 'data-[state=checked]:bg-accent-performance data-[state=checked]:border-accent-performance'
+			: 'data-[state=checked]:bg-accent-defence data-[state=checked]:border-accent-defence'
+	);
+
 	$effect(() => {
 		if (!needsAuditorium()) {
 			labAuditorium = undefined;
@@ -86,7 +98,7 @@
 			lab_auditorium: labAuditorium,
 			auto_enroll: autoSign,
 			any_date: anyDate,
-			created_at: new Date().getSeconds()
+			created_at: Date.now()
 		};
 
 		isSubmitting = true;
@@ -104,9 +116,7 @@
 			});
 
 			resetForm();
-
 			open = false;
-
 			await onCreated?.();
 		} catch (error) {
 			console.error('Failed to create subscription:', error);
@@ -139,15 +149,13 @@
 					<Label class="text-sm font-medium mb-2">
 						Тип работы <span class="text-primary">*</span>
 					</Label>
-					<div class="flex justify-between items-center gap-3">
+					<div class="flex items-center gap-3">
 						{#each $labTypes as type}
 							<Button
 								type="button"
 								class={cn(
-									'w-[48%] py-5 font-semibold text-sm uppercase tracking-wide',
-									isPerformance
-										? 'bg-accent-performance hover:bg-accent-performance-hover'
-										: 'bg-accent-defence hover:bg-accent-defence-hover'
+									'flex-1 py-5 font-semibold text-sm uppercase tracking-wide',
+									accentBgClasses
 								)}
 								variant={labType === type.id ? 'default' : 'outline'}
 								onclick={() => (labType = type.id)}
@@ -197,7 +205,7 @@
 				</Field>
 
 				{#if needsAuditorium()}
-					<div transition:fade={{ duration: 300 }}>
+					<div transition:fade={{ duration: 200 }}>
 						<Field>
 							<Label class="text-sm font-medium mb-2">
 								Аудитория <span class="text-primary">*</span>
@@ -227,12 +235,7 @@
 				<Field orientation="horizontal" class="flex items-start gap-3">
 					<Checkbox
 						id="subscription-auto"
-						class={cn(
-							'mt-0.5',
-							isPerformance
-								? 'data-[state=checked]:bg-accent-performance data-[state=checked]:border-accent-performance'
-								: 'data-[state=checked]:bg-accent-defence data-[state=checked]:border-accent-defence'
-						)}
+						class={cn('mt-0.5', accentCheckboxClasses)}
 						bind:checked={autoSign}
 						disabled={isSubmitting}
 					/>
@@ -249,12 +252,7 @@
 				<Field orientation="horizontal" class="flex items-start gap-3">
 					<Checkbox
 						id="subscription-any-date"
-						class={cn(
-							'mt-0.5',
-							isPerformance
-								? 'data-[state=checked]:bg-accent-performance data-[state=checked]:border-accent-performance'
-								: 'data-[state=checked]:bg-accent-defence data-[state=checked]:border-accent-defence'
-						)}
+						class={cn('mt-0.5', accentCheckboxClasses)}
 						bind:checked={anyDate}
 						disabled={isSubmitting}
 					/>
@@ -273,17 +271,11 @@
 		<Field>
 			<Button
 				type="submit"
-				class={cn(
-					'w-full py-5 font-semibold text-sm uppercase tracking-wide',
-					isPerformance ? 'bg-accent-performance' : 'bg-accent-defence'
-				)}
+				class={cn('w-full py-5 font-semibold text-sm uppercase tracking-wide', accentBgClasses)}
 				disabled={isSubmitting}
 			>
 				{#if isSubmitting}
-					<span class="flex items-center gap-2">
-						<span class="animate-spin">⏳</span>
-						Создаём...
-					</span>
+					<span class="flex items-center gap-2"> Создаём... </span>
 				{:else}
 					Создать подписку
 				{/if}
