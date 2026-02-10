@@ -33,4 +33,4 @@ polling_service:
 subscription_service:
   deduplicator:
     key_prefix: 'slot'
-    ttl: 5m
+    ttl: 30m

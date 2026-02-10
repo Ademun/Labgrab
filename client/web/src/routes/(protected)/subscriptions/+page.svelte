@@ -88,22 +88,8 @@
         opacity: 0
     }}
 >
-    <h1
-            class="text-xl font-medium"
-            in:fade={{
-            delay: 100,
-            duration: 300
-        }}
-            out:fade={{
-            duration: 250,
-            delay: 0
-        }}
-    >
-        Подписки
-    </h1>
-
     <div
-            class="my-10 w-full"
+            class="w-full"
             in:fade={{
             delay: 150,
             duration: 300

@@ -17,6 +17,7 @@
     import {getLabTopicName, getLabTypeName} from "$lib/stores/config";
     import type {Subscription} from "$lib/api/types.ts";
     import {Spinner} from "$lib/components/ui/spinner";
+    import {formatTimeString} from "$lib/utils.js";
 
     let {
         subscription,
@@ -35,7 +36,6 @@
     let isDeleting = $state<boolean>(false);
 
     const isPerformance = $derived(subscription.lab_type === "Performance");
-    const colors = $derived(isPerformance ? "accent-performance" : "accent-defence");
 
     const isPaused = $derived(subscription.status === 'paused');
 
@@ -93,17 +93,12 @@
         delay: 0
     }}
 >
-    <div
-            class={cn(
-            "text-sm font-semibold flex items-center justify-between px-5 py-3",
-            `bg-${colors}`,
-            isPaused && "opacity-60"
-        )}
-            in:fade={{
+    <div class={cn("text-sm font-semibold flex items-center justify-between px-5 py-3", isPerformance ? "bg-accent-performance" : "bg-accent-defence")}
+         in:fade={{
             delay: 50,
             duration: 250
         }}
-            out:fade={{
+         out:fade={{
             duration: 200,
             delay: 0
         }}
@@ -139,7 +134,7 @@
                 delay: 0
             }}
         >
-            {subscription.created_at}
+            {formatTimeString(subscription.created_at)}
         </span>
     </div>
 
@@ -173,7 +168,7 @@
                 </span>
                 <span class={cn(
                     "text-lg font-black uppercase leading-none tracking-tight",
-                    `text-${colors}`
+                    isPerformance ? "text-accent-performance" : "text-accent-defence"
                 )}>
                     {getLabTypeName(subscription.lab_type)}
                 </span>
@@ -265,7 +260,7 @@
                             variant="default"
                             class={cn(
                             "w-full py-5 font-semibold text-sm uppercase tracking-wide",
-                            `bg-${colors}`
+                            isPerformance ? "bg-accent-performance" : "bg-accent-defence"
                         )}
                             onclick={handleResume}
                             disabled={isResuming || isDeleting}
@@ -300,7 +295,10 @@
 
             <div class="w-full">
                 <Button
-                        class={cn("w-full py-5 font-semibold text-sm uppercase tracking-wide", `bg-${colors}`)}
+                        class={cn("w-full py-5 font-semibold text-sm uppercase tracking-wide",
+                        isPerformance ? "bg-accent-performance hover:bg-accent-performance-hover" :
+                        "bg-accent-defence hover:bg-accent-defence-hover",
+                        )}
                         disabled={isPausing || isResuming || isDeleting}
                 >
                     Настроить
