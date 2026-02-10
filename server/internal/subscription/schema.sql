@@ -2,7 +2,8 @@ create schema if not exists subscription_service;
 
 create type lab_type as enum ('Defence', 'Performance');
 create type lab_topic as enum ('Virtual', 'Electricity', 'Mechanics', 'Optics', 'Rigid Body');
-create type status as enum ('Active', 'Paused', 'Closed');
+create type subscription_status as enum ('Active', 'Paused', 'Closed');
+create type day_of_week as enum ('MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN');
 
 create table if not exists subscription_service.subscriptions
 (
@@ -11,7 +12,7 @@ create table if not exists subscription_service.subscriptions
     lab_topic         lab_topic   not null,
     lab_number        int         not null,
     lab_auditorium    int,
-    status            status      not null,
+    status            subscription_status      not null,
     auto_enroll       bool        not null,
     any_date          bool        not null,
     created_at        timestamptz not null,
@@ -27,10 +28,6 @@ create index if not exists subscriptions_search_idx on subscription_service.subs
                                                                                            lab_auditorium,
                                                                                            closed_at,
                                                                                            user_uuid);
-
-
-
-create type day_of_week as enum ('MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN');
 
 create table if not exists subscription_service.time_preferences
 (
