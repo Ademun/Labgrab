@@ -48,6 +48,9 @@ func (c *Client) GetSlotStream(ctx context.Context) chan *SlotResult {
 					<-rate
 				}()
 				result, err := c.ProcessSlotSource(ctx, sourceID)
+				if result == nil && err == nil {
+
+				}
 				if err != nil {
 					select {
 					case results <- &SlotResult{nil, err}:

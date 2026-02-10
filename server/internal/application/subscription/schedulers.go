@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
+	"go.opentelemetry.io/otel/codes"
 	"go.uber.org/zap"
 )
 
@@ -31,7 +32,6 @@ func NewScheduler(dikidiClient *dikidi.Client, pollingSvc *lab_polling.Service, 
 
 func (s *Scheduler) Start(ctx context.Context) error {
 	s.UpdateSlotSources(ctx)
-	s.ProcessNewSlots(ctx)
 	scheduler, err := gocron.NewScheduler()
 	if err != nil {
 		return err
@@ -61,13 +61,20 @@ func (s *Scheduler) Stop() error {
 }
 
 func (s *Scheduler) ProcessNewSlots(ctx context.Context) {
-	now := time.Now()
-	s.logger.Infow("Running job", "job", "ProcessNewSlots", "time", now)
+	ctx, span := tracer.Start(ctx, "ProcessNewSlots")
+	defer span.End()
+
 	err := s.processNewSlots.Exec(ctx)
 	if err != nil {
-		s.logger.Errorw("Error executing process new slots", "error", err)
+		s.logger.Errorw("Error executing process new slots",
+			"trace_id", span.SpanContext().TraceID(),
+			"span_id", span.SpanContext().SpanID(),
+			"error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 	}
-	s.logger.Infow("Finished running job", "job", "ProcessNewSlots", "elapsed", time.Now().Sub(now))
+
+	span.SetStatus(codes.Ok, "")
 }
 
 func (s *Scheduler) UpdateSlotSources(ctx context.Context) {

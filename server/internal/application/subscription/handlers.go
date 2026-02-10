@@ -12,12 +12,9 @@ import (
 	"labgrab/internal/application/subscription/usecase"
 
 	"github.com/gorilla/mux"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.uber.org/zap"
 )
-
-var tracer = otel.Tracer("subscription-handler")
 
 type Handler struct {
 	getSubscriptions *usecase.GetSubscriptionsUseCase

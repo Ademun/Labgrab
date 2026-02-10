@@ -9,12 +9,9 @@ import (
 	"labgrab/internal/subscription"
 
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.uber.org/zap"
 )
-
-var tracer = otel.Tracer("subscription-usecase")
 
 type GetSubscriptionsUseCase struct {
 	authSvc         *auth.Service

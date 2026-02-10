@@ -6,10 +6,11 @@ import (
 	"sync"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 	"go.uber.org/zap"
 )
 
-var tracer = otel.Tracer("lab-polling-service")
+var tracer = otel.Tracer("labgrab/internal/service/lab_polling")
 
 type Service struct {
 	dikidiClient *dikidi.Client
@@ -26,6 +27,9 @@ func NewService(client *dikidi.Client, slotParser *Parser, logger *zap.SugaredLo
 }
 
 func (s *Service) GetLabEventsStream(ctx context.Context) chan *EventResult {
+	ctx, span := tracer.Start(ctx, "GetLabEventsStream")
+	defer span.End()
+
 	events := make(chan *EventResult)
 	slots := s.dikidiClient.GetSlotStream(ctx)
 
@@ -37,18 +41,22 @@ func (s *Service) GetLabEventsStream(ctx context.Context) chan *EventResult {
 			go func() {
 				defer wg.Done()
 				if slot.Err != nil {
+					span.RecordError(slot.Err)
 					events <- &EventResult{
 						Data: nil,
 						Err:  slot.Err,
 					}
+					return
 				}
 
 				parsed, err := s.slotParser.ParseSlot(slot.Data)
 				if err != nil {
+					span.RecordError(err)
 					events <- &EventResult{
 						Data: nil,
 						Err:  err,
 					}
+					return
 				}
 
 				for _, event := range parsed {
@@ -68,5 +76,6 @@ func (s *Service) GetLabEventsStream(ctx context.Context) chan *EventResult {
 		close(events)
 	}()
 
+	span.SetStatus(codes.Ok, "")
 	return events
 }

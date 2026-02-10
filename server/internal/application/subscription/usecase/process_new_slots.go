@@ -2,12 +2,14 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"labgrab/internal/lab_polling"
 	"labgrab/internal/subscription"
 	"labgrab/internal/telegram"
 	"labgrab/internal/user"
 	"sync"
 
+	"go.opentelemetry.io/otel/codes"
 	"go.uber.org/zap"
 )
 
@@ -16,7 +18,6 @@ type ProcessNewSlotsUseCase struct {
 	subscriptionSvc *subscription.Service
 	userSvc         *user.Service
 	telegramSvc     *telegram.Service
-	logger          *zap.SugaredLogger
 }
 
 func NewProcessNewSlotsUseCase(labPollingSvc *lab_polling.Service, subscriptionSvc *subscription.Service, userSvc *user.Service, telegramSvc *telegram.Service, logger *zap.SugaredLogger) *ProcessNewSlotsUseCase {
@@ -25,20 +26,26 @@ func NewProcessNewSlotsUseCase(labPollingSvc *lab_polling.Service, subscriptionS
 		subscriptionSvc: subscriptionSvc,
 		userSvc:         userSvc,
 		telegramSvc:     telegramSvc,
-		logger:          logger,
 	}
 }
 
 func (uc *ProcessNewSlotsUseCase) Exec(ctx context.Context) error {
+	ctx, span := tracer.Start(ctx, "Exec")
+	defer span.End()
+
 	currentEvents := uc.labPollingSvc.GetLabEventsStream(ctx)
+
 	sem := make(chan struct{}, 50)
-	totalEvents, matchedSubscriptions := 0, 0
+	eventCount := 0
+	errs := make([]error, 0)
+
 	mainWg := sync.WaitGroup{}
 	mainWg.Add(1)
+
 	go func() {
 		wg := sync.WaitGroup{}
 		for event := range currentEvents {
-			totalEvents++
+			eventCount++
 			wg.Add(1)
 			go func() {
 				defer func() {
@@ -48,7 +55,8 @@ func (uc *ProcessNewSlotsUseCase) Exec(ctx context.Context) error {
 				sem <- struct{}{}
 				err := uc.HandleEvent(ctx, event)
 				if err != nil {
-					uc.logger.Errorw("error handling event", "event", event, "err", err)
+					span.RecordError(err)
+					errs = append(errs, err)
 				}
 			}()
 		}
@@ -57,13 +65,24 @@ func (uc *ProcessNewSlotsUseCase) Exec(ctx context.Context) error {
 		mainWg.Done()
 	}()
 	mainWg.Wait()
-	uc.logger.Infow("Processing complete", "total events", totalEvents, "matched subscriptions", matchedSubscriptions)
 
+	if len(errs) > 0 {
+		err := fmt.Errorf("processed %d events. %d failed", eventCount, len(errs))
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	span.SetStatus(codes.Ok, "")
 	return nil
 }
 
 func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_polling.EventResult) error {
+	ctx, span := tracer.Start(ctx, "HandleEvent")
+	defer span.End()
+
 	if event.Err != nil {
+		span.RecordError(event.Err)
+		span.SetStatus(codes.Error, event.Err.Error())
 		return event.Err
 	}
 
@@ -74,20 +93,25 @@ func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_po
 		LabAuditorium:  event.Data.Auditorium,
 		AvailableSlots: event.Data.Schedule,
 	}
-	uc.logger.Infow("Handling event", "event", event, "searchReq", searchReq)
 
 	relevantSubs, err := uc.subscriptionSvc.GetMatchingSubscriptions(ctx, searchReq)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 
 	for _, sub := range relevantSubs {
 		select {
 		case <-ctx.Done():
+			span.RecordError(ctx.Err())
+			span.SetStatus(codes.Error, ctx.Err().Error())
 			return ctx.Err()
 		default:
 			userData, err := uc.userSvc.GetUser(ctx, sub.UserUUID)
 			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
 				return err
 			}
 
@@ -105,6 +129,8 @@ func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_po
 			return uc.telegramSvc.NotifyUser(ctx, notifyReq)
 		}
 	}
+
+	span.SetStatus(codes.Ok, "")
 
 	return nil
 }
