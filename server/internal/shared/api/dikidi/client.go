@@ -37,8 +37,6 @@ func (c *Client) GetSlotStream(ctx context.Context) chan *SlotResult {
 	rate := make(chan struct{}, 50)
 
 	go func() {
-		defer close(results)
-
 		wg := sync.WaitGroup{}
 
 		for _, sourceID := range c.slotSourceIDs {
@@ -56,6 +54,7 @@ func (c *Client) GetSlotStream(ctx context.Context) chan *SlotResult {
 					case <-ctx.Done():
 						return
 					}
+					return
 				}
 				select {
 				case results <- &SlotResult{result, nil}:
@@ -66,6 +65,7 @@ func (c *Client) GetSlotStream(ctx context.Context) chan *SlotResult {
 		}
 
 		wg.Wait()
+		close(results)
 	}()
 
 	return results

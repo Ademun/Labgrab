@@ -6,9 +6,9 @@ type InfraConfig struct {
 }
 
 type RedisConfig struct {
-	Address  string `env:"REDIS_ADDR"`
-	Password string `env:"REDIS_PASS"`
-	DB       int    `env:"REDIS_DB"`
+	Address  string `envconfig:"REDIS_ADDR"`
+	Password string `envconfig:"REDIS_PASS"`
+	DB       int    `envconfig:"REDIS_DB"`
 }
 
 type PostgresConfig struct {

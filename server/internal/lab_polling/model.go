@@ -13,3 +13,8 @@ type Event struct {
 	Spot       *int
 	Schedule   domain.Schedule
 }
+
+type EventResult struct {
+	Data *Event
+	Err  error
+}

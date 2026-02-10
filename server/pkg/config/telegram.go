@@ -1,5 +1,5 @@
 package config
 
 type TelegramConfig struct {
-	BotToken string `env:"BOT_TOKEN"`
+	BotToken string `envconfig:"BOT_TOKEN"`
 }

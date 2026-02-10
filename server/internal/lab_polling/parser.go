@@ -90,7 +90,7 @@ func (p *Parser) ParseSlot(slot *dikidi.APISlotData) ([]Event, error) {
 			continue
 		}
 
-		schedule := make(domain.Schedule)
+		schedule := make(domain.Schedule, 0)
 		times := slot.Data.Times
 		for _, timeStr := range times[id] {
 			datetime, lesson, err := p.parseTimeString(timeStr)

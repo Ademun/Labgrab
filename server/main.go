@@ -172,7 +172,7 @@ func initServices(
 	log.Info("Finished setting up telegram service")
 
 	log.Info("Setting up schedulers")
-	subscriptionScheduler := api_subscription.NewScheduler(dikidiClient, labPollingService, subscriptionService, log)
+	subscriptionScheduler := api_subscription.NewScheduler(dikidiClient, labPollingService, subscriptionService, userService, telegramService, log)
 	if err := subscriptionScheduler.Start(ctx); err != nil {
 		return nil, fmt.Errorf("starting subscription scheduler: %w", err)
 	}

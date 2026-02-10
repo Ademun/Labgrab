@@ -24,7 +24,7 @@ func NewAdaptiveHTTPClient(cfg *config.HTTPClientConfig) *AdaptiveHTTPClient {
 		client: &http.Client{
 			Timeout: cfg.Timeout,
 		},
-		limiter: rate.NewLimiter(cfg.MinRate, cfg.BurstSize),
+		limiter: rate.NewLimiter(cfg.MaxRate/2, cfg.BurstSize),
 		cfg:     cfg,
 		mu:      sync.Mutex{},
 	}

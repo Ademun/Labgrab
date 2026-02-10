@@ -3,7 +3,6 @@ package subscription
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"labgrab/internal/shared/domain"
 	"labgrab/internal/shared/errors"
 	"log/slog"
@@ -337,7 +336,6 @@ func (r *Repo) CreateSubscriptionData(ctx context.Context, data *DBUserSubscript
 
 func (r *Repo) GetMatchingSubscriptionsBySlot(ctx context.Context, search *DBSubscriptionSearch) ([]DBSubscriptionMatchResult, error) {
 	availableSlotsJSON, err := convertAvailableSlotsToJSON(search.AvailableSlots)
-	fmt.Println(availableSlotsJSON)
 	if err != nil {
 		return nil, &errors.ErrDBProcedure{
 			Procedure: "GetMatchingSubscriptionsBySlot",
@@ -380,11 +378,7 @@ matching_subscriptions AS (
       AND s.lab_number = $3
       AND (s.lab_auditorium IS NULL OR s.lab_auditorium = $4)
       AND s.closed_at IS NULL
-      AND EXISTS (
-          SELECT 1 
-          FROM jsonb_array_elements_text(ase.teachers) teacher
-          WHERE teacher != ALL(teachp.blacklisted_teachers)
-      )
+      AND NOT (ase.teachers ?| teachp.blacklisted_teachers)
 ),
 grouped_by_day AS (
     SELECT 
@@ -397,7 +391,7 @@ grouped_by_day AS (
         jsonb_agg(DISTINCT lesson ORDER BY lesson) as lessons_array
     FROM matching_subscriptions
     GROUP BY user_uuid, subscription_uuid, successful_subscriptions, last_successful_subscription, time, weekday
-),
+)
 SELECT 
     user_uuid,
     subscription_uuid,

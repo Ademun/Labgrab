@@ -4,6 +4,7 @@ import (
 	"context"
 	"labgrab/internal/application/subscription/dto"
 	"labgrab/internal/auth"
+	"labgrab/internal/shared/domain"
 	"labgrab/internal/subscription"
 	"time"
 
@@ -41,8 +42,8 @@ func (uc *NewSubscriptionUseCase) Exec(ctx context.Context, session string, data
 
 	req := &subscription.CreateSubscriptionReq{
 		UserUUID:      userUUID,
-		LabType:       subscription.LabType(data.LabType),
-		LabTopic:      subscription.LabTopic(data.LabTopic),
+		LabType:       domain.LabType(data.LabType),
+		LabTopic:      domain.LabTopic(data.LabTopic),
 		LabNumber:     data.LabNumber,
 		LabAuditorium: data.LabAuditorium,
 		CreatedAt:     time.Unix(data.CreatedAt, 0),

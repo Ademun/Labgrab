@@ -6,6 +6,8 @@ import (
 	"labgrab/internal/lab_polling"
 	"labgrab/internal/shared/api/dikidi"
 	"labgrab/internal/subscription"
+	"labgrab/internal/telegram"
+	"labgrab/internal/user"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
@@ -14,38 +16,35 @@ import (
 
 type Scheduler struct {
 	dikidiClient    *dikidi.Client
-	pollingSvc      *lab_polling.Service
-	subscriptionSvc *subscription.Service
 	logger          *zap.SugaredLogger
 	scheduler       gocron.Scheduler
 	processNewSlots *usecase.ProcessNewSlotsUseCase
 }
 
-func NewScheduler(dikidiClient *dikidi.Client, pollingSvc *lab_polling.Service, subscriptionSvc *subscription.Service, logger *zap.SugaredLogger) *Scheduler {
+func NewScheduler(dikidiClient *dikidi.Client, pollingSvc *lab_polling.Service, subscriptionSvc *subscription.Service, userSvc *user.Service, telegramSvc *telegram.Service, logger *zap.SugaredLogger) *Scheduler {
 	return &Scheduler{
 		dikidiClient:    dikidiClient,
-		pollingSvc:      pollingSvc,
-		subscriptionSvc: subscriptionSvc,
 		logger:          logger,
-		processNewSlots: usecase.NewProcessNewSlotsUseCase(pollingSvc, subscriptionSvc, logger),
+		processNewSlots: usecase.NewProcessNewSlotsUseCase(pollingSvc, subscriptionSvc, userSvc, telegramSvc, logger),
 	}
 }
 
 func (s *Scheduler) Start(ctx context.Context) error {
 	s.UpdateSlotSources(ctx)
+	s.ProcessNewSlots(ctx)
 	scheduler, err := gocron.NewScheduler()
 	if err != nil {
 		return err
 	}
 	_, err = scheduler.NewJob(
-		gocron.DurationRandomJob(time.Minute*30, time.Hour),
+		gocron.DurationRandomJob(time.Minute, time.Minute*2),
 		gocron.NewTask(s.ProcessNewSlots, ctx),
 	)
 	if err != nil {
 		return err
 	}
 	_, err = scheduler.NewJob(
-		gocron.DurationRandomJob(time.Hour*12, time.Hour*24),
+		gocron.DurationRandomJob(time.Hour, time.Hour*24),
 		gocron.NewTask(s.UpdateSlotSources, ctx),
 	)
 	if err != nil {

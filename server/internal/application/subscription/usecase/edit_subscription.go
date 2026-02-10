@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"labgrab/internal/shared/domain"
 
 	"labgrab/internal/application/subscription/dto"
 	"labgrab/internal/subscription"
@@ -53,12 +54,12 @@ func (uc *EditSubscriptionUseCase) Exec(ctx context.Context, data *dto.EditSubsc
 
 	labType := existingSub.LabType
 	if data.LabType != nil {
-		labType = subscription.LabType(*data.LabType)
+		labType = domain.LabType(*data.LabType)
 	}
 
 	labTopic := existingSub.LabTopic
 	if data.LabTopic != nil {
-		labTopic = subscription.LabTopic(*data.LabTopic)
+		labTopic = domain.LabTopic(*data.LabTopic)
 	}
 
 	labNumber := existingSub.LabNumber

@@ -32,9 +32,11 @@ func NewProcessNewSlotsUseCase(labPollingSvc *lab_polling.Service, subscriptionS
 func (uc *ProcessNewSlotsUseCase) Exec(ctx context.Context) error {
 	currentEvents := uc.labPollingSvc.GetLabEventsStream(ctx)
 	sem := make(chan struct{}, 50)
-	wg := sync.WaitGroup{}
 	totalEvents, matchedSubscriptions := 0, 0
+	mainWg := sync.WaitGroup{}
+	mainWg.Add(1)
 	go func() {
+		wg := sync.WaitGroup{}
 		for event := range currentEvents {
 			totalEvents++
 			wg.Add(1)
@@ -52,20 +54,27 @@ func (uc *ProcessNewSlotsUseCase) Exec(ctx context.Context) error {
 		}
 		wg.Wait()
 		close(sem)
+		mainWg.Done()
 	}()
+	mainWg.Wait()
 	uc.logger.Infow("Processing complete", "total events", totalEvents, "matched subscriptions", matchedSubscriptions)
 
 	return nil
 }
 
-func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_polling.Event) error {
-	searchReq := &subscription.GetMatchingSubscriptionsReq{
-		LabType:        event.Type,
-		LabTopic:       event.Topic,
-		LabNumber:      event.Number,
-		LabAuditorium:  event.Auditorium,
-		AvailableSlots: event.Schedule,
+func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_polling.EventResult) error {
+	if event.Err != nil {
+		return event.Err
 	}
+
+	searchReq := &subscription.GetMatchingSubscriptionsReq{
+		LabType:        event.Data.Type,
+		LabTopic:       event.Data.Topic,
+		LabNumber:      event.Data.Number,
+		LabAuditorium:  event.Data.Auditorium,
+		AvailableSlots: event.Data.Schedule,
+	}
+	uc.logger.Infow("Handling event", "event", event, "searchReq", searchReq)
 
 	relevantSubs, err := uc.subscriptionSvc.GetMatchingSubscriptions(ctx, searchReq)
 	if err != nil {
@@ -84,11 +93,11 @@ func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_po
 
 			notifyReq := telegram.NotifyUserReq{
 				UserID:        userData.TelegramID,
-				LabName:       event.Name,
-				LabType:       string(event.Type),
-				LabTopic:      string(event.Topic),
-				LabNumber:     event.Number,
-				LabAuditorium: event.Auditorium,
+				LabName:       event.Data.Name,
+				LabType:       string(event.Data.Type),
+				LabTopic:      string(event.Data.Topic),
+				LabNumber:     event.Data.Number,
+				LabAuditorium: event.Data.Auditorium,
 				Schedule:      sub.MatchingTimeslots,
 				PageURL:       "stub", // TODO: include
 			}
