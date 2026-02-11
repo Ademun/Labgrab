@@ -46,3 +46,10 @@ type DBEnrollment struct {
 	VisitTime          time.Time `db:"visit_time"`
 	EnrolledAt         time.Time `db:"enrolled_at"`
 }
+
+type DBUserData struct {
+	UserUUID        uuid.UUID `db:"user_uuid"`
+	Session         string    `db:"session"`
+	TransportCookie string    `db:"transport_cookie"`
+	Cookies         []string  `db:"cookies"`
+}
