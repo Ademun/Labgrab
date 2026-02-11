@@ -70,3 +70,7 @@ func (t *APITimes) UnmarshalJSON(b []byte) error {
 	}
 	return fmt.Errorf("unknown times format")
 }
+
+type AuthResponse struct {
+	HTML string `json:"html"`
+}
