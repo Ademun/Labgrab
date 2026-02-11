@@ -292,10 +292,10 @@ func (r *Repo) AcquireJob(ctx context.Context) (*DBEnrollmentJob, error) {
 	}
 
 	query := `
-			SELECT job_uuid, user_uuid, subscription_uuid, status, available_dates, started_at, completed_at
+			SELECT job_uuid, user_uuid, subscription_uuid, status, available_dates, created_at, started_at, completed_at
 			FROM lab_enrollment_service.jobs
 			WHERE status = $1
-			ORDER BY started_at
+			ORDER BY created_at
 			LIMIT 1
 			FOR UPDATE SKIP LOCKED
 		`
@@ -307,6 +307,7 @@ func (r *Repo) AcquireJob(ctx context.Context) (*DBEnrollmentJob, error) {
 		&job.SubscriptionUUID,
 		&job.Status,
 		&job.AvailableDates,
+		&job.CreatedAt,
 		&job.StartedAt,
 		&job.CompletedAt,
 	)
@@ -354,4 +355,196 @@ func (r *Repo) AcquireJob(ctx context.Context) (*DBEnrollmentJob, error) {
 	job.Status = JobStatusProcessing
 
 	return &job, nil
+}
+
+func (r *Repo) GetEnrollmentsByUserUUID(ctx context.Context, userUUID uuid.UUID) ([]DBEnrollment, error) {
+	query, args, err := r.sq.Select(
+		"enrollment_uuid",
+		"user_uuid",
+		"dikidi_enrollment_id",
+		"visit_time",
+		"enrolled_at",
+	).
+		From("lab_enrollment_service.enrollments").
+		Where(squirrel.Eq{"user_uuid": userUUID}).
+		OrderBy("enrolled_at DESC").
+		ToSql()
+	if err != nil {
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "GetEnrollmentsByUserUUID",
+			Step:      "Query setup",
+			Err:       err,
+		}
+	}
+
+	rows, err := r.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "GetEnrollmentsByUserUUID",
+			Step:      "Query execution",
+			Err:       err,
+		}
+	}
+	defer rows.Close()
+
+	var enrollments []DBEnrollment
+	for rows.Next() {
+		var enrollment DBEnrollment
+		err = rows.Scan(
+			&enrollment.UUID,
+			&enrollment.UserUUID,
+			&enrollment.DikidiEnrollmentID,
+			&enrollment.VisitTime,
+			&enrollment.EnrolledAt,
+		)
+		if err != nil {
+			return nil, &errors.ErrDBProcedure{
+				Procedure: "GetEnrollmentsByUserUUID",
+				Step:      "Row scanning",
+				Err:       err,
+			}
+		}
+		enrollments = append(enrollments, enrollment)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "GetEnrollmentsByUserUUID",
+			Step:      "Row error check",
+			Err:       err,
+		}
+	}
+
+	return enrollments, nil
+}
+
+func (r *Repo) ClosePendingJobs(ctx context.Context, age time.Duration) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return &errors.ErrDBProcedure{
+			Procedure: "ClosePendingJobs",
+			Step:      "Begin transaction",
+			Err:       err,
+		}
+	}
+
+	cutoffTime := time.Now().Add(-age)
+
+	selectQuery := `
+		SELECT job_uuid
+		FROM lab_enrollment_service.jobs
+		WHERE (status = $1 OR status = $2)
+		  AND created_at < $3
+		FOR UPDATE
+	`
+
+	rows, err := tx.Query(ctx, selectQuery, JobStatusQueued, JobStatusProcessing, cutoffTime)
+	if err != nil {
+		tx.Rollback(ctx)
+		return &errors.ErrDBProcedure{
+			Procedure: "ClosePendingJobs",
+			Step:      "Query execution",
+			Err:       err,
+		}
+	}
+
+	var jobUUIDs []uuid.UUID
+	for rows.Next() {
+		var jobUUID uuid.UUID
+		err = rows.Scan(&jobUUID)
+		if err != nil {
+			rows.Close()
+			tx.Rollback(ctx)
+			return &errors.ErrDBProcedure{
+				Procedure: "ClosePendingJobs",
+				Step:      "Row scanning",
+				Err:       err,
+			}
+		}
+		jobUUIDs = append(jobUUIDs, jobUUID)
+	}
+	rows.Close()
+
+	if err = rows.Err(); err != nil {
+		tx.Rollback(ctx)
+		return &errors.ErrDBProcedure{
+			Procedure: "ClosePendingJobs",
+			Step:      "Row error check",
+			Err:       err,
+		}
+	}
+
+	if len(jobUUIDs) == 0 {
+		err = tx.Commit(ctx)
+		if err != nil {
+			return &errors.ErrDBProcedure{
+				Procedure: "ClosePendingJobs",
+				Step:      "Commit transaction",
+				Err:       err,
+			}
+		}
+		return nil
+	}
+
+	updateJobQuery, updateJobArgs, err := r.sq.Update("lab_enrollment_service.jobs").
+		Set("status", JobStatusCompleted).
+		Set("completed_at", time.Now()).
+		Where(squirrel.Eq{"job_uuid": jobUUIDs}).
+		ToSql()
+	if err != nil {
+		tx.Rollback(ctx)
+		return &errors.ErrDBProcedure{
+			Procedure: "ClosePendingJobs",
+			Step:      "Query setup",
+			Err:       err,
+		}
+	}
+
+	_, err = tx.Exec(ctx, updateJobQuery, updateJobArgs...)
+	if err != nil {
+		tx.Rollback(ctx)
+		return &errors.ErrDBProcedure{
+			Procedure: "ClosePendingJobs",
+			Step:      "Query execution",
+			Err:       err,
+		}
+	}
+
+	jobResultBuilder := r.sq.Insert("lab_enrollment_service.job_results").
+		Columns("job_uuid", "result", "error_message", "enrollment_uuid")
+
+	for _, jobUUID := range jobUUIDs {
+		jobResultBuilder = jobResultBuilder.Values(jobUUID, JobResultFailed, "Job timed out", nil)
+	}
+
+	jobResultQuery, jobResultArgs, err := jobResultBuilder.ToSql()
+	if err != nil {
+		tx.Rollback(ctx)
+		return &errors.ErrDBProcedure{
+			Procedure: "ClosePendingJobs",
+			Step:      "Query setup",
+			Err:       err,
+		}
+	}
+
+	_, err = tx.Exec(ctx, jobResultQuery, jobResultArgs...)
+	if err != nil {
+		tx.Rollback(ctx)
+		return &errors.ErrDBProcedure{
+			Procedure: "ClosePendingJobs",
+			Step:      "Query execution",
+			Err:       err,
+		}
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return &errors.ErrDBProcedure{
+			Procedure: "ClosePendingJobs",
+			Step:      "Commit transaction",
+			Err:       err,
+		}
+	}
+
+	return nil
 }

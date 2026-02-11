@@ -20,6 +20,7 @@ type DBEnrollmentJob struct {
 	SubscriptionUUID uuid.UUID              `db:"subscription_uuid"`
 	Status           JobStatus              `db:"job_status"`
 	AvailableDates   map[time.Time][]string `db:"available_dates"`
+	CreatedAt        time.Time              `db:"created_at"`
 	StartedAt        time.Time              `db:"started_at"`
 	CompletedAt      time.Time              `db:"completed_at"`
 }

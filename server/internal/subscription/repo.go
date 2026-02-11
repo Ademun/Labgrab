@@ -282,8 +282,7 @@ func (r *Repo) GetMatchingSubscriptionsBySlot(ctx context.Context, search *DBSub
 		}
 	}
 
-	query := `
-WITH available_slots_expanded AS (
+	query := `WITH available_slots_expanded AS (
     SELECT 
         times.key AS time,
         TO_CHAR(times.key::timestamptz, 'DY') AS weekday,

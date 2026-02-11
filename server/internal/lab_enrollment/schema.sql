@@ -10,6 +10,7 @@ create table if not exists lab_enrollment_service.jobs
     subscription_uuid uuid       not null,
     status            job_status not null default 'Queued',
     available_dates   jsonb      not null,
+    created_at        timestamp,
     started_at        timestamp,
     completed_at      timestamp,
     constraint jobs_pk primary key (job_uuid)
