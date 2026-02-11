@@ -10,7 +10,7 @@ import (
 	"github.com/imroc/req/v3"
 )
 
-func acquireTelegramCsrfToken(ctx context.Context, client *req.Client) (string, error) {
+func AcquireTelegramCsrfToken(ctx context.Context, client *req.Client) (string, error) {
 	resp := client.Get("https://dikidi.net/550001?p=0.pi-ssm").Do(ctx)
 	if resp.Err != nil {
 		return "", resp.Err
@@ -27,7 +27,7 @@ func acquireTelegramCsrfToken(ctx context.Context, client *req.Client) (string, 
 	return telegramCsrf, nil
 }
 
-func acquireCsrfToken(ctx context.Context, client *req.Client, req CSRFTokenRequest) (string, error) {
+func AcquireCsrfToken(ctx context.Context, client *req.Client, req CSRFTokenRequest) (string, error) {
 	resp := client.Post("https://auth.dikidi.net/ajax/check/auth/").SetFormData(map[string]string{
 		"telegram_csrf": req.TelegramCSRFToken,
 		"number":        req.PhoneNumber,
@@ -48,7 +48,7 @@ func acquireCsrfToken(ctx context.Context, client *req.Client, req CSRFTokenRequ
 	return csrf, nil
 }
 
-func sendAuthRequest(ctx context.Context, client *req.Client, req AuthRequest) error {
+func SendAuthRequest(ctx context.Context, client *req.Client, req AuthRequest) error {
 	resp := client.Post("https://auth.dikidi.net/ajax/user/auth/").SetFormData(map[string]string{
 		"number":        req.PhoneNumber,
 		"password":      req.Password,
@@ -63,4 +63,21 @@ func sendAuthRequest(ctx context.Context, client *req.Client, req AuthRequest) e
 		return fmt.Errorf("invalid status code: %d", resp.StatusCode)
 	}
 	return nil
+}
+
+func AcquireClientCookies(ctx context.Context, client *req.Client) ClientCookies {
+	cookies := ClientCookies{
+		Other: make(map[string]string),
+	}
+	for _, cookie := range client.Cookies {
+		switch cookie.Name {
+		case "cookie_name":
+			cookies.CookieName = &cookie.Value
+		case "session":
+			cookies.SessionID = &cookie.Value
+		default:
+			cookies.Other[cookie.Name] = cookie.Value
+		}
+	}
+	return cookies
 }
