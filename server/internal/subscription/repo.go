@@ -24,14 +24,8 @@ func NewRepo(pool *pgxpool.Pool) *Repo {
 }
 
 func (r *Repo) CreateSubscription(ctx context.Context, sub *DBSubscription) (uuid.UUID, error) {
-	subscriptionUUID, err := uuid.NewUUID()
-	if err != nil {
-		return uuid.Nil, &errors.ErrDBProcedure{
-			Procedure: "CreateSubscription",
-			Step:      "UUID generation",
-			Err:       err,
-		}
-	}
+	subscriptionUUID := uuid.New()
+
 	query, args, err := r.sq.Insert("subscription_service.subscriptions").
 		Columns("subscription_uuid", "lab_type", "lab_topic", "lab_number", "lab_auditorium", "status", "auto_enroll", "any_date", "created_at", "user_uuid").
 		Values(subscriptionUUID, sub.LabType, sub.LabTopic, sub.LabNumber, sub.LabAuditorium, StatusActive, sub.AutoEnroll, sub.AnyDate, sub.CreatedAt, sub.UserUUID).
@@ -53,7 +47,7 @@ func (r *Repo) CreateSubscription(ctx context.Context, sub *DBSubscription) (uui
 		}
 	}
 
-	return subscriptionUUID, err
+	return subscriptionUUID, nil
 }
 
 func (r *Repo) GetSubscription(ctx context.Context, subscriptionUUID uuid.UUID) (*DBSubscription, error) {
