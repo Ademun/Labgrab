@@ -16,3 +16,9 @@ type AuthRequest struct {
 	CSRFToken         string
 	TelegramCSRFToken string
 }
+
+type ClientCookies struct {
+	CookieName *string
+	SessionID  *string
+	Other      map[string]string
+}
