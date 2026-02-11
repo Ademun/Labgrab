@@ -35,3 +35,12 @@ create table if not exists lab_enrollment_service.enrollments
     enrolled_at          timestamp   not null,
     constraint enrollments_pk primary key (enrollment_uuid)
 );
+
+create table if not exists lab_enrollment_service.user_data
+(
+    user_uuid        uuid   not null unique,
+    session          text   not null unique,
+    transport_cookie text   not null unique,
+    cookies          text[] not null,
+    constraint user_data_pk primary key (user_uuid)
+);
