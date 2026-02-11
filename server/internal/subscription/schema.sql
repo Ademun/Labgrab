@@ -22,12 +22,9 @@ create table if not exists subscription_service.subscriptions
                                              user_uuid)
 );
 
-create index if not exists subscriptions_search_idx on subscription_service.subscriptions (lab_type,
-                                                                                           lab_topic,
-                                                                                           lab_number,
-                                                                                           lab_auditorium,
-                                                                                           closed_at,
-                                                                                           user_uuid);
+CREATE INDEX idx_subscriptions_lookup
+    ON subscription_service.subscriptions (lab_type, lab_topic, lab_number, status)
+    INCLUDE (lab_auditorium, user_uuid, any_date, auto_enroll);
 
 create table if not exists subscription_service.time_preferences
 (
@@ -37,7 +34,9 @@ create table if not exists subscription_service.time_preferences
     constraint time_preferences_pk primary key (day_of_week, user_uuid)
 );
 
-create index if not exists time_preferences_search_idx on subscription_service.time_preferences (day_of_week, user_uuid);
+CREATE INDEX idx_time_prefs_user_day
+    ON subscription_service.time_preferences (user_uuid, day_of_week)
+    INCLUDE (lessons);
 
 create table if not exists subscription_service.teacher_preferences
 (
@@ -45,6 +44,10 @@ create table if not exists subscription_service.teacher_preferences
     user_uuid            uuid   not null,
     constraint teacher_preferences_pk primary key (user_uuid)
 );
+
+CREATE INDEX idx_teacher_prefs_user
+    ON subscription_service.teacher_preferences (user_uuid)
+    INCLUDE (blacklisted_teachers);
 
 create table if not exists subscription_service.details
 (
@@ -54,3 +57,6 @@ create table if not exists subscription_service.details
     constraint details_pk primary key (user_uuid)
 );
 
+CREATE INDEX idx_details_user_stats
+    ON subscription_service.details (user_uuid)
+    INCLUDE (successful_subscriptions, last_successful_subscription);
