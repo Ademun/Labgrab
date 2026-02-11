@@ -15,7 +15,7 @@ const (
 )
 
 type DBEnrollmentJob struct {
-	UUID             uuid.UUID              `db:"uuid"`
+	UUID             uuid.UUID              `db:"job_uuid"`
 	UserUUID         uuid.UUID              `db:"user_uuid"`
 	SubscriptionUUID uuid.UUID              `db:"subscription_uuid"`
 	Status           JobStatus              `db:"job_status"`
@@ -39,7 +39,7 @@ type DBJobResult struct {
 }
 
 type DBEnrollment struct {
-	UUID               uuid.UUID `db:"uuid"`
+	UUID               uuid.UUID `db:"enrollment_uuid"`
 	UserUUID           uuid.UUID `db:"user_uuid"`
 	DikidiEnrollmentID int       `db:"dikidi_enrollment_id"`
 	VisitTime          time.Time `db:"visit_time"`
