@@ -433,12 +433,11 @@ func (r *Repo) ClosePendingJobs(ctx context.Context, age time.Duration) error {
 	selectQuery := `
 		SELECT job_uuid
 		FROM lab_enrollment_service.jobs
-		WHERE (status = $1 OR status = $2)
-		  AND created_at < $3
+		WHERE status = $1 AND created_at < $3
 		FOR UPDATE
 	`
 
-	rows, err := tx.Query(ctx, selectQuery, JobStatusQueued, JobStatusProcessing, cutoffTime)
+	rows, err := tx.Query(ctx, selectQuery, JobStatusQueued, cutoffTime)
 	if err != nil {
 		tx.Rollback(ctx)
 		return &errors.ErrDBProcedure{
