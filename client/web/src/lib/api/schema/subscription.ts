@@ -46,3 +46,11 @@ export const createSubscriptionRequestSchema = z.object({
 });
 
 export type CreateSubscriptionRequest = z.infer<typeof createSubscriptionRequestSchema>;
+
+export const updateSubscriptionRequestSchema = z.object({
+	status: z.optional(StatusEnum),
+	auto_enroll: z.optional(z.boolean()),
+	any_date: z.optional(z.boolean())
+});
+
+export type UpdateSubscriptionRequest = z.infer<typeof updateSubscriptionRequestSchema>;
