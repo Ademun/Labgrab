@@ -12,7 +12,7 @@ export const userResponseSchema = z.object({
 
 export type UserResponse = z.infer<typeof userResponseSchema>;
 
-export const userUpdateRequestSchema = z.object({
+export const updateUserRequestSchema = z.object({
 	name: z.optional(z.string()),
 	surname: z.optional(z.string()),
 	patronymic: z.optional(z.string()),
@@ -21,4 +21,4 @@ export const userUpdateRequestSchema = z.object({
 	dikidi_password: z.optional(z.string())
 });
 
-export type UserUpdateRequest = z.infer<typeof userUpdateRequestSchema>;
+export type UpdateUserRequest = z.infer<typeof updateUserRequestSchema>;
