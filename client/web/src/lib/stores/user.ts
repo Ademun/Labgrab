@@ -1,9 +1,9 @@
 import { derived, writable } from 'svelte/store';
 import { api } from '$lib/api/client';
-import type { User, UserUpdateRequest } from '$lib/api/types';
+import type { UpdateUserRequest, UserResponse } from '$lib/api/schema/user.ts';
 
 interface UserState {
-	data: User | null;
+	data: UserResponse | null;
 	loading: boolean;
 	error: Error | null;
 }
@@ -20,7 +20,7 @@ function createUserStore() {
 	return {
 		subscribe,
 
-		setUser(user: User): void {
+		setUser(user: UserResponse): void {
 			set({
 				data: user,
 				loading: false,
@@ -28,7 +28,7 @@ function createUserStore() {
 			});
 		},
 
-		async updateProfile(updates: UserUpdateRequest): Promise<void> {
+		async updateProfile(updates: UpdateUserRequest): Promise<void> {
 			update((state) => ({
 				...state,
 				loading: true,

@@ -1,6 +1,7 @@
-import type { AppConfig, LabTopic, LabType } from '$lib/api/types.ts';
 import { derived, get, writable } from 'svelte/store';
 import { api } from '$lib/api/client.ts';
+import type { AppConfig } from '$lib/api/schema/app.ts';
+import type { LabTopic, LabType } from '$lib/api/schema/subscription.ts';
 
 interface ConfigState {
 	data: AppConfig | null;

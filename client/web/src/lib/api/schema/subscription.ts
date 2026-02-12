@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import type { userResponseSchema } from '$lib/api/schema/user.ts';
 
 export const labTypeSchema = z.object({
 	id: z.string(),
@@ -8,7 +7,7 @@ export const labTypeSchema = z.object({
 	needs_auditorium: z.boolean()
 });
 
-export type LabType = z.infer<typeof userResponseSchema>;
+export type LabType = z.infer<typeof labTypeSchema>;
 
 export const labTopicSchema = z.object({
 	id: z.string(),
