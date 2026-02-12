@@ -33,7 +33,11 @@ export const subscriptionResponseSchema = z.object({
 	closed_at: z.optional(z.date())
 });
 
+export const subscriptionResponseArraySchema = z.array(subscriptionResponseSchema);
+
 export type SubscriptionResponse = z.infer<typeof subscriptionResponseSchema>;
+
+export type SubscriptionResponseArray = z.infer<typeof subscriptionResponseArraySchema>;
 
 export const createSubscriptionRequestSchema = z.object({
 	lab_type: z.string(),

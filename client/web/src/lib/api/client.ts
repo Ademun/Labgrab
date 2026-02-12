@@ -1,15 +1,14 @@
 import { ApiError, NetworkError } from '$lib/api/errors.ts';
 import { goto } from '$app/navigation';
+import type { AppConfig } from '$lib/api/schema/app.ts';
+import type { UpdateUserRequest, UserResponse } from '$lib/api/schema/user.ts';
+import type { AuthRequest } from '$lib/api/schema/auth.ts';
 import type {
-	AppConfig,
 	CreateSubscriptionRequest,
-	CreateSubscriptionResponse,
-	Subscription,
-	TelegramAuthData,
-	UpdateSubscriptionRequest,
-	User,
-	UserUpdateRequest
-} from '$lib/api/types.ts';
+	SubscriptionResponse,
+	SubscriptionResponseArray,
+	UpdateSubscriptionRequest
+} from '$lib/api/schema/subscription.ts';
 
 interface ApiClientConfig {
 	baseUrl?: string;
@@ -89,18 +88,18 @@ class ApiClient {
 		return this.request<AppConfig>('/api/web/config');
 	}
 
-	async getCurrentUser(): Promise<User> {
-		return this.request<User>('/api/users');
+	async getCurrentUser(): Promise<UserResponse> {
+		return this.request<UserResponse>('/api/users');
 	}
 
-	async updateUser(data: UserUpdateRequest): Promise<User> {
-		return this.request<User>('/api/users', {
+	async updateUser(data: UpdateUserRequest): Promise<UserResponse> {
+		return this.request<UserResponse>('/api/users', {
 			method: 'PATCH',
 			body: JSON.stringify(data)
 		});
 	}
 
-	async authenticateWithTelegram(authData: TelegramAuthData): Promise<void> {
+	async authenticateWithTelegram(authData: AuthRequest): Promise<void> {
 		await this.request<void>('/api/users/auth', {
 			method: 'POST',
 			body: JSON.stringify(authData)
@@ -117,20 +116,19 @@ class ApiClient {
 		}
 	}
 
-	async getSubscriptions(): Promise<Subscription[]> {
-		return this.request<Subscription[]>('/api/subscriptions');
+	async getSubscriptions(): Promise<SubscriptionResponseArray> {
+		return this.request<SubscriptionResponseArray>('/api/subscriptions');
 	}
 
-	async getSubscription(uuid: string): Promise<Subscription> {
-		return this.request<Subscription>(`/api/subscriptions/${uuid}`);
+	async getSubscription(uuid: string): Promise<SubscriptionResponse> {
+		return this.request<SubscriptionResponse>(`/api/subscriptions/${uuid}`);
 	}
 
-	async createSubscription(data: CreateSubscriptionRequest): Promise<Subscription> {
-		const response = await this.request<CreateSubscriptionResponse>('/api/subscriptions', {
+	async createSubscription(data: CreateSubscriptionRequest): Promise<SubscriptionResponse> {
+		return await this.request<SubscriptionResponse>('/api/subscriptions', {
 			method: 'POST',
 			body: JSON.stringify(data)
 		});
-		return response.subscription;
 	}
 
 	async updateSubscription(uuid: string, data: UpdateSubscriptionRequest): Promise<void> {
