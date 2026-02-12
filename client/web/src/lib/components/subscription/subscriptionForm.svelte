@@ -6,35 +6,38 @@
 	import { Button } from '$lib/components/ui/button';
 	import { cn } from '$lib/utils.ts';
 	import { fade } from 'svelte/transition';
-	import type { CreateSubscriptionRequest } from '$lib/api/types';
 
-	import { api } from '$lib/api/client';
-	import { toast } from '$lib/utils/toast';
 	import { findLabType, labTopics, labTypes } from '$lib/stores/config';
 
 	let {
-		open = $bindable(false),
-		onCreated
+		form,
+		errors,
+		enhance,
+		constraints,
+		isSubmitting = false
 	}: {
-		open: boolean;
-		onCreated?: () => void | Promise<void>;
+		form: any;
+		errors: any;
+		enhance: any;
+		constraints: any;
+		isSubmitting?: boolean;
 	} = $props();
 
-	let labType = $state<string>('Performance');
-	let labTopic = $state<string | undefined>();
-	let labNum = $state<number | undefined>();
-	let labAuditorium = $state<number | undefined>();
-	let autoSign = $state<boolean>(false);
-	let anyDate = $state<boolean>(false);
-
-	let isSubmitting = $state<boolean>(false);
+	$effect(() => {
+		if (!$form.lab_type) {
+			$form.lab_type = 'Performance';
+		}
+		if ($form.created_at === undefined) {
+			$form.created_at = Math.floor(Date.now() / 1000);
+		}
+	});
 
 	const needsAuditorium = $derived(() => {
-		const type = findLabType(labType);
+		const type = findLabType($form.lab_type);
 		return type?.needs_auditorium ?? false;
 	});
 
-	const isPerformance = $derived(labType === 'Performance');
+	const isPerformance = $derived($form.lab_type === 'Performance');
 
 	const accentBgClasses = $derived(
 		isPerformance
@@ -49,94 +52,14 @@
 	);
 
 	$effect(() => {
-		if (!needsAuditorium()) {
-			labAuditorium = undefined;
+		if (!needsAuditorium() && $form.lab_auditorium !== undefined) {
+			$form.lab_auditorium = undefined;
 		}
 	});
-
-	function validateForm(): boolean {
-		if (!labTopic) {
-			toast.error('Выберите тему лабораторной работы');
-			return false;
-		}
-
-		if (labNum === undefined || labNum < 1) {
-			toast.error('Укажите корректный номер работы', {
-				description: 'Номер должен быть больше нуля'
-			});
-			return false;
-		}
-
-		if (needsAuditorium() && !labAuditorium) {
-			toast.error('Укажите аудиторию', {
-				description: 'Для работы типа "Выполнение" аудитория обязательна'
-			});
-			return false;
-		}
-
-		if (labAuditorium !== undefined && labAuditorium < 1) {
-			toast.error('Укажите корректный номер аудитории', {
-				description: 'Номер должен быть больше нуля'
-			});
-			return false;
-		}
-
-		return true;
-	}
-
-	const createSubscription = async (event: Event) => {
-		event.preventDefault();
-
-		if (!validateForm()) {
-			return;
-		}
-
-		const subscriptionData: CreateSubscriptionRequest = {
-			lab_type: labType,
-			lab_topic: labTopic!,
-			lab_number: labNum!,
-			lab_auditorium: labAuditorium,
-			auto_enroll: autoSign,
-			any_date: anyDate,
-			created_at: Math.floor(Date.now() / 1000)
-		};
-
-		isSubmitting = true;
-
-		try {
-			await toast.promise(api.createSubscription(subscriptionData), {
-				loading: 'Создаём подписку...',
-				success: 'Подписка создана успешно!',
-				error: (err) => {
-					if (err && typeof err === 'object' && 'message' in err) {
-						return err.message;
-					}
-					return 'Не удалось создать подписку';
-				}
-			});
-
-			resetForm();
-			open = false;
-			await onCreated?.();
-		} catch (error) {
-			console.error('Failed to create subscription:', error);
-		} finally {
-			isSubmitting = false;
-		}
-	};
-
-	function resetForm() {
-		labType = 'Performance';
-		labTopic = undefined;
-		labNum = undefined;
-		labAuditorium = undefined;
-		autoSign = false;
-		anyDate = false;
-	}
 </script>
 
 <div>
-	<form onsubmit={createSubscription} class="space-y-6">
+	<form method="POST" use:enhance class="space-y-6">
 		<Set class="bg-muted/30 rounded-xl p-6">
 			<Group>
 				<Legend>
@@ -157,25 +80,28 @@
 									'flex-1 py-5 font-semibold text-sm uppercase tracking-wide',
 									accentBgClasses
 								)}
-								variant={labType === type.id ? 'default' : 'outline'}
-								onclick={() => (labType = type.id)}
+								variant={$form.lab_type === type.id ? 'default' : 'outline'}
+								onclick={() => ($form.lab_type = type.id)}
 								disabled={isSubmitting}
 							>
 								{type.name_ru}
 							</Button>
 						{/each}
 					</div>
+					{#if $errors.lab_type}
+						<span class="text-destructive text-sm">{$errors.lab_type}</span>
+					{/if}
 				</Field>
 
 				<Field>
 					<Label class="text-sm font-medium mb-2">
 						Тема работы <span class="text-primary">*</span>
 					</Label>
-					<Root required type="single" bind:value={labTopic} disabled={isSubmitting}>
+					<Root required type="single" bind:value={$form.lab_topic} disabled={isSubmitting}>
 						<Trigger class="w-full">
 							<span>
-								{#if labTopic}
-									{$labTopics.find((t) => t.id === labTopic)?.name_ru || labTopic}
+								{#if $form.lab_topic}
+									{$labTopics.find((t) => t.id === $form.lab_topic)?.name_ru || $form.lab_topic}
 								{:else}
 									Выберите тему из списка
 								{/if}
@@ -187,6 +113,9 @@
 							{/each}
 						</Content>
 					</Root>
+					{#if $errors.lab_topic}
+						<span class="text-destructive text-sm">{$errors.lab_topic}</span>
+					{/if}
 				</Field>
 
 				<Field>
@@ -198,10 +127,14 @@
 						type="number"
 						min="1"
 						placeholder="Например: 3"
-						bind:value={labNum}
+						bind:value={$form.lab_number}
+						{...$constraints.lab_number}
 						disabled={isSubmitting}
 						class="py-5"
 					/>
+					{#if $errors.lab_number}
+						<span class="text-destructive text-sm">{$errors.lab_number}</span>
+					{/if}
 				</Field>
 
 				{#if needsAuditorium()}
@@ -215,10 +148,14 @@
 								type="number"
 								min="1"
 								placeholder="205"
-								bind:value={labAuditorium}
+								bind:value={$form.lab_auditorium}
+								{...$constraints.lab_auditorium}
 								disabled={isSubmitting}
 								class="py-5"
 							/>
+							{#if $errors.lab_auditorium}
+								<span class="text-destructive text-sm">{$errors.lab_auditorium}</span>
+							{/if}
 						</Field>
 					</div>
 				{/if}
@@ -236,7 +173,7 @@
 					<Checkbox
 						id="subscription-auto"
 						class={cn('mt-0.5', accentCheckboxClasses)}
-						bind:checked={autoSign}
+						bind:checked={$form.auto_enroll}
 						disabled={isSubmitting}
 					/>
 					<Label for="subscription-auto" class="cursor-pointer">
@@ -253,7 +190,7 @@
 					<Checkbox
 						id="subscription-any-date"
 						class={cn('mt-0.5', accentCheckboxClasses)}
-						bind:checked={anyDate}
+						bind:checked={$form.any_date}
 						disabled={isSubmitting}
 					/>
 					<Label for="subscription-any-date" class="cursor-pointer">

@@ -5,16 +5,43 @@
 	import { cn } from '$lib/utils.ts';
 	import { fade, fly } from 'svelte/transition';
 	import { backOut } from 'svelte/easing';
+	import { superForm } from 'sveltekit-superforms';
+	import { zodClient } from 'sveltekit-superforms/adapters';
+	import {
+		createSubscriptionRequestSchema,
+		type SubscriptionResponseArray
+	} from '$lib/api/schema/subscription.ts';
 
 	import { api } from '$lib/api/client';
 	import { handleApiError, toast } from '$lib/utils/toast';
 	import { onMount } from 'svelte';
-	import type { Subscription } from '$lib/api/types';
 
-	let subscriptions = $state<Subscription[]>([]);
+	export let data;
+
+	let subscriptions = $state<SubscriptionResponseArray>([]);
 	let isLoadingSubscriptions = $state<boolean>(false);
-
 	let isDialogOpen = $state(false);
+
+	const formResult = superForm(data.form, {
+		validators: zodClient(createSubscriptionRequestSchema),
+		resetForm: true,
+		onUpdated: ({ form }) => {
+			if (form.valid && form.message?.success) {
+				toast.success('Подписка создана успешно!');
+				isDialogOpen = false;
+				loadSubscriptions();
+			}
+		},
+		onError: ({ result }) => {
+			if (result.type === 'failure') {
+				toast.error(result.data?.error || 'Не удалось создать подписку');
+			} else {
+				toast.error('Произошла ошибка при создании подписки');
+			}
+		}
+	});
+
+	const { form, errors, enhance, constraints, delayed } = formResult;
 
 	async function loadSubscriptions() {
 		isLoadingSubscriptions = true;
@@ -28,16 +55,10 @@
 		}
 	}
 
-	async function onSubscriptionCreated() {
-		isDialogOpen = false;
-		await loadSubscriptions();
-	}
-
 	async function onSubscriptionDeleted(uuid: string) {
 		toast.success('Подписка отменена', {
 			description: 'Система больше не будет проверять слоты для этой работы'
 		});
-
 		subscriptions = subscriptions.filter((sub) => sub.uuid !== uuid);
 	}
 
@@ -45,7 +66,6 @@
 		toast.info('Подписка поставлена на паузу', {
 			description: 'Вы можете возобновить её в любой момент'
 		});
-
 		subscriptions = subscriptions.map((sub) =>
 			sub.uuid === uuid ? { ...sub, status: 'Paused' as const } : sub
 		);
@@ -55,7 +75,6 @@
 		toast.success('Подписка возобновлена', {
 			description: 'Система снова проверяет слоты'
 		});
-
 		subscriptions = subscriptions.map((sub) =>
 			sub.uuid === uuid ? { ...sub, status: 'Active' as const } : sub
 		);
@@ -94,7 +113,7 @@
 						<Description>Настройте параметры отслеживания лабораторной работы</Description>
 					</Header>
 
-					<SubscriptionForm bind:open={isDialogOpen} onCreated={onSubscriptionCreated} />
+					<SubscriptionForm {form} {errors} {enhance} {constraints} isSubmitting={$delayed} />
 				</Content>
 			</Root>
 		</div>
