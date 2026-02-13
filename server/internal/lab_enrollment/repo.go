@@ -547,3 +547,61 @@ func (r *Repo) ClosePendingJobs(ctx context.Context, age time.Duration) error {
 
 	return nil
 }
+
+func (r *Repo) GetUserData(ctx context.Context, userUUID uuid.UUID) (*DBUserData, error) {
+	query, args, err := r.sq.Select(
+		"user_uuid",
+		"session",
+		"transport_cookie",
+		"cookies",
+	).
+		From("lab_enrollment_service.user_data").
+		Where(squirrel.Eq{"user_uuid": userUUID}).
+		ToSql()
+	if err != nil {
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "GetUserData",
+			Step:      "Query setup",
+			Err:       err,
+		}
+	}
+
+	var userData DBUserData
+	err = r.pool.QueryRow(ctx, query, args...).Scan(
+		&userData.UserUUID,
+		&userData.Session,
+		&userData.TransportCookie,
+		&userData.Cookies,
+	)
+	if err != nil {
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "GetUserData",
+			Step:      "Query execution",
+			Err:       err,
+		}
+	}
+
+	return &userData, nil
+}
+
+func (r *Repo) SetUserData(ctx context.Context, userData *DBUserData) error {
+	query := `
+		INSERT INTO lab_enrollment_service.user_data (user_uuid, session, transport_cookie, cookies)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (user_uuid) DO UPDATE
+		SET session = EXCLUDED.session,
+		    transport_cookie = EXCLUDED.transport_cookie,
+		    cookies = EXCLUDED.cookies
+	`
+
+	_, err := r.pool.Exec(ctx, query, userData.UserUUID, userData.Session, userData.TransportCookie, userData.Cookies)
+	if err != nil {
+		return &errors.ErrDBProcedure{
+			Procedure: "SetUserData",
+			Step:      "Query execution",
+			Err:       err,
+		}
+	}
+
+	return nil
+}

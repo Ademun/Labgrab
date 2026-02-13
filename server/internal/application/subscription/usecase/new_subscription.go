@@ -62,7 +62,7 @@ func (uc *NewSubscriptionUseCase) Exec(ctx context.Context, session string, data
 		LabTopic:      domain.LabTopic(data.LabTopic),
 		LabNumber:     data.LabNumber,
 		LabAuditorium: data.LabAuditorium,
-		CreatedAt:     time.Unix(data.CreatedAt, 0),
+		CreatedAt:     time.Now(),
 	}
 
 	subscriptionUUID, err := uc.subscriptionSvc.CreateSubscription(ctx, req)

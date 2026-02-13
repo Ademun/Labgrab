@@ -9,6 +9,7 @@ import type {
 	SubscriptionResponseArray,
 	UpdateSubscriptionRequest
 } from '$lib/api/schema/subscription.ts';
+import { redirect } from '@sveltejs/kit';
 
 interface ApiClientConfig {
 	baseUrl?: string;
@@ -20,7 +21,7 @@ class ApiClient {
 	private readonly timeout: number;
 
 	constructor(config: ApiClientConfig = {}) {
-		this.baseUrl = config.baseUrl || '';
+		this.baseUrl = config.baseUrl || 'http://127.0.0.1:8080';
 		this.timeout = config.timeout || 10000;
 	}
 
@@ -30,8 +31,9 @@ class ApiClient {
 
 		try {
 			const url = `${this.baseUrl}${endpoint}`;
+			console.log(url);
 
-			const response = await fetch(endpoint, {
+			const response = await fetch(url, {
 				...options,
 				signal: controller.signal,
 				credentials: 'include',
@@ -56,7 +58,7 @@ class ApiClient {
 				const error = new ApiError(response.status, data);
 
 				if (error.isUnauthorized()) {
-					await goto('/auth', { replaceState: true });
+					throw redirect(303, '/auth');
 				}
 
 				throw error;

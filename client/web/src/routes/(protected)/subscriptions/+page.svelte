@@ -6,7 +6,7 @@
 	import { fade, fly } from 'svelte/transition';
 	import { backOut } from 'svelte/easing';
 	import { superForm } from 'sveltekit-superforms';
-	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import {
 		createSubscriptionRequestSchema,
 		type SubscriptionResponseArray
@@ -16,25 +16,19 @@
 	import { handleApiError, toast } from '$lib/utils/toast';
 	import { onMount } from 'svelte';
 
-	export let data;
+	let { data } = $props();
 
 	let subscriptions = $state<SubscriptionResponseArray>([]);
 	let isLoadingSubscriptions = $state<boolean>(false);
 	let isDialogOpen = $state(false);
 
 	const formResult = superForm(data.form, {
-		validators: zodClient(createSubscriptionRequestSchema),
-		resetForm: true,
-		onUpdated: ({ form }) => {
+		validators: zod4Client(createSubscriptionRequestSchema),
+		onUpdate: ({ form }) => {
+			console.log(form);
 			if (form.valid && form.message?.success) {
-				toast.success('Подписка создана успешно!');
 				isDialogOpen = false;
 				loadSubscriptions();
-			}
-		},
-		onError: ({ result }) => {
-			if (result.type === 'failure') {
-				toast.error(result.data?.error || 'Не удалось создать подписку');
 			} else {
 				toast.error('Произошла ошибка при создании подписки');
 			}
@@ -113,7 +107,7 @@
 						<Description>Настройте параметры отслеживания лабораторной работы</Description>
 					</Header>
 
-					<SubscriptionForm {form} {errors} {enhance} {constraints} isSubmitting={$delayed} />
+					<SubscriptionForm formApi={formResult} isSubmitting={false} />
 				</Content>
 			</Root>
 		</div>

@@ -13,11 +13,11 @@
 	} from '$lib/components/ui/alert-dialog';
 
 	import { api } from '$lib/api/client';
-	import { handleApiError, toast } from '$lib/utils/toast';
+	import { handleApiError } from '$lib/utils/toast';
 	import { getLabTopicName, getLabTypeName } from '$lib/stores/config';
-	import type { Subscription } from '$lib/api/types.ts';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { formatTimeString } from '$lib/utils.js';
+	import type { SubscriptionResponse } from '$lib/api/schema/subscription.ts';
 
 	let {
 		subscription,
@@ -25,7 +25,7 @@
 		onPaused,
 		onResumed
 	}: {
-		subscription: Subscription;
+		subscription: SubscriptionResponse;
 		onDeleted?: (uuid: string) => void;
 		onPaused?: (uuid: string) => void;
 		onResumed?: (uuid: string) => void;
@@ -111,7 +111,7 @@
 			</span>
 		</div>
 		<span>
-			{formatTimeString(subscription.created_at)}
+			{formatTimeString(subscription.created_at.toString())}
 		</span>
 	</div>
 

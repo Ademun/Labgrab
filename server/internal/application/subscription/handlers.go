@@ -110,6 +110,10 @@ func (h *Handler) NewSubscription(w http.ResponseWriter, r *http.Request) {
 		attribute.Int("lab.number", req.LabNumber),
 	)
 
+	for _, cookie := range r.Cookies() {
+		fmt.Println(cookie.Name)
+	}
+
 	cookie, err := r.Cookie("session_id")
 	if err != nil {
 		if errors.Is(err, http.ErrNoCookie) {

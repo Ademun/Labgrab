@@ -44,8 +44,7 @@ export const createSubscriptionRequestSchema = z.object({
 	lab_number: z.number(),
 	lab_auditorium: z.optional(z.number()),
 	auto_enroll: z.boolean(),
-	any_date: z.boolean(),
-	created_at: z.date()
+	any_date: z.boolean()
 });
 
 export type CreateSubscriptionRequest = z.infer<typeof createSubscriptionRequestSchema>;
