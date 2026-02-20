@@ -1,4 +1,4 @@
-<script lang="ts" module>
+<script lang="ts">
 	import { BookOpenText, House, User } from '@lucide/svelte';
 	import { cn } from '$lib/utils.js';
 	import { goto } from '$app/navigation';

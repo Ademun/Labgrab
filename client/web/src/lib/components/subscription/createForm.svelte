@@ -38,11 +38,6 @@
 			? 'bg-accent-performance hover:bg-accent-performance-hover'
 			: 'bg-accent-defence hover:bg-accent-defence-hover'
 	);
-	const accentCheckboxClasses = $derived(
-		isPerformance
-			? 'data-[state=checked]:bg-accent-performance data-[state=checked]:border-accent-performance'
-			: 'data-[state=checked]:bg-accent-defence data-[state=checked]:border-accent-defence'
-	);
 
 	$effect(() => {
 		if (!$formData.lab_type) {

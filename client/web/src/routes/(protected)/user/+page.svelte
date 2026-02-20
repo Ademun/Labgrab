@@ -74,6 +74,39 @@
 					</li>
 				</ul>
 			</nav>
+			<nav
+				class="mt-4 w-full overflow-hidden rounded-2xl border border-border/40 bg-card px-4 py-4 shadow-sm"
+			>
+				<ul class="flex flex-col gap-6 font-medium">
+					<li>
+						<a href="/info" class="flex w-full items-center justify-between">
+							<span class="flex items-center gap-2"> О сервисе </span>
+							<ChevronRight class="h-5 w-5" />
+						</a>
+					</li>
+					<li>
+						<a href="/support" class="flex w-full items-center justify-between">
+							<span class="flex items-center gap-2"> Техподдержка </span>
+							<ChevronRight class="h-5 w-5" />
+						</a>
+					</li>
+					<li>
+						<a href="/donate" class="flex w-full items-center justify-between">
+							<span class="flex items-center gap-2"> Поддержать разработчика </span>
+							<ChevronRight class="h-5 w-5" />
+						</a>
+					</li>
+				</ul>
+			</nav>
+
+			<div class="w-full">
+				<Button variant="outline" class="text-md  mt-8 w-full py-6 font-semibold text-destructive">
+					<span class="flex items-center gap-2">
+						<LogOut class="h-5 w-5" />
+						Выйти
+					</span>
+				</Button>
+			</div>
 		</div>
 	{/if}
 </div>
