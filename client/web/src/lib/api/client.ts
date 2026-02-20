@@ -17,6 +17,7 @@ import {
 } from '$lib/api/schema/subscription.js';
 import { type AppConfig, appConfigSchema } from '$lib/api/schema/app.js';
 import { z } from 'zod';
+import { PUBLIC_API_BASE_URL } from '$env/static/public';
 
 interface ApiClientConfig {
 	baseUrl: string;
@@ -29,7 +30,7 @@ class ApiClient {
 
 	constructor(
 		config: ApiClientConfig = {
-			baseUrl: 'http://127.0.0.1:8080/api',
+			baseUrl: PUBLIC_API_BASE_URL,
 			timeout: 10000
 		}
 	) {
