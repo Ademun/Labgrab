@@ -108,6 +108,7 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	if err = json.NewEncoder(w).Encode(resp); err != nil {
 		err := fmt.Errorf("failed to write response: %w", err)
 		span.RecordError(err)

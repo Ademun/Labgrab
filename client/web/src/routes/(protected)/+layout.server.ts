@@ -1,8 +1,10 @@
-import type {LayoutLoad} from "./$types.ts"
-import {user} from "$lib/stores/user.svelte.js";
+import type { LayoutServerLoad } from './$types.ts';
+import { redirect } from '@sveltejs/kit';
 
-export const load: LayoutLoad = async ({data}) => {
-    if (!user.isLoggedIn) {
-        throw redirect()
-    }
-}
+export const load: LayoutServerLoad = async ({ cookies }) => {
+	const sessionCookie = cookies.get('session_id');
+
+	if (!sessionCookie) {
+		throw redirect(303, '/auth');
+	}
+};

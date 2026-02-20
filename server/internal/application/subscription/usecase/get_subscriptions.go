@@ -75,6 +75,7 @@ func (uc *GetSubscriptionsUseCase) Exec(ctx context.Context, session string, dat
 				LabTopic:      string(sub.LabTopic),
 				LabNumber:     sub.LabNumber,
 				LabAuditorium: sub.LabAuditorium,
+				Status:        string(sub.Status),
 				CreatedAt:     sub.CreatedAt,
 				ClosedAt:      sub.ClosedAt,
 			},
@@ -101,6 +102,7 @@ func (uc *GetSubscriptionsUseCase) Exec(ctx context.Context, session string, dat
 			LabTopic:      string(sub.LabTopic),
 			LabNumber:     sub.LabNumber,
 			LabAuditorium: sub.LabAuditorium,
+			Status:        string(sub.Status),
 			CreatedAt:     sub.CreatedAt,
 			ClosedAt:      sub.ClosedAt,
 		}

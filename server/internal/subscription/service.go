@@ -2,7 +2,9 @@ package subscription
 
 import (
 	"context"
+	"labgrab/internal/shared/domain"
 	"labgrab/internal/shared/errors"
+	"labgrab/internal/shared/types"
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
@@ -69,40 +71,6 @@ func (s *Service) CreateSubscription(ctx context.Context, req *CreateSubscriptio
 	span.SetAttributes(attribute.String("subscription.uuid", subscriptionUUID.String()))
 	span.SetStatus(codes.Ok, "")
 	return subscriptionUUID, nil
-}
-
-func (s *Service) CreateSubscriptionData(ctx context.Context, req *CreateSubscriptionDataReq) error {
-	ctx, span := tracer.Start(ctx, "subscription_service.create_subscription_data")
-	defer span.End()
-
-	span.SetAttributes(
-		attribute.String("user.uuid", req.UserUUID.String()),
-		attribute.Int("time_preferences.count", len(req.TimePreferences)),
-		attribute.Int("blacklisted_teachers.count", len(req.BlacklistedTeachers)),
-	)
-
-	data := &DBUserSubscriptionData{
-		TimePreferences:            req.TimePreferences,
-		BlacklistedTeachers:        req.BlacklistedTeachers,
-		SuccessfulSubscriptions:    0,
-		LastSuccessfulSubscription: nil,
-		UserUUID:                   req.UserUUID,
-	}
-
-	err := s.repo.CreateSubscriptionData(ctx, data, req.Tx)
-	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "CreateSubscriptionData",
-			Step:      "Repository call",
-			Err:       err,
-		}
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to create subscription data in repository")
-		return err
-	}
-
-	span.SetStatus(codes.Ok, "")
-	return nil
 }
 
 func (s *Service) GetSubscription(ctx context.Context, subscriptionUUID uuid.UUID) (*GetSubscriptionRes, error) {
@@ -227,6 +195,136 @@ func (s *Service) UpdateSubscription(ctx context.Context, req *UpdateSubscriptio
 		}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to update subscription in repository")
+		return err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+func (s *Service) GetTimePreferences(ctx context.Context, userUUID uuid.UUID) (UserTimePreferences, error) {
+	ctx, span := tracer.Start(ctx, "subscription_service.get_time_preferences")
+	defer span.End()
+
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
+
+	dbPrefs, err := s.repo.GetTimePreferences(ctx, userUUID)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "GetTimePreferences",
+			Step:      "Repository call",
+			Err:       err,
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to retrieve time preferences from repository")
+		return nil, err
+	}
+
+	// Transform []DBTimePreferences to map[int]map[types.DayOfWeek][]types.Lesson
+	userPrefs := make(UserTimePreferences)
+	for _, pref := range dbPrefs {
+		if _, exists := userPrefs[pref.WeekNumber]; !exists {
+			userPrefs[pref.WeekNumber] = make(map[types.DayOfWeek][]domain.Lesson)
+		}
+		userPrefs[pref.WeekNumber][pref.DayOfWeek] = pref.Lessons
+	}
+
+	span.SetAttributes(
+		attribute.Int("preferences.weeks_count", len(userPrefs)),
+		attribute.Int("preferences.records_count", len(dbPrefs)),
+	)
+	span.SetStatus(codes.Ok, "")
+
+	return userPrefs, nil
+}
+
+func (s *Service) SetTimePreferences(ctx context.Context, userUUID uuid.UUID, preferences UserTimePreferences) error {
+	ctx, span := tracer.Start(ctx, "subscription_service.set_time_preferences")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("user.uuid", userUUID.String()),
+		attribute.Int("preferences.weeks_count", len(preferences)),
+	)
+
+	// Transform map[int]map[types.DayOfWeek][]types.Lesson to []DBTimePreferences
+	var dbPrefs []DBTimePreferences
+	for weekNumber, weekPrefs := range preferences {
+		for dayOfWeek, lessons := range weekPrefs {
+			dbPrefs = append(dbPrefs, DBTimePreferences{
+				UserUUID:   userUUID,
+				WeekNumber: weekNumber,
+				DayOfWeek:  dayOfWeek,
+				Lessons:    lessons,
+			})
+		}
+	}
+
+	span.SetAttributes(attribute.Int("preferences.records_count", len(dbPrefs)))
+
+	err := s.repo.SetTimePreferences(ctx, userUUID, dbPrefs)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "SetTimePreferences",
+			Step:      "Repository call",
+			Err:       err,
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to store time preferences in repository")
+		return err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+func (s *Service) GetTeacherPreferences(ctx context.Context, userUUID uuid.UUID) (UserTeacherPreferences, error) {
+	ctx, span := tracer.Start(ctx, "subscription_service.get_teacher_preferences")
+	defer span.End()
+
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
+
+	dbPrefs, err := s.repo.GetTeacherPreferences(ctx, userUUID)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "GetTeacherPreferences",
+			Step:      "Repository call",
+			Err:       err,
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to retrieve teacher preferences from repository")
+		return nil, err
+	}
+
+	span.SetAttributes(attribute.Int("preferences.blacklisted_count", len(dbPrefs.BlacklistedTeachers)))
+	span.SetStatus(codes.Ok, "")
+
+	return dbPrefs.BlacklistedTeachers, nil
+}
+
+func (s *Service) SetTeacherPreferences(ctx context.Context, userUUID uuid.UUID, preferences UserTeacherPreferences) error {
+	ctx, span := tracer.Start(ctx, "subscription_service.set_teacher_preferences")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("user.uuid", userUUID.String()),
+		attribute.Int("preferences.blacklisted_count", len(preferences)),
+	)
+
+	dbPrefs := &DBTeacherPreferences{
+		UserUUID:            userUUID,
+		BlacklistedTeachers: preferences,
+	}
+
+	err := s.repo.SetTeacherPreferences(ctx, userUUID, dbPrefs)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "SetTeacherPreferences",
+			Step:      "Repository call",
+			Err:       err,
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to store teacher preferences in repository")
 		return err
 	}
 

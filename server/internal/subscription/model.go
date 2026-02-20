@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 )
 
 type Status string
@@ -35,9 +34,10 @@ type DBSubscription struct {
 
 // DBTimePreferences subscription_service.time_preferences
 type DBTimePreferences struct {
-	DayOfWeek types.DayOfWeek `db:"day_of_week"`
-	Lessons   []domain.Lesson `db:"lessons"`
-	UserUUID  uuid.UUID       `db:"user_uuid"`
+	WeekNumber int             `db:"week_number"`
+	DayOfWeek  types.DayOfWeek `db:"day_of_week"`
+	Lessons    []domain.Lesson `db:"lessons"`
+	UserUUID   uuid.UUID       `db:"user_uuid"`
 }
 
 // DBTeacherPreferences subscription_service.teacher_preferences
@@ -53,14 +53,6 @@ type DBDetails struct {
 	UserUUID                   uuid.UUID  `db:"user_uuid"`
 }
 
-type DBUserSubscriptionData struct {
-	TimePreferences            map[types.DayOfWeek][]domain.Lesson
-	BlacklistedTeachers        []string
-	SuccessfulSubscriptions    int
-	LastSuccessfulSubscription *time.Time
-	UserUUID                   uuid.UUID
-}
-
 type DBSubscriptionSearch struct {
 	LabType        domain.LabType
 	LabTopic       domain.LabTopic
@@ -73,6 +65,7 @@ type DBSubscriptionMatchResult struct {
 	UserUUID                   uuid.UUID
 	SubscriptionUUID           uuid.UUID
 	AutoEnroll                 bool
+	AnyDate                    bool
 	SuccessfulSubscriptions    int
 	LastSuccessfulSubscription *time.Time
 	MatchingTimeslots          domain.Schedule
@@ -90,39 +83,6 @@ type CreateSubscriptionReq struct {
 }
 
 func (r CreateSubscriptionReq) Validate() error {
-	err := errors.NewValidationError()
-	if r.LabType == domain.LabTypePerformance && r.LabAuditorium == nil {
-		err.Add("lab_type & lab_auditorium", "If lab type is equal to 'Performance' lab auditorium should be provided")
-	}
-	if r.LabType == domain.LabTypeDefence && r.LabAuditorium != nil {
-		err.Add("lab_type & lab_auditorium", "If lab type is equal to 'Defence' lab auditorium should not be provided")
-	}
-	if err.HasErrors() {
-		return err
-	}
-	return nil
-}
-
-type CreateSubscriptionDataReq struct {
-	UserUUID            uuid.UUID
-	TimePreferences     map[types.DayOfWeek][]domain.Lesson
-	BlacklistedTeachers []string
-	Tx                  pgx.Tx
-}
-
-type UpdateSubscriptionDataReq struct {
-	UserUUID         uuid.UUID
-	SubscriptionUUID uuid.UUID
-	LabType          domain.LabType
-	LabTopic         domain.LabTopic
-	LabNumber        int
-	LabAuditorium    *int
-	Status           Status `db:"status"`
-	AutoEnroll       bool   `db:"auto_enroll"`
-	AnyDate          bool   `db:"any_date"`
-}
-
-func (r UpdateSubscriptionDataReq) Validate() error {
 	err := errors.NewValidationError()
 	if r.LabType == domain.LabTypePerformance && r.LabAuditorium == nil {
 		err.Add("lab_type & lab_auditorium", "If lab type is equal to 'Performance' lab auditorium should be provided")
@@ -157,10 +117,41 @@ type GetSubscriptionRes struct {
 	ClosedAt         *time.Time
 }
 
+type UpdateSubscriptionDataReq struct {
+	UserUUID         uuid.UUID
+	SubscriptionUUID uuid.UUID
+	LabType          domain.LabType
+	LabTopic         domain.LabTopic
+	LabNumber        int
+	LabAuditorium    *int
+	Status           Status
+	AutoEnroll       bool
+	AnyDate          bool
+}
+
+func (r UpdateSubscriptionDataReq) Validate() error {
+	err := errors.NewValidationError()
+	if r.LabType == domain.LabTypePerformance && r.LabAuditorium == nil {
+		err.Add("lab_type & lab_auditorium", "If lab type is equal to 'Performance' lab auditorium should be provided")
+	}
+	if r.LabType == domain.LabTypeDefence && r.LabAuditorium != nil {
+		err.Add("lab_type & lab_auditorium", "If lab type is equal to 'Defence' lab auditorium should not be provided")
+	}
+	if err.HasErrors() {
+		return err
+	}
+	return nil
+}
+
+type UserTimePreferences map[int]map[types.DayOfWeek][]domain.Lesson
+
+type UserTeacherPreferences []string
+
 type GetMatchingSubscriptionsRes struct {
 	UserUUID                   uuid.UUID
 	SubscriptionUUID           uuid.UUID
 	AutoEnroll                 bool
+	AnyDate                    bool
 	SuccessfulSubscriptions    int
 	LastSuccessfulSubscription *time.Time
 	MatchingTimeslots          domain.Schedule

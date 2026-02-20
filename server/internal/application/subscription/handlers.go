@@ -18,20 +18,28 @@ import (
 )
 
 type Handler struct {
-	getSubscriptions *usecase.GetSubscriptionsUseCase
-	newSubscription  *usecase.NewSubscriptionUseCase
-	editSubscription *usecase.EditSubscriptionUseCase
-	logger           *zap.SugaredLogger
+	getSubscriptions      *usecase.GetSubscriptionsUseCase
+	newSubscription       *usecase.NewSubscriptionUseCase
+	editSubscription      *usecase.EditSubscriptionUseCase
+	getTimePreferences    *usecase.GetTimePreferencesUseCase
+	setTimePreferences    *usecase.SetTimePreferencesUseCase
+	getTeacherPreferences *usecase.GetTeacherPreferencesUseCase
+	setTeacherPreferences *usecase.SetTeacherPreferencesUseCase
+	logger                *zap.SugaredLogger
 }
 
 func NewHandler(authSvc *auth.Service, subscriptionSvc *subscription.Service,
 	logger *zap.SugaredLogger,
 ) *Handler {
 	return &Handler{
-		getSubscriptions: usecase.NewGetSubscriptionsUseCase(authSvc, subscriptionSvc, logger),
-		newSubscription:  usecase.NewNewSubscriptionUseCase(authSvc, subscriptionSvc, logger),
-		editSubscription: usecase.NewEditSubscriptionUseCase(authSvc, subscriptionSvc, logger),
-		logger:           logger,
+		getSubscriptions:      usecase.NewGetSubscriptionsUseCase(authSvc, subscriptionSvc, logger),
+		newSubscription:       usecase.NewNewSubscriptionUseCase(authSvc, subscriptionSvc),
+		editSubscription:      usecase.NewEditSubscriptionUseCase(authSvc, subscriptionSvc, logger),
+		getTimePreferences:    usecase.NewGetTimePreferencesUseCase(authSvc, subscriptionSvc),
+		setTimePreferences:    usecase.NewSetTimePreferencesUseCase(authSvc, subscriptionSvc),
+		getTeacherPreferences: usecase.NewGetTeacherPreferencesUseCase(authSvc, subscriptionSvc),
+		setTeacherPreferences: usecase.NewSetTeacherPreferencesUseCase(authSvc, subscriptionSvc),
+		logger:                logger,
 	}
 }
 
@@ -39,7 +47,9 @@ func (h *Handler) GetSubscriptions(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracer.Start(r.Context(), "subscription_handler.get_subscriptions")
 	defer span.End()
 
-	subscriptionUUID := r.URL.Query().Get("subscription_uuid")
+	vars := mux.Vars(r)
+	subscriptionUUID := vars["id"]
+
 	var subscriptionUUIDPtr *string
 	if subscriptionUUID != "" {
 		subscriptionUUIDPtr = &subscriptionUUID
@@ -139,7 +149,7 @@ func (h *Handler) NewSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	span.SetAttributes(attribute.String("subscription.uuid", resp.String()))
+	span.SetAttributes(attribute.String("subscription.uuid", resp.UUID))
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -188,6 +198,7 @@ func (h *Handler) EditSubscription(w http.ResponseWriter, r *http.Request) {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "invalid request payload")
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		h.logger.Error(err)
 		return
 	}
 
@@ -198,6 +209,7 @@ func (h *Handler) EditSubscription(w http.ResponseWriter, r *http.Request) {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Error(err)
 		return
 	}
 
@@ -207,9 +219,180 @@ func (h *Handler) EditSubscription(w http.ResponseWriter, r *http.Request) {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Error(err)
 		return
 	}
 
+	span.SetStatus(codes.Ok, "")
+}
+
+func (h *Handler) GetTimePreferences(w http.ResponseWriter, r *http.Request) {
+	ctx, span := tracer.Start(r.Context(), "subscription_handler.get_time_preferences")
+	defer span.End()
+
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		if errors.Is(err, http.ErrNoCookie) {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "unauthorized: missing session cookie")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			h.logger.Error(err)
+			return
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to read session cookie")
+		http.Error(w, "Failed to read cookie", http.StatusInternalServerError)
+		h.logger.Error(err)
+		return
+	}
+
+	resp, err := h.getTimePreferences.Exec(ctx, cookie.Value)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Error(err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		err = fmt.Errorf("failed to write response: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Error(err)
+		return
+	}
+
+	span.SetStatus(codes.Ok, "")
+}
+
+func (h *Handler) SetTimePreferences(w http.ResponseWriter, r *http.Request) {
+	ctx, span := tracer.Start(r.Context(), "subscription_handler.set_time_preferences")
+	defer span.End()
+
+	var req dto.SetTimePreferncesReqDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		err = fmt.Errorf("failed to decode request: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "invalid request payload")
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		h.logger.Error(err)
+		return
+	}
+
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		if errors.Is(err, http.ErrNoCookie) {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "unauthorized: missing session cookie")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			h.logger.Error(err)
+			return
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to read session cookie")
+		http.Error(w, "Failed to read cookie", http.StatusInternalServerError)
+		h.logger.Error(err)
+		return
+	}
+
+	if err := h.setTimePreferences.Exec(ctx, cookie.Value, &req); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Error(err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	span.SetStatus(codes.Ok, "")
+}
+
+func (h *Handler) GetTeacherPreferences(w http.ResponseWriter, r *http.Request) {
+	ctx, span := tracer.Start(r.Context(), "subscription_handler.get_teacher_preferences")
+	defer span.End()
+
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		if errors.Is(err, http.ErrNoCookie) {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "unauthorized: missing session cookie")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			h.logger.Error(err)
+			return
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to read session cookie")
+		http.Error(w, "Failed to read cookie", http.StatusInternalServerError)
+		h.logger.Error(err)
+		return
+	}
+
+	resp, err := h.getTeacherPreferences.Exec(ctx, cookie.Value)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Error(err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		err = fmt.Errorf("failed to write response: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Error(err)
+		return
+	}
+
+	span.SetStatus(codes.Ok, "")
+}
+
+func (h *Handler) SetTeacherPreferences(w http.ResponseWriter, r *http.Request) {
+	ctx, span := tracer.Start(r.Context(), "subscription_handler.set_teacher_preferences")
+	defer span.End()
+
+	var req dto.SetTeacherPreferencesReqDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		err = fmt.Errorf("failed to decode request: %w", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "invalid request payload")
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		h.logger.Error(err)
+		return
+	}
+
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		if errors.Is(err, http.ErrNoCookie) {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "unauthorized: missing session cookie")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			h.logger.Error(err)
+			return
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to read session cookie")
+		http.Error(w, "Failed to read cookie", http.StatusInternalServerError)
+		h.logger.Error(err)
+		return
+	}
+
+	if err := h.setTeacherPreferences.Exec(ctx, cookie.Value, &req); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Error(err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 	span.SetStatus(codes.Ok, "")
 }
 
@@ -218,4 +401,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/subscriptions", h.NewSubscription).Methods(http.MethodPost)
 	r.HandleFunc("/api/subscriptions/{id}", h.GetSubscriptions).Methods(http.MethodGet)
 	r.HandleFunc("/api/subscriptions/{id}", h.EditSubscription).Methods(http.MethodPatch)
+	r.HandleFunc("/api/subscriptions/preferences/time", h.GetTimePreferences).Methods(http.MethodGet)
+	r.HandleFunc("/api/subscriptions/preferences/time", h.SetTimePreferences).Methods(http.MethodPost)
+	r.HandleFunc("/api/subscription/preferences/teachers", h.GetTeacherPreferences).Methods(http.MethodGet)
+	r.HandleFunc("/api/subscription/preferences/teachers", h.SetTeacherPreferences).Methods(http.MethodPost)
 }

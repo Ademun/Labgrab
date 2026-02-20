@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"labgrab/internal/shared/domain"
 	"labgrab/internal/shared/errors"
-	"log/slog"
 	"time"
 
 	"github.com/Masterminds/squirrel"
@@ -203,69 +202,191 @@ func (r *Repo) UpdateSubscription(ctx context.Context, sub *DBSubscription) erro
 	return nil
 }
 
-func (r *Repo) CreateSubscriptionData(ctx context.Context, data *DBUserSubscriptionData, tx pgx.Tx) error {
-	detailsQuery, detailsArgs, err := r.sq.Insert("subscription_service.details").
-		Columns("successful_subscriptions", "last_successful_subscription", "user_uuid").
-		Values(data.SuccessfulSubscriptions, data.LastSuccessfulSubscription, data.UserUUID).
+func (r *Repo) GetTimePreferences(ctx context.Context, userUUID uuid.UUID) ([]DBTimePreferences, error) {
+	query, args, err := r.sq.Select(
+		"user_uuid",
+		"week_number",
+		"day_of_week",
+		"lessons",
+	).
+		From("subscription_service.time_preferences").
+		Where(squirrel.Eq{"user_uuid": userUUID}).
 		ToSql()
 	if err != nil {
-		return &errors.ErrDBProcedure{
-			Procedure: "CreateSubscriptionData",
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "GetTimePreferences",
 			Step:      "Query setup",
 			Err:       err,
 		}
 	}
 
-	_, err = tx.Exec(ctx, detailsQuery, detailsArgs...)
+	rows, err := r.pool.Query(ctx, query, args...)
 	if err != nil {
-		return &errors.ErrDBProcedure{
-			Procedure: "CreateSubscriptionData",
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "GetTimePreferences",
 			Step:      "Query execution",
 			Err:       err,
 		}
 	}
+	defer rows.Close()
 
-	teacherQuery, teacherArgs, err := r.sq.Insert("subscription_service.teacher_preferences").
-		Columns("blacklisted_teachers", "user_uuid").
-		Values(data.BlacklistedTeachers, data.UserUUID).
+	var preferences []DBTimePreferences
+	for rows.Next() {
+		var pref DBTimePreferences
+		err = rows.Scan(
+			&pref.UserUUID,
+			&pref.WeekNumber,
+			&pref.DayOfWeek,
+			&pref.Lessons,
+		)
+		if err != nil {
+			return nil, &errors.ErrDBProcedure{
+				Procedure: "GetTimePreferences",
+				Step:      "Row scanning",
+				Err:       err,
+			}
+		}
+		preferences = append(preferences, pref)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "GetTimePreferences",
+			Step:      "Row error check",
+			Err:       err,
+		}
+	}
+
+	return preferences, nil
+}
+
+func (r *Repo) SetTimePreferences(ctx context.Context, userUUID uuid.UUID, preferences []DBTimePreferences) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return &errors.ErrDBProcedure{
+			Procedure: "SetTimePreferences",
+			Step:      "Begin transaction",
+			Err:       err,
+		}
+	}
+	defer tx.Rollback(ctx)
+
+	deleteQuery, deleteArgs, err := r.sq.Delete("subscription_service.time_preferences").
+		Where(squirrel.Eq{"user_uuid": userUUID}).
 		ToSql()
 	if err != nil {
 		return &errors.ErrDBProcedure{
-			Procedure: "CreateSubscriptionData",
+			Procedure: "SetTimePreferences",
+			Step:      "Delete query setup",
+			Err:       err,
+		}
+	}
+
+	_, err = tx.Exec(ctx, deleteQuery, deleteArgs...)
+	if err != nil {
+		return &errors.ErrDBProcedure{
+			Procedure: "SetTimePreferences",
+			Step:      "Delete execution",
+			Err:       err,
+		}
+	}
+
+	if len(preferences) > 0 {
+		insertBuilder := r.sq.Insert("subscription_service.time_preferences").
+			Columns("user_uuid", "week_number", "day_of_week", "lessons")
+
+		for _, pref := range preferences {
+			insertBuilder = insertBuilder.Values(pref.UserUUID, pref.WeekNumber, pref.DayOfWeek, pref.Lessons)
+		}
+
+		insertQuery, insertArgs, err := insertBuilder.ToSql()
+		if err != nil {
+			return &errors.ErrDBProcedure{
+				Procedure: "SetTimePreferences",
+				Step:      "Insert query setup",
+				Err:       err,
+			}
+		}
+
+		_, err = tx.Exec(ctx, insertQuery, insertArgs...)
+		if err != nil {
+			return &errors.ErrDBProcedure{
+				Procedure: "SetTimePreferences",
+				Step:      "Insert execution",
+				Err:       err,
+			}
+		}
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return &errors.ErrDBProcedure{
+			Procedure: "SetTimePreferences",
+			Step:      "Commit transaction",
+			Err:       err,
+		}
+	}
+
+	return nil
+}
+
+func (r *Repo) GetTeacherPreferences(ctx context.Context, userUUID uuid.UUID) (*DBTeacherPreferences, error) {
+	query, args, err := r.sq.Select(
+		"user_uuid",
+		"blacklisted_teachers",
+	).
+		From("subscription_service.teacher_preferences").
+		Where(squirrel.Eq{"user_uuid": userUUID}).
+		ToSql()
+	if err != nil {
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "GetTeacherPreferences",
 			Step:      "Query setup",
 			Err:       err,
 		}
 	}
 
-	_, err = tx.Exec(ctx, teacherQuery, teacherArgs...)
+	var pref DBTeacherPreferences
+	err = r.pool.QueryRow(ctx, query, args...).Scan(
+		&pref.UserUUID,
+		&pref.BlacklistedTeachers,
+	)
 	if err != nil {
-		return &errors.ErrDBProcedure{
-			Procedure: "CreateSubscriptionData",
+		if err == pgx.ErrNoRows {
+			return &DBTeacherPreferences{
+				UserUUID:            userUUID,
+				BlacklistedTeachers: []string{},
+			}, nil
+		}
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "GetTeacherPreferences",
 			Step:      "Query execution",
 			Err:       err,
 		}
 	}
 
-	for day, lessons := range data.TimePreferences {
-		timeQuery, timeArgs, err := r.sq.Insert("subscription_service.time_preferences").
-			Columns("day_of_week", "lessons", "user_uuid").
-			Values(day, lessons, data.UserUUID).
-			ToSql()
-		if err != nil {
-			return &errors.ErrDBProcedure{
-				Procedure: "CreateSubscriptionData",
-				Step:      "Query setup",
-				Err:       err,
-			}
-		}
+	return &pref, nil
+}
 
-		_, err = tx.Exec(ctx, timeQuery, timeArgs...)
-		if err != nil {
-			return &errors.ErrDBProcedure{
-				Procedure: "CreateSubscriptionData",
-				Step:      "Query execution",
-				Err:       err,
-			}
+func (r *Repo) SetTeacherPreferences(ctx context.Context, userUUID uuid.UUID, preferences *DBTeacherPreferences) error {
+	query, args, err := r.sq.Insert("subscription_service.teacher_preferences").
+		Columns("user_uuid", "blacklisted_teachers").
+		Values(preferences.UserUUID, preferences.BlacklistedTeachers).
+		Suffix("ON CONFLICT (user_uuid) DO UPDATE SET blacklisted_teachers = EXCLUDED.blacklisted_teachers").
+		ToSql()
+	if err != nil {
+		return &errors.ErrDBProcedure{
+			Procedure: "SetTeacherPreferences",
+			Step:      "Query setup",
+			Err:       err,
+		}
+	}
+
+	_, err = r.pool.Exec(ctx, query, args...)
+	if err != nil {
+		return &errors.ErrDBProcedure{
+			Procedure: "SetTeacherPreferences",
+			Step:      "Query execution",
+			Err:       err,
 		}
 	}
 
@@ -296,6 +417,7 @@ matching_subscriptions AS (
     SELECT 
         s.subscription_uuid,
 		s.auto_enroll,
+		s.any_date,
         s.user_uuid,
         d.successful_subscriptions,
         d.last_successful_subscription,
@@ -331,6 +453,8 @@ grouped_by_time AS (
     SELECT 
         user_uuid,
         subscription_uuid,
+		auto_enroll,
+		any_date,
         successful_subscriptions,
         last_successful_subscription,
         time,
@@ -341,7 +465,8 @@ grouped_by_time AS (
 SELECT 
     user_uuid,
     subscription_uuid,
-	auto_enroll
+	auto_enroll,
+	any_date,
     successful_subscriptions,
     last_successful_subscription,
     jsonb_object_agg(time, lessons_map) as matching_timeslots
@@ -375,6 +500,7 @@ ORDER BY auto_enroll DESC,
 			userUUID                   uuid.UUID
 			subscriptionUUID           uuid.UUID
 			autoEnroll                 bool
+			anyDate                    bool
 			successfulSubscriptions    int
 			lastSuccessfulSubscription *time.Time
 			matchingTimeslotsJSON      []byte
@@ -384,6 +510,7 @@ ORDER BY auto_enroll DESC,
 			&userUUID,
 			&subscriptionUUID,
 			&autoEnroll,
+			&anyDate,
 			&successfulSubscriptions,
 			&lastSuccessfulSubscription,
 			&matchingTimeslotsJSON,
@@ -409,6 +536,7 @@ ORDER BY auto_enroll DESC,
 			UserUUID:                   userUUID,
 			SubscriptionUUID:           subscriptionUUID,
 			AutoEnroll:                 autoEnroll,
+			AnyDate:                    anyDate,
 			SuccessfulSubscriptions:    successfulSubscriptions,
 			LastSuccessfulSubscription: lastSuccessfulSubscription,
 			MatchingTimeslots:          matchingTimeslots,
@@ -421,10 +549,6 @@ ORDER BY auto_enroll DESC,
 			Step:      "Row error check",
 			Err:       err,
 		}
-	}
-
-	for _, result := range results {
-		slog.Info("result", result)
 	}
 
 	return results, nil

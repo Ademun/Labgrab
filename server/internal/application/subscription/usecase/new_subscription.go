@@ -8,41 +8,37 @@ import (
 	"labgrab/internal/subscription"
 	"time"
 
-	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.uber.org/zap"
 )
 
 type NewSubscriptionUseCase struct {
 	authSvc         *auth.Service
 	subscriptionSvc *subscription.Service
-	logger          *zap.SugaredLogger
 }
 
-func NewNewSubscriptionUseCase(authSvc *auth.Service, subscriptionSvc *subscription.Service, logger *zap.SugaredLogger) *NewSubscriptionUseCase {
+func NewNewSubscriptionUseCase(authSvc *auth.Service, subscriptionSvc *subscription.Service) *NewSubscriptionUseCase {
 	return &NewSubscriptionUseCase{
 		authSvc:         authSvc,
 		subscriptionSvc: subscriptionSvc,
-		logger:          logger,
 	}
 }
 
-func (uc *NewSubscriptionUseCase) Exec(ctx context.Context, session string, data *dto.NewSubscriptionReqDTO) (uuid.UUID, error) {
+func (uc *NewSubscriptionUseCase) Exec(ctx context.Context, session string, data *dto.NewSubscriptionReqDTO) (*dto.NewSubscriptionResDTO, error) {
 	ctx, span := tracer.Start(ctx, "subscription_usecase.new_subscription")
 	defer span.End()
 
 	if err := uc.authSvc.ValidateSession(ctx, session); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "session validation failed")
-		return uuid.Nil, err
+		return nil, err
 	}
 
 	userUUID, err := uc.authSvc.GetSessionData(ctx, session)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to retrieve session data")
-		return uuid.Nil, err
+		return nil, err
 	}
 
 	span.SetAttributes(
@@ -69,11 +65,13 @@ func (uc *NewSubscriptionUseCase) Exec(ctx context.Context, session string, data
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to create subscription")
-		return uuid.Nil, err
+		return nil, err
 	}
 
 	span.SetAttributes(attribute.String("subscription.uuid", subscriptionUUID.String()))
 	span.SetStatus(codes.Ok, "")
 
-	return subscriptionUUID, nil
+	return &dto.NewSubscriptionResDTO{
+		UUID: subscriptionUUID.String(),
+	}, nil
 }
