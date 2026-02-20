@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({ fetch }) => {
 		return { preferences: schedule.preferences };
 	} catch (e) {
 		if (e instanceof AuthError) {
-			redirect(303, '/auth');
+			throw redirect(303, '/auth');
 		}
 		throw e;
 	}

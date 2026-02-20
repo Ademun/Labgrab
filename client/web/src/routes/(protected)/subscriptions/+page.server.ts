@@ -6,7 +6,13 @@ import {
 	createSubscriptionRequestSchema,
 	editSubscriptionRequestSchema
 } from '$lib/api/schema/subscription.js';
-import { AuthError, ConflictError, NotFoundError, NetworkError, ValidationError } from '$lib/api/errors.js';
+import {
+	AuthError,
+	ConflictError,
+	NotFoundError,
+	NetworkError,
+	ValidationError
+} from '$lib/api/errors.js';
 import { redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ fetch }) => {
@@ -27,7 +33,7 @@ export const actions = {
 			await api.editSubscription(form.data, fetch);
 		} catch (e) {
 			if (e instanceof AuthError) {
-				redirect(303, '/auth');
+				throw redirect(303, '/auth');
 			}
 			if (e instanceof NotFoundError) {
 				return fail(404, { form, error: 'Подписка не найдена.' });
