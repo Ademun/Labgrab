@@ -5,10 +5,11 @@
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import { formatShortDayName } from '$lib/utils.js';
 	import { hashPrefs, prefsToJson, prefsToSet, setToPrefs } from '$lib/utils/schedule.js';
+	import { getErrorMessage } from '$lib/utils/toast-errors.js';
+	import { toast } from 'svelte-sonner';
 
 	let { data } = $props();
 
-	// data.config comes from root +layout.server.ts, data.preferences from this page's server load
 	const lessons = $derived(data.config.lessons);
 
 	const dayOfWeeks = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
@@ -51,7 +52,7 @@
 			await api.setTimePreferences({ preferences: payload });
 			await invalidateAll();
 		} catch (e) {
-			console.error(e);
+			toast.error(getErrorMessage(e));
 		}
 	}
 </script>

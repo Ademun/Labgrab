@@ -4,6 +4,8 @@
 	import type { AuthRequest } from '$lib/api/schema/auth.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { api } from '$lib/api/client.js';
+	import { toast } from 'svelte-sonner';
+	import { getErrorMessage } from '$lib/utils/toast-errors.js';
 
 	let isAuthenticating = $state(false);
 
@@ -13,6 +15,7 @@
 			await api.auth(data);
 			await goto('/user');
 		} catch (error) {
+			toast.error(getErrorMessage(error));
 			isAuthenticating = false;
 		}
 	}

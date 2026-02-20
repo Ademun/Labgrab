@@ -11,6 +11,8 @@
 	import { invalidateAll } from '$app/navigation';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { cn } from '$lib/utils.js';
+	import { toast } from 'svelte-sonner';
+	import { getErrorMessage } from '$lib/utils/toast-errors.js';
 
 	let { data } = $props();
 	let subscriptions = $state<SubscriptionResponseArray>(data.subs);
@@ -48,11 +50,16 @@
 							];
 						}
 					} catch (e) {
-						console.error('Failed to reload subscription:', e);
+						toast.error(getErrorMessage(e));
 					}
 				}
 
 				currentEditingUuid = null;
+			}
+		},
+		onResult: ({ result }) => {
+			if (result.type === 'failure' && result.data?.error) {
+				toast.error(result.data.error as string);
 			}
 		}
 	});
@@ -65,6 +72,8 @@
 			if (result.type === 'success') {
 				isCreateDialogOpen = false;
 				await invalidateAll();
+			} else if (result.type === 'failure' && result.data?.error) {
+				toast.error(result.data.error as string);
 			}
 			isCreateFormSubmitting = false;
 		}
@@ -83,7 +92,7 @@
 				];
 			}
 		} catch (e) {
-			console.error('Failed to pause subscription:', e);
+			toast.error(getErrorMessage(e));
 		}
 	}
 
@@ -100,7 +109,7 @@
 				];
 			}
 		} catch (e) {
-			console.error('Failed to restore subscription:', e);
+			toast.error(getErrorMessage(e));
 		}
 	}
 
@@ -109,7 +118,7 @@
 			await api.closeSubscription(uuid);
 			subscriptions = subscriptions.filter((sub) => sub.uuid !== uuid);
 		} catch (e) {
-			console.error('Failed to close subscription:', e);
+			toast.error(getErrorMessage(e));
 		}
 	}
 
