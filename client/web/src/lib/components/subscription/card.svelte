@@ -5,9 +5,10 @@
 	import { cn, formatTimeString } from '$lib/utils.js';
 	import type {
 		EditSubscriptionRequest,
+		LabTopic,
+		LabType,
 		SubscriptionResponse
 	} from '$lib/api/schema/subscription.ts';
-	import { app } from '$lib/stores/app.svelte.js';
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import type { SuperForm } from 'sveltekit-superforms';
@@ -17,6 +18,8 @@
 
 	let {
 		subscription,
+		labTypes,
+		labTopics,
 		isEditDialogOpen = $bindable(),
 		onEditDialogOpen,
 		onPaused,
@@ -27,6 +30,8 @@
 		editEnhance
 	}: {
 		subscription: SubscriptionResponse;
+		labTypes: LabType[];
+		labTopics: LabTopic[];
 		isEditDialogOpen: boolean;
 		onEditDialogOpen: (sub: SubscriptionResponse) => void;
 		onPaused: (uuid: string) => void;
@@ -51,6 +56,13 @@
 	);
 
 	const headerBgClasses = $derived(isPerformance ? 'bg-accent-performance' : 'bg-accent-defence');
+
+	const resolvedTypeName = $derived(
+		labTypes.find((t) => t.id === subscription.lab_type)?.name_ru ?? subscription.lab_type
+	);
+	const resolvedTopicName = $derived(
+		labTopics.find((t) => t.id === subscription.lab_topic)?.name_ru ?? subscription.lab_topic
+	);
 </script>
 
 <div class="w-full overflow-hidden rounded-2xl border border-border/40 bg-card shadow-xl">
@@ -77,11 +89,11 @@
 				<span
 					class={cn('text-lg leading-none font-black tracking-tight uppercase', accentTextClasses)}
 				>
-					{app.findLabType(subscription.lab_type)?.name_ru || subscription.lab_type}
+					{resolvedTypeName}
 				</span>
 			</div>
 			<span class="text-sm font-medium text-muted-foreground">
-				{app.findLabTopic(subscription.lab_topic)?.name_ru || subscription.lab_topic}
+				{resolvedTopicName}
 			</span>
 		</div>
 
@@ -201,7 +213,7 @@
 						<AlertDialog.Header>
 							<AlertDialog.Title>Вы уверены?</AlertDialog.Title>
 							<AlertDialog.Description>
-								Это действие нельзя отменить. Система перестанет отслеживать записи на эту работу
+								Система перестанет отслеживать записи на эту работу. Это действие нельзя отменить.
 							</AlertDialog.Description>
 						</AlertDialog.Header>
 						<AlertDialog.Footer>

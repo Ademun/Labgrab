@@ -3,15 +3,14 @@
 	import { goto } from '$app/navigation';
 	import type { AuthRequest } from '$lib/api/schema/auth.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
-	import { user } from '$lib/stores/user.svelte.js';
+	import { api } from '$lib/api/client.js';
 
 	let isAuthenticating = $state(false);
 
 	async function onTelegramAuth(data: AuthRequest) {
 		isAuthenticating = true;
 		try {
-			await user.auth(data);
-			isAuthenticating = false;
+			await api.auth(data);
 			await goto('/user');
 		} catch (error) {
 			isAuthenticating = false;

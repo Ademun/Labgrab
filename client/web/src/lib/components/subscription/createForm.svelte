@@ -1,14 +1,13 @@
 <script lang="ts">
-	import { superForm, type Infer, type SuperForm, type SuperValidated } from 'sveltekit-superforms';
-	import { zod4Client } from 'sveltekit-superforms/adapters';
-	import {
-		createSubscriptionRequestSchema,
-		type CreateSubscriptionRequest
-	} from '$lib/api/schema/subscription.js';
+	import { type SuperForm } from 'sveltekit-superforms';
 	import * as Form from '$lib/components/ui/form/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import { app } from '$lib/stores/app.svelte.js';
+	import type {
+		CreateSubscriptionRequest,
+		LabTopic,
+		LabType
+	} from '$lib/api/schema/subscription.js';
 	import Button from '../ui/button/button.svelte';
 	import { cn } from '$lib/utils.js';
 	import Checkbox from '../ui/checkbox/checkbox.svelte';
@@ -16,17 +15,21 @@
 
 	let {
 		form,
-		isSubmitting
+		isSubmitting,
+		labTypes,
+		labTopics
 	}: {
 		form: SuperForm<CreateSubscriptionRequest>;
 		isSubmitting: boolean;
+		labTypes: LabType[];
+		labTopics: LabTopic[];
 	} = $props();
 
 	// svelte-ignore state_referenced_locally
 	let { form: formData, enhance } = form;
 
 	const needsAuditorium = $derived(() => {
-		const type = app.findLabType($formData.lab_type);
+		const type = labTypes.find((t) => t.id === $formData.lab_type);
 		return type?.needs_auditorium ?? false;
 	});
 	const isPerformance = $derived($formData.lab_type === 'Performance');
@@ -64,7 +67,7 @@
 				{#snippet children({ props })}
 					<Input {...props} type="hidden" bind:value={$formData.lab_type} />
 					<div class="flex justify-between gap-8">
-						{#each app.data?.lab_types as type}
+						{#each labTypes as type}
 							<Button
 								disabled={isSubmitting}
 								variant={$formData.lab_type === type.id ? 'default' : 'outline'}
@@ -97,14 +100,14 @@
 						<Select.Trigger class="w-full">
 							<span>
 								{#if $formData.lab_topic}
-									{app.findLabTopic($formData.lab_topic)?.name_ru}
+									{labTopics.find((t) => t.id === $formData.lab_topic)?.name_ru}
 								{:else}
 									Выберите тему из списка
 								{/if}
 							</span>
 						</Select.Trigger>
 						<Select.Content>
-							{#each app.data?.lab_topics as topic}
+							{#each labTopics as topic}
 								<Select.Item value={topic.id}>{topic.name_ru}</Select.Item>
 							{/each}
 						</Select.Content>

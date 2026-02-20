@@ -11,7 +11,6 @@
 	import { invalidateAll } from '$app/navigation';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { cn } from '$lib/utils.js';
-	import { tick } from 'svelte';
 
 	let { data } = $props();
 	let subscriptions = $state<SubscriptionResponseArray>(data.subs);
@@ -20,6 +19,9 @@
 	let currentEditingUuid = $state<string | null>(null);
 	let isCreateDialogOpen = $state(false);
 	let isCreateFormSubmitting = $state(false);
+
+	const labTypes = $derived(data.config.lab_types);
+	const labTopics = $derived(data.config.lab_topics);
 
 	$effect(() => {
 		subscriptions = data.subs;
@@ -147,7 +149,12 @@
 				<Dialog.Content>
 					<Dialog.Header>
 						<Dialog.Title>Новая подписка</Dialog.Title>
-						<CreateForm form={createForm} isSubmitting={isCreateFormSubmitting} />
+						<CreateForm
+							form={createForm}
+							isSubmitting={isCreateFormSubmitting}
+							{labTypes}
+							{labTopics}
+						/>
 					</Dialog.Header>
 				</Dialog.Content>
 			</Dialog.Root>
@@ -170,6 +177,8 @@
 					<div class="w-full">
 						<Card
 							{subscription}
+							{labTypes}
+							{labTopics}
 							bind:isEditDialogOpen
 							{onEditDialogOpen}
 							{onPaused}

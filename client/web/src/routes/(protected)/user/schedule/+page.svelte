@@ -3,11 +3,13 @@
 	import { api } from '$lib/api/client.js';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
-	import { app } from '$lib/stores/app.svelte.js';
 	import { formatShortDayName } from '$lib/utils.js';
 	import { hashPrefs, prefsToJson, prefsToSet, setToPrefs } from '$lib/utils/schedule.js';
 
 	let { data } = $props();
+
+	// data.config comes from root +layout.server.ts, data.preferences from this page's server load
+	const lessons = $derived(data.config.lessons);
 
 	const dayOfWeeks = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
 	const weekNumbers = [1, 2];
@@ -26,7 +28,7 @@
 
 	function selectAll(week: number) {
 		for (const day of dayOfWeeks)
-			for (const lesson of app.data?.lessons ?? []) {
+			for (const lesson of lessons) {
 				selected.add(slotKey(week, day, lesson.number));
 			}
 		selected = new Set(selected);
@@ -34,7 +36,7 @@
 
 	function clearAll(week: number) {
 		for (const day of dayOfWeeks)
-			for (const lesson of app.data?.lessons ?? []) {
+			for (const lesson of lessons) {
 				selected.delete(slotKey(week, day, lesson.number));
 			}
 		selected = new Set(selected);
@@ -88,7 +90,7 @@
 						<div class="w-full rounded-xl bg-card px-6 py-4">
 							<span class="font-bold uppercase">{formatShortDayName(day)}</span>
 							<div class="mt-4 grid auto-rows-max grid-cols-2 gap-4">
-								{#each app.data?.lessons as lesson}
+								{#each lessons as lesson}
 									{@const key = slotKey(week, day, lesson.number)}
 									<Button
 										variant={selected.has(key) ? 'default' : 'outline'}

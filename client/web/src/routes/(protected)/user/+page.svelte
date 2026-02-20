@@ -1,23 +1,18 @@
 <script lang="ts">
 	import { Fallback, Image, Root } from '$lib/components/ui/avatar/index.js';
 	import { Ban, Calendar, ChartNoAxesCombined, ChevronRight, LogOut, User } from '@lucide/svelte';
-	import { onMount } from 'svelte';
-	import { user } from '$lib/stores/user.svelte.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 
-	onMount(async () => {
-		if (!user.data) {
-			await user.load();
-		}
-	});
+	let { data } = $props();
+	const user = $derived(data.user);
 </script>
 
 <div class="flex h-full flex-col items-center justify-center px-6">
-	{#if user.data}
+	{#if user}
 		<div class="flex w-full max-w-sm flex-col items-center justify-center">
 			<div>
 				<Root class="my-6 h-25 w-25 outline-3 outline-offset-2 outline-primary">
-					<Image src={user.data.photo_url} alt="Фото профиля" />
+					<Image src={user.photo_url} alt="Фото профиля" />
 					<Fallback>
 						<User />
 					</Fallback>
@@ -25,20 +20,20 @@
 			</div>
 
 			<span class="text-lg font-bold">
-				{user.data.surname}
-				{user.data.name}
-				{user.data.patronymic}
+				{user.surname}
+				{user.name}
+				{user.patronymic}
 			</span>
 
-			{#if user.data.group_code}
+			{#if user.group_code}
 				<span class="text-md font-semibold text-primary">
-					{user.data.group_code}
+					{user.group_code}
 				</span>
 			{/if}
 
-			{#if user.data.phone_number}
+			{#if user.phone_number}
 				<span class="text-md text-muted-foreground">
-					{user.data.phone_number}
+					{user.phone_number}
 				</span>
 			{/if}
 
@@ -62,7 +57,7 @@
 					<li>
 						<a href="/user/blacklist" class="flex w-full items-center justify-between">
 							<span class="flex items-center gap-2">
-								<Ban class="h-5 w-5  text-[#FF3B30]" />
+								<Ban class="h-5 w-5 text-[#FF3B30]" />
 								Черный список
 							</span>
 							<ChevronRight class="h-5 w-5" />
@@ -79,40 +74,6 @@
 					</li>
 				</ul>
 			</nav>
-
-			<nav
-				class="mt-4 w-full overflow-hidden rounded-2xl border border-border/40 bg-card px-4 py-4 shadow-sm"
-			>
-				<ul class="flex flex-col gap-6 font-medium">
-					<li>
-						<a href="/info" class="flex w-full items-center justify-between">
-							<span class="flex items-center gap-2"> О сервисе </span>
-							<ChevronRight class="h-5 w-5" />
-						</a>
-					</li>
-					<li>
-						<a href="/support" class="flex w-full items-center justify-between">
-							<span class="flex items-center gap-2"> Техподдержка </span>
-							<ChevronRight class="h-5 w-5" />
-						</a>
-					</li>
-					<li>
-						<a href="/donate" class="flex w-full items-center justify-between">
-							<span class="flex items-center gap-2"> Поддержать разработчика </span>
-							<ChevronRight class="h-5 w-5" />
-						</a>
-					</li>
-				</ul>
-			</nav>
-
-			<div class="w-full">
-				<Button variant="outline" class="text-md  mt-8 w-full py-6 font-semibold text-destructive">
-					<span class="flex items-center gap-2">
-						<LogOut class="h-5 w-5" />
-						Выйти
-					</span>
-				</Button>
-			</div>
 		</div>
 	{/if}
 </div>
