@@ -15,8 +15,9 @@ import {
 	type TimePreferencesResponse,
 	timePreferencesResponseSchema
 } from '$lib/api/schema/subscription.js';
-import { type AppConfig, appConfigSchema } from '$lib/api/schema/app.js';
-import { z } from 'zod';
+import { type AppConfig, appConfigSchema, apiErrorSchema } from '$lib/api/schema/app.js';
+import { z, ZodError } from 'zod';
+import { createApiError, NetworkError, ValidationError } from '$lib/api/errors.js';
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
 
 interface ApiClientConfig {
@@ -49,7 +50,6 @@ class ApiClient {
 
 		try {
 			const fetcher = fetchFn ?? fetch;
-
 			const url = `${this.baseUrl}${endpoint}`;
 
 			const response = await fetcher(url, {
@@ -62,26 +62,53 @@ class ApiClient {
 				}
 			});
 
-			clearTimeout(timeoutId);
-
 			if (!response.ok) {
-				throw new Error(`API error: ${response.status}`);
+				let errorBody;
+				try {
+					const raw = await response.json();
+					errorBody = apiErrorSchema.parse(raw);
+				} catch {}
+				throw createApiError(response.status, errorBody);
 			}
 
 			const isVoid = schema instanceof z.ZodVoid;
 
 			if (response.status === 204) {
 				if (!isVoid) {
-					throw new Error(`Expected body but got 204 No Content for ${endpoint}`);
+					throw new ValidationError(`Expected body but got 204 No Content for ${endpoint}`);
 				}
 				return schema.parse(undefined) as T;
 			}
 
 			const data = await response.json();
-			return schema.parse(data);
+
+			try {
+				return schema.parse(data);
+			} catch (e) {
+				if (e instanceof ZodError) {
+					throw new ValidationError(`Response schema mismatch on ${endpoint}: ${e.message}`, e);
+				}
+				throw e;
+			}
 		} catch (error) {
-			console.error(error);
-			throw new Error('Unknown error');
+			if (
+				error instanceof NetworkError ||
+				error instanceof ValidationError ||
+				(error instanceof Error && error.name.endsWith('Error') && 'status' in error)
+			) {
+				throw error;
+			}
+
+			if (error instanceof DOMException && error.name === 'AbortError') {
+				throw new NetworkError(`Request to ${endpoint} timed out after ${this.timeout}ms`, error);
+			}
+
+			throw new NetworkError(
+				`Network failure on ${endpoint}: ${error instanceof Error ? error.message : String(error)}`,
+				error
+			);
+		} finally {
+			clearTimeout(timeoutId);
 		}
 	}
 
@@ -128,36 +155,18 @@ class ApiClient {
 	}
 
 	async pauseSubscription(uuid: string, fetchFn?: typeof fetch): Promise<EditSubscriptionResponse> {
-		return this.editSubscription(
-			{
-				uuid: uuid,
-				status: 'Paused'
-			},
-			fetchFn
-		);
+		return this.editSubscription({ uuid, status: 'Paused' }, fetchFn);
 	}
 
 	async restoreSubscription(
 		uuid: string,
 		fetchFn?: typeof fetch
 	): Promise<EditSubscriptionResponse> {
-		return this.editSubscription(
-			{
-				uuid: uuid,
-				status: 'Active'
-			},
-			fetchFn
-		);
+		return this.editSubscription({ uuid, status: 'Active' }, fetchFn);
 	}
 
 	async closeSubscription(uuid: string, fetchFn?: typeof fetch): Promise<EditSubscriptionResponse> {
-		return this.editSubscription(
-			{
-				uuid: uuid,
-				status: 'Closed'
-			},
-			fetchFn
-		);
+		return this.editSubscription({ uuid, status: 'Closed' }, fetchFn);
 	}
 
 	async createSubscription(
@@ -186,7 +195,7 @@ class ApiClient {
 	}
 
 	async setTeacherPreferences(data: TeacherPreferences, fetchFn?: typeof fetch): Promise<void> {
-		return this.request('/subscriptions/prefrences/teachers', z.void(), fetchFn, {
+		return this.request('/subscriptions/preferences/teachers', z.void(), fetchFn, {
 			method: 'POST',
 			body: JSON.stringify(data)
 		});
