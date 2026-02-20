@@ -1,8 +1,16 @@
 import { api } from '$lib/api/client.js';
 import type { PageServerLoad } from './$types.js';
+import { AuthError } from '$lib/api/errors.js';
+import { redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ fetch }) => {
-	const schedule = await api.getTimePreferences(fetch);
-	const preferences = schedule.preferences;
-	return { preferences };
+	try {
+		const schedule = await api.getTimePreferences(fetch);
+		return { preferences: schedule.preferences };
+	} catch (e) {
+		if (e instanceof AuthError) {
+			redirect(303, '/auth');
+		}
+		throw e;
+	}
 };
