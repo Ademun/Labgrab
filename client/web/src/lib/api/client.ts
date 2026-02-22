@@ -1,5 +1,9 @@
 import { type AuthRequest } from '$lib/api/schema/auth.js';
-import { type UserResponse, userResponseSchema } from '$lib/api/schema/user.js';
+import {
+	type UpdateUserRequest,
+	type UserResponse,
+	userResponseSchema
+} from '$lib/api/schema/user.js';
 import {
 	type CreateSubscriptionRequest,
 	type CreateSubscriptionResponse,
@@ -121,6 +125,13 @@ class ApiClient {
 
 	async getUser(fetchFn?: typeof fetch): Promise<UserResponse> {
 		return this.request<UserResponse>('/users', userResponseSchema, fetchFn);
+	}
+
+	async updateUser(data: UpdateUserRequest, fetchFn?: typeof fetch): Promise<void> {
+		return this.request('/users', z.void(), fetchFn, {
+			method: 'PATCH',
+			body: JSON.stringify(data)
+		});
 	}
 
 	async getSubscriptions(fetchFn?: typeof fetch): Promise<SubscriptionResponseArray> {

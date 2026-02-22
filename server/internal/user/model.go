@@ -12,7 +12,7 @@ type DBUser struct {
 	Surname     *string `db:"surname"`
 	Patronymic  *string `db:"patronymic"`
 	GroupCode   *string `db:"group_code"`
-	PhoneNumber *string `db:"phone_number"`
+	PhoneNumber *int    `db:"phone_number"`
 	TelegramID  int     `db:"telegram_id"`
 	Username    string  `db:"username"`
 	PhotoUrl    *string `db:"photo_url"`
@@ -37,7 +37,7 @@ type GetUserRes struct {
 	Surname     *string
 	Patronymic  *string
 	GroupCode   *string
-	PhoneNumber *string
+	PhoneNumber *int
 	TelegramID  int
 	PhotoUrl    *string
 }
@@ -48,6 +48,6 @@ type UpdateUserReq struct {
 	Surname     *string
 	Patronymic  *string
 	GroupCode   *string
-	PhoneNumber *string
+	PhoneNumber *int
 	PhotoUrl    *string
 }

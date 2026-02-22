@@ -6,6 +6,6 @@ type GetUserRespDTO struct {
 	Surname     *string `json:"surname"`
 	Patronymic  *string `json:"patronymic"`
 	GroupCode   *string `json:"group_code"`
-	PhoneNumber *string `json:"phone_number"`
+	PhoneNumber *int    `json:"phone_number"`
 	PhotoURL    *string `json:"photo_url"`
 }

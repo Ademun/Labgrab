@@ -38,7 +38,7 @@
 			{/if}
 
 			<div>
-				<Button class="mt-6 py-5">Редактировать профиль</Button>
+				<a href="/user/details"><Button class="mt-6 py-5">Редактировать профиль</Button></a>
 			</div>
 
 			<nav
