@@ -101,7 +101,7 @@
 							</a>
 						</li>
 						<li>
-							<a href="/support" class="flex w-full items-center justify-between">
+							<a href="/user/support" class="flex w-full items-center justify-between">
 								<span class="flex items-center gap-2"> Техподдержка </span>
 								<ChevronRight class="h-5 w-5" />
 							</a>

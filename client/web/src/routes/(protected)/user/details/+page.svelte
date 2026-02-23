@@ -25,7 +25,7 @@
 <div class="flex h-full w-full flex-col">
 	<Header title="Редактировать профиль" back="/user" />
 
-	<div class="flex flex-1 flex-col items-center px-6 py-8">
+	<div class="flex flex-1 flex-col items-center justify-center px-6 py-8">
 		<div class="w-full max-w-sm">
 			<div class="rounded-2xl border border-border/40 bg-card px-6 py-6 shadow-xl">
 				<DetailsForm {form} {isSubmitting} />
