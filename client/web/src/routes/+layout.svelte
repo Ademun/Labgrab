@@ -38,9 +38,11 @@
 	});
 </script>
 
-<div class="h-screen w-screen overflow-y-auto pb-28" style="view-transition-name: page;">
+<div class="flex h-dvh w-full flex-col" style="view-transition-name: page;">
 	<ModeWatcher />
 	<Toaster position="top-center" richColors theme="system" />
-	{@render children?.()}
+	<div class="flex-1 overflow-y-auto">
+		{@render children?.()}
+	</div>
+	<Navigation />
 </div>
-<Navigation />

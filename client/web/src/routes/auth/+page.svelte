@@ -35,7 +35,7 @@
 
 	<div class="flex flex-1 items-center justify-center">
 		<div
-			class="card-border flex max-w-8/10 flex-col items-center justify-center gap-4 rounded-lg border border-border/40 bg-card px-6 py-6 shadow-xl"
+			class="lex max-w-8/10 flex-col items-center justify-center gap-4 rounded-lg border border-border/40 bg-card px-6 py-6 shadow-xl"
 		>
 			<h1 class="text-main text-center text-xl leading-none font-bold">
 				LAB

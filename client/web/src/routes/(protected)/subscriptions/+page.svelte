@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Card, CreateForm } from '$lib/components/subscription/index.js';
+	import { Card } from '$lib/components/subscription/index.js';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import {
 		type SubscriptionResponse,
@@ -8,7 +8,6 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { api } from '$lib/api/client.js';
-	import { invalidateAll } from '$app/navigation';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { cn } from '$lib/utils.js';
 	import { toast } from 'svelte-sonner';
@@ -22,8 +21,6 @@
 	let isLoading = $state(false);
 	let isEditDialogOpen = $state(false);
 	let currentEditingUuid = $state<string | null>(null);
-	let isCreateDialogOpen = $state(false);
-	let isCreateFormSubmitting = $state(false);
 
 	const labTypes = $derived(data.config.lab_types);
 	const labTopics = $derived(data.config.lab_topics);
@@ -64,21 +61,6 @@
 			if (result.type === 'failure' && result.data?.error) {
 				toast.error(result.data.error as string);
 			}
-		}
-	});
-
-	const createForm = superForm(data.createForm, {
-		onSubmit: () => {
-			isCreateFormSubmitting = true;
-		},
-		onResult: async ({ result }) => {
-			if (result.type === 'success') {
-				isCreateDialogOpen = false;
-				await invalidateAll();
-			} else if (result.type === 'failure' && result.data?.error) {
-				toast.error(result.data.error as string);
-			}
-			isCreateFormSubmitting = false;
 		}
 	});
 
@@ -141,7 +123,6 @@
 
 	<div class="flex w-full flex-col items-center px-8 py-8">
 		<div class="w-full">
-			<!-- Заголовок -->
 			<div class="flex items-center justify-between" in:fly={{ y: -10, duration: 240 }}>
 				<span class="text-muted-foreground">
 					<span class="font-bold text-primary">
@@ -153,27 +134,15 @@
 					</span>
 					ПОДПИСОК
 				</span>
-				<Dialog.Root bind:open={isCreateDialogOpen}>
-					<Dialog.Trigger
-						class={cn(
-							buttonVariants({ variant: 'default' }),
-							'text-md px-10 py-5 font-semibold tracking-wide uppercase'
-						)}
-					>
-						Создать
-					</Dialog.Trigger>
-					<Dialog.Content>
-						<Dialog.Header>
-							<Dialog.Title>Новая подписка</Dialog.Title>
-							<CreateForm
-								form={createForm}
-								isSubmitting={isCreateFormSubmitting}
-								{labTypes}
-								{labTopics}
-							/>
-						</Dialog.Header>
-					</Dialog.Content>
-				</Dialog.Root>
+				<a
+					href="/subscriptions/new"
+					class={cn(
+						buttonVariants({ variant: 'default' }),
+						'text-md px-10 py-5 font-semibold tracking-wide uppercase'
+					)}
+				>
+					Создать
+				</a>
 			</div>
 
 			<hr class="my-6 w-full" />
