@@ -6,6 +6,7 @@
 	import { api } from '$lib/api/client.js';
 	import { toast } from 'svelte-sonner';
 	import { getErrorMessage } from '$lib/utils/toast-errors.js';
+	import { Header } from '$lib/components/navigation/index.js';
 
 	let isAuthenticating = $state(false);
 
@@ -30,6 +31,7 @@
 </script>
 
 <div class="textured-bg flex h-full w-full flex-col items-center justify-center">
+	<Header title="Вход" />
 	<div
 		class="card-border flex max-w-8/10 flex-col items-center justify-center gap-4 rounded-lg border border-border/40 bg-card px-6 py-6 shadow-xl"
 	>

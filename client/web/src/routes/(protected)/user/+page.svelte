@@ -3,12 +3,14 @@
 	import { Ban, Calendar, ChartNoAxesCombined, ChevronRight, LogOut, User } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { fly, fade } from 'svelte/transition';
+	import { Header } from '$lib/components/navigation/index.js';
 
 	let { data } = $props();
 	const user = $derived(data.user);
 </script>
 
 <div class="flex h-full flex-col items-center justify-center px-6">
+	<Header title="Аккаунт" />
 	{#if user}
 		<div class="flex w-full max-w-sm flex-col items-center justify-center">
 			<!-- Аватар -->

@@ -15,6 +15,7 @@
 	import { getErrorMessage } from '$lib/utils/toast-errors.js';
 	import { fly, fade } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
+	import { Header } from '$lib/components/navigation/index.js';
 
 	let { data } = $props();
 	let subscriptions = $state<SubscriptionResponseArray>(data.subs);
@@ -136,6 +137,7 @@
 </script>
 
 <div class="flex w-full flex-col items-center px-8 py-8">
+	<Header title="Подписки" />
 	<div class="w-full">
 		<!-- Заголовок -->
 		<div class="flex items-center justify-between" in:fly={{ y: -10, duration: 240 }}>

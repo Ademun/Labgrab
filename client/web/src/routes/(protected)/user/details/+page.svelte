@@ -3,8 +3,7 @@
 	import { toast } from 'svelte-sonner';
 	import { getErrorMessage } from '$lib/utils/toast-errors.js';
 	import { DetailsForm } from '$lib/components/user/index.js';
-	import { ArrowLeft } from '@lucide/svelte';
-	import { goto } from '$app/navigation';
+	import { Header } from '$lib/components/navigation/index.js';
 
 	let { data } = $props();
 
@@ -24,21 +23,7 @@
 </script>
 
 <div class="flex h-full w-full flex-col">
-	<header
-		class="sticky top-0 z-10 flex items-center border-b border-border bg-background px-4 py-4"
-	>
-		<button
-			type="button"
-			class="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
-			onclick={() => goto('/user')}
-		>
-			<ArrowLeft class="h-5 w-5" />
-			<span class="text-sm font-medium">Назад</span>
-		</button>
-		<h1 class="absolute left-1/2 -translate-x-1/2 text-base font-semibold">
-			Редактировать профиль
-		</h1>
-	</header>
+	<Header title="Редактировать профиль" back="/user" />
 
 	<div class="flex flex-1 flex-col items-center px-6 py-8">
 		<div class="w-full max-w-sm">

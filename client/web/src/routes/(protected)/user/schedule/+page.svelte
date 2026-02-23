@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { api } from '$lib/api/client.js';
+	import { Header } from '$lib/components/navigation/index.js';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import { formatShortDayName } from '$lib/utils.js';
@@ -58,6 +59,7 @@
 </script>
 
 <div class="flex w-full flex-col items-center px-6 py-8">
+	<Header title="Расписание" back="/user" />
 	<Tabs.Root value="1" class="flex w-full flex-col gap-4">
 		<div class="sticky top-0 flex w-full flex-col items-center gap-6 rounded-xl bg-card px-6 py-4">
 			<div class="flex w-full items-center justify-between">
