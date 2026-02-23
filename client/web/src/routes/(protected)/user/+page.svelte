@@ -95,7 +95,7 @@
 				>
 					<ul class="flex flex-col gap-6 font-medium">
 						<li>
-							<a href="/info" class="flex w-full items-center justify-between">
+							<a href="/user/about" class="flex w-full items-center justify-between">
 								<span class="flex items-center gap-2"> О сервисе </span>
 								<ChevronRight class="h-5 w-5" />
 							</a>
