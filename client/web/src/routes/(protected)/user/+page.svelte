@@ -107,7 +107,7 @@
 							</a>
 						</li>
 						<li>
-							<a href="/donate" class="flex w-full items-center justify-between">
+							<a href="/user/donate" class="flex w-full items-center justify-between">
 								<span class="flex items-center gap-2"> Поддержать разработчика </span>
 								<ChevronRight class="h-5 w-5" />
 							</a>
