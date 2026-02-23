@@ -10,6 +10,7 @@ import (
 type Config struct {
 	InfraConfig               InfraConfig
 	TelegramConfig            TelegramConfig
+	EncryptionConfig          EncryptionConfig
 	APIClientConfig           DikidiClientConfig        `yaml:"dikidi_client"`
 	AuthServiceConfig         AuthServiceConfig         `yaml:"auth_service"`
 	PollingServiceConfig      PollingServiceConfig      `yaml:"polling_service"`
