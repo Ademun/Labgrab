@@ -9,7 +9,7 @@
 
 	let { title, back }: Props = $props();
 
-	function titleTransition(_node: Element, { duration = 280 }: { duration?: number } = {}) {
+	function titleTransition(_node: Element, { duration = 800 }: { duration?: number } = {}) {
 		return {
 			duration,
 			css: (t: number) => {
@@ -42,10 +42,7 @@
 	{/if}
 
 	{#key title}
-		<h1
-			class="text-base font-semibold"
-			transition:titleTransition
-		>
+		<h1 class="text-base font-semibold" transition:titleTransition>
 			{title}
 		</h1>
 	{/key}

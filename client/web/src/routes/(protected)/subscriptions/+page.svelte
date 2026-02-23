@@ -136,82 +136,83 @@
 	}
 </script>
 
-<div class="flex w-full flex-col items-center px-8 py-8">
+<div class="flex h-full w-full flex-col">
 	<Header title="Подписки" />
-	<div class="w-full">
-		<!-- Заголовок -->
-		<div class="flex items-center justify-between" in:fly={{ y: -10, duration: 240 }}>
-			<span class="text-muted-foreground">
-				<span class="font-bold text-primary">
-					{#if isLoading}
-						<Spinner />
-					{:else}
-						{subscriptions.length}
-					{/if}
+
+	<div class="flex w-full flex-col items-center px-8 py-8">
+		<div class="w-full">
+			<!-- Заголовок -->
+			<div class="flex items-center justify-between" in:fly={{ y: -10, duration: 240 }}>
+				<span class="text-muted-foreground">
+					<span class="font-bold text-primary">
+						{#if isLoading}
+							<Spinner />
+						{:else}
+							{subscriptions.length}
+						{/if}
+					</span>
+					ПОДПИСОК
 				</span>
-				ПОДПИСОК
-			</span>
-			<Dialog.Root bind:open={isCreateDialogOpen}>
-				<Dialog.Trigger
-					class={cn(
-						buttonVariants({ variant: 'default' }),
-						'text-md px-10 py-5 font-semibold tracking-wide uppercase'
-					)}
-				>
-					Создать
-				</Dialog.Trigger>
-				<Dialog.Content>
-					<Dialog.Header>
-						<Dialog.Title>Новая подписка</Dialog.Title>
-						<CreateForm
-							form={createForm}
-							isSubmitting={isCreateFormSubmitting}
-							{labTypes}
-							{labTopics}
-						/>
-					</Dialog.Header>
-				</Dialog.Content>
-			</Dialog.Root>
-		</div>
-
-		<hr class="my-6 w-full" />
-
-		<div class="flex flex-col items-center gap-12">
-			{#if isLoading}
-				<Spinner />
-			{:else if subscriptions.length === 0}
-				<!-- Пустое состояние с fade -->
-				<div class="py-12 text-center" in:fade={{ duration: 280, delay: 100 }}>
-					<p class="mb-2 text-lg text-muted-foreground">У вас пока нет активных подписок</p>
-					<p class="text-sm text-muted-foreground">
-						Создайте первую подписку чтобы начать автоматический поиск слотов
-					</p>
-				</div>
-			{:else}
-				{#each subscriptions as subscription, i (subscription.uuid)}
-					<!-- fly при появлении, flip при перестановке, fade при удалении -->
-					<div
-						class="w-full"
-						in:fly={{ y: 20, duration: 300, delay: i * 40 }}
-						out:fade={{ duration: 200 }}
-						animate:flip={{ duration: 300 }}
+				<Dialog.Root bind:open={isCreateDialogOpen}>
+					<Dialog.Trigger
+						class={cn(
+							buttonVariants({ variant: 'default' }),
+							'text-md px-10 py-5 font-semibold tracking-wide uppercase'
+						)}
 					>
-						<Card
-							{subscription}
-							{labTypes}
-							{labTopics}
-							bind:isEditDialogOpen
-							{onEditDialogOpen}
-							{onPaused}
-							{onRestored}
-							{onClosed}
-							{editFormData}
-							{editErrors}
-							{editEnhance}
-						/>
+						Создать
+					</Dialog.Trigger>
+					<Dialog.Content>
+						<Dialog.Header>
+							<Dialog.Title>Новая подписка</Dialog.Title>
+							<CreateForm
+								form={createForm}
+								isSubmitting={isCreateFormSubmitting}
+								{labTypes}
+								{labTopics}
+							/>
+						</Dialog.Header>
+					</Dialog.Content>
+				</Dialog.Root>
+			</div>
+
+			<hr class="my-6 w-full" />
+
+			<div class="flex flex-col items-center gap-12">
+				{#if isLoading}
+					<Spinner />
+				{:else if subscriptions.length === 0}
+					<div class="py-12 text-center" in:fade={{ duration: 280, delay: 100 }}>
+						<p class="mb-2 text-lg text-muted-foreground">У вас пока нет активных подписок</p>
+						<p class="text-sm text-muted-foreground">
+							Создайте первую подписку чтобы начать автоматический поиск слотов
+						</p>
 					</div>
-				{/each}
-			{/if}
+				{:else}
+					{#each subscriptions as subscription, i (subscription.uuid)}
+						<div
+							class="w-full"
+							in:fly={{ y: 20, duration: 300, delay: i * 40 }}
+							out:fade={{ duration: 200 }}
+							animate:flip={{ duration: 300 }}
+						>
+							<Card
+								{subscription}
+								{labTypes}
+								{labTopics}
+								bind:isEditDialogOpen
+								{onEditDialogOpen}
+								{onPaused}
+								{onRestored}
+								{onClosed}
+								{editFormData}
+								{editErrors}
+								{editEnhance}
+							/>
+						</div>
+					{/each}
+				{/if}
+			</div>
 		</div>
 	</div>
 </div>

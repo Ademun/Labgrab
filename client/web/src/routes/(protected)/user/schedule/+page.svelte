@@ -58,61 +58,66 @@
 	}
 </script>
 
-<div class="flex w-full flex-col items-center px-6 py-8">
+<div class="flex h-full w-full flex-col">
 	<Header title="Расписание" back="/user" />
-	<Tabs.Root value="1" class="flex w-full flex-col gap-4">
-		<div class="sticky top-0 flex w-full flex-col items-center gap-6 rounded-xl bg-card px-6 py-4">
-			<div class="flex w-full items-center justify-between">
-				<Tabs.List>
-					{#each weekNumbers as week}
-						<Tabs.Trigger value={String(week)}>Неделя {week === 1 ? 'I' : 'II'}</Tabs.Trigger>
-					{/each}
-				</Tabs.List>
-				<Button
-					variant={isChanged ? 'default' : 'outline'}
-					disabled={!isChanged}
-					onclick={save}
-					class="px-8">Сохранить</Button
-				>
+
+	<div class="flex w-full flex-col items-center px-6 py-8">
+		<Tabs.Root value="1" class="flex w-full flex-col gap-4">
+			<div
+				class="sticky top-[57px] flex w-full flex-col items-center gap-6 rounded-xl bg-card px-6 py-4"
+			>
+				<div class="flex w-full items-center justify-between">
+					<Tabs.List>
+						{#each weekNumbers as week}
+							<Tabs.Trigger value={String(week)}>Неделя {week === 1 ? 'I' : 'II'}</Tabs.Trigger>
+						{/each}
+					</Tabs.List>
+					<Button
+						variant={isChanged ? 'default' : 'outline'}
+						disabled={!isChanged}
+						onclick={save}
+						class="px-8">Сохранить</Button
+					>
+				</div>
 			</div>
-		</div>
 
-		{#each weekNumbers as week}
-			<Tabs.Content value={String(week)}>
-				<div class="mb-4 flex w-full gap-4">
-					<Button class="flex-1" variant="outline" onclick={() => selectAll(week)}>
-						Выбрать все
-					</Button>
-					<Button class="flex-1" variant="destructive" onclick={() => clearAll(week)}>
-						Очистить все ({countSelected(week)})
-					</Button>
-				</div>
+			{#each weekNumbers as week}
+				<Tabs.Content value={String(week)}>
+					<div class="mb-4 flex w-full gap-4">
+						<Button class="flex-1" variant="outline" onclick={() => selectAll(week)}>
+							Выбрать все
+						</Button>
+						<Button class="flex-1" variant="destructive" onclick={() => clearAll(week)}>
+							Очистить все ({countSelected(week)})
+						</Button>
+					</div>
 
-				<div class="flex flex-col gap-6">
-					{#each dayOfWeeks as day}
-						<div class="w-full rounded-xl bg-card px-6 py-4">
-							<span class="font-bold uppercase">{formatShortDayName(day)}</span>
-							<div class="mt-4 grid auto-rows-max grid-cols-2 gap-4">
-								{#each lessons as lesson}
-									{@const key = slotKey(week, day, lesson.number)}
-									<Button
-										variant={selected.has(key) ? 'default' : 'outline'}
-										class="min-h-max py-1"
-										onclick={() => toggle(key)}
-									>
-										<div class="flex flex-col items-center">
-											<span class="text-lg font-semibold">{lesson.number} пара</span>
-											<span class="text-muted-foreground">
-												{lesson.start_time} - {lesson.end_time}
-											</span>
-										</div>
-									</Button>
-								{/each}
+					<div class="flex flex-col gap-6">
+						{#each dayOfWeeks as day}
+							<div class="w-full rounded-xl bg-card px-6 py-4">
+								<span class="font-bold uppercase">{formatShortDayName(day)}</span>
+								<div class="mt-4 grid auto-rows-max grid-cols-2 gap-4">
+									{#each lessons as lesson}
+										{@const key = slotKey(week, day, lesson.number)}
+										<Button
+											variant={selected.has(key) ? 'default' : 'outline'}
+											class="min-h-max py-1"
+											onclick={() => toggle(key)}
+										>
+											<div class="flex flex-col items-center">
+												<span class="text-lg font-semibold">{lesson.number} пара</span>
+												<span class="text-muted-foreground">
+													{lesson.start_time} - {lesson.end_time}
+												</span>
+											</div>
+										</Button>
+									{/each}
+								</div>
 							</div>
-						</div>
-					{/each}
-				</div>
-			</Tabs.Content>
-		{/each}
-	</Tabs.Root>
+						{/each}
+					</div>
+				</Tabs.Content>
+			{/each}
+		</Tabs.Root>
+	</div>
 </div>
