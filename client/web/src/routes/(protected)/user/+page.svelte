@@ -2,6 +2,7 @@
 	import { Fallback, Image, Root } from '$lib/components/ui/avatar/index.js';
 	import { Ban, Calendar, ChartNoAxesCombined, ChevronRight, LogOut, User } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { fly, fade } from 'svelte/transition';
 
 	let { data } = $props();
 	const user = $derived(data.user);
@@ -10,7 +11,8 @@
 <div class="flex h-full flex-col items-center justify-center px-6">
 	{#if user}
 		<div class="flex w-full max-w-sm flex-col items-center justify-center">
-			<div>
+			<!-- Аватар -->
+			<div in:fly={{ y: -16, duration: 300, delay: 0 }}>
 				<Root class="my-6 h-25 w-25 outline-3 outline-offset-2 outline-primary">
 					<Image src={user.photo_url} alt="Фото профиля" />
 					<Fallback>
@@ -19,30 +21,37 @@
 				</Root>
 			</div>
 
-			<span class="text-lg font-bold">
+			<!-- Имя -->
+			<span class="text-lg font-bold" in:fly={{ y: 12, duration: 280, delay: 60 }}>
 				{user.surname}
 				{user.name}
 				{user.patronymic}
 			</span>
 
 			{#if user.group_code}
-				<span class="text-md font-semibold text-primary">
+				<span
+					class="text-md font-semibold text-primary"
+					in:fly={{ y: 10, duration: 260, delay: 100 }}
+				>
 					{user.group_code}
 				</span>
 			{/if}
 
 			{#if user.phone_number}
-				<span class="text-md text-muted-foreground">
+				<span class="text-md text-muted-foreground" in:fly={{ y: 10, duration: 260, delay: 120 }}>
 					{user.phone_number}
 				</span>
 			{/if}
 
-			<div>
+			<!-- Кнопка редактировать -->
+			<div in:fly={{ y: 10, duration: 260, delay: 140 }}>
 				<a href="/user/details"><Button class="mt-6 py-5">Редактировать профиль</Button></a>
 			</div>
 
+			<!-- Навигационное меню -->
 			<nav
 				class="mt-8 w-full overflow-hidden rounded-2xl border border-border/40 bg-card px-4 py-4 shadow-sm"
+				in:fly={{ y: 16, duration: 300, delay: 180 }}
 			>
 				<ul class="flex flex-col gap-6 font-medium">
 					<li>
@@ -74,8 +83,11 @@
 					</li>
 				</ul>
 			</nav>
+
+			<!-- Дополнительное меню -->
 			<nav
 				class="mt-4 w-full overflow-hidden rounded-2xl border border-border/40 bg-card px-4 py-4 shadow-sm"
+				in:fly={{ y: 16, duration: 300, delay: 220 }}
 			>
 				<ul class="flex flex-col gap-6 font-medium">
 					<li>
@@ -99,8 +111,9 @@
 				</ul>
 			</nav>
 
-			<div class="w-full">
-				<Button variant="outline" class="text-md  mt-8 w-full py-6 font-semibold text-destructive">
+			<!-- Кнопка выйти -->
+			<div class="w-full" in:fly={{ y: 12, duration: 260, delay: 260 }}>
+				<Button variant="outline" class="text-md mt-8 w-full py-6 font-semibold text-destructive">
 					<span class="flex items-center gap-2">
 						<LogOut class="h-5 w-5" />
 						Выйти

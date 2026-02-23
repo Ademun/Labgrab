@@ -13,6 +13,8 @@
 	import { cn } from '$lib/utils.js';
 	import { toast } from 'svelte-sonner';
 	import { getErrorMessage } from '$lib/utils/toast-errors.js';
+	import { fly, fade } from 'svelte/transition';
+	import { flip } from 'svelte/animate';
 
 	let { data } = $props();
 	let subscriptions = $state<SubscriptionResponseArray>(data.subs);
@@ -135,7 +137,8 @@
 
 <div class="flex w-full flex-col items-center px-8 py-8">
 	<div class="w-full">
-		<div class="flex items-center justify-between">
+		<!-- Заголовок -->
+		<div class="flex items-center justify-between" in:fly={{ y: -10, duration: 240 }}>
 			<span class="text-muted-foreground">
 				<span class="font-bold text-primary">
 					{#if isLoading}
@@ -175,15 +178,22 @@
 			{#if isLoading}
 				<Spinner />
 			{:else if subscriptions.length === 0}
-				<div class="py-12 text-center">
+				<!-- Пустое состояние с fade -->
+				<div class="py-12 text-center" in:fade={{ duration: 280, delay: 100 }}>
 					<p class="mb-2 text-lg text-muted-foreground">У вас пока нет активных подписок</p>
 					<p class="text-sm text-muted-foreground">
 						Создайте первую подписку чтобы начать автоматический поиск слотов
 					</p>
 				</div>
 			{:else}
-				{#each subscriptions as subscription (subscription.uuid)}
-					<div class="w-full">
+				{#each subscriptions as subscription, i (subscription.uuid)}
+					<!-- fly при появлении, flip при перестановке, fade при удалении -->
+					<div
+						class="w-full"
+						in:fly={{ y: 20, duration: 300, delay: i * 40 }}
+						out:fade={{ duration: 200 }}
+						animate:flip={{ duration: 300 }}
+					>
 						<Card
 							{subscription}
 							{labTypes}
