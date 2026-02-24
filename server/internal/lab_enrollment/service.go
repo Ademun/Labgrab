@@ -12,6 +12,9 @@ import (
 	"labgrab/internal/shared/errors"
 	"labgrab/internal/shared/mask"
 	"labgrab/pkg/config"
+	"net/http"
+	"net/http/cookiejar"
+	"net/url"
 	"strings"
 	"unicode"
 
@@ -99,30 +102,19 @@ func (s *Service) CreateUserData(ctx context.Context, req *CreateUserDataReq) er
 func (s *Service) AuthUser(ctx context.Context, userUUID uuid.UUID) error {
 	ctx, span := tracer.Start(ctx, "lab_enrollment_service.auth_user")
 	defer span.End()
-
-	span.SetAttributes(
-		attribute.String("user.uuid", userUUID.String()),
-	)
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
 
 	data, err := s.repo.GetUserData(ctx, userUUID)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "AuthUser",
-			Step:      "Repository call",
-			Err:       err,
-		}
+		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "GetUserData", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to get user data")
 		return err
 	}
 
-	rawDEK, err := s.decryptDEK(data.DEK, data.UserUUID)
+	rawDEK, err := s.DecryptDEK(data.DEK, data.UserUUID)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "AuthUser",
-			Step:      "DecryptDEK",
-			Err:       err,
-		}
+		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "DecryptDEK", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to decrypt DEK")
 		return err
@@ -130,11 +122,7 @@ func (s *Service) AuthUser(ctx context.Context, userUUID uuid.UUID) error {
 
 	password, err := decryptWithDEK(data.DikidiPassword, rawDEK)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "AuthUser",
-			Step:      "DecryptPassword",
-			Err:       err,
-		}
+		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "DecryptPassword", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to decrypt password")
 		return err
@@ -144,11 +132,7 @@ func (s *Service) AuthUser(ctx context.Context, userUUID uuid.UUID) error {
 
 	telegramCSRF, err := s.client.AcquireTelegramCSRFToken(ctx, client)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "AuthUser",
-			Step:      "AcquireTelegramCSRFToken",
-			Err:       err,
-		}
+		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "AcquireTelegramCSRFToken", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to acquire telegram csrf")
 		return err
@@ -160,29 +144,20 @@ func (s *Service) AuthUser(ctx context.Context, userUUID uuid.UUID) error {
 		TelegramCSRFToken: telegramCSRF,
 	})
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "AuthUser",
-			Step:      "AcquireCSRFToken",
-			Err:       err,
-		}
+		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "AcquireCSRFToken", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to acquire CSRF token")
 		return err
 	}
 
 	mask.Jitter(5000, 8000)
-	err = s.client.SendAuthRequest(ctx, client, dikidi.AuthRequest{
+	if err = s.client.SendAuthRequest(ctx, client, dikidi.AuthRequest{
 		PhoneNumber:       sanitizePhoneNumber(data.DikidiPhoneNumber),
 		Password:          password,
 		CSRFToken:         csrf,
 		TelegramCSRFToken: telegramCSRF,
-	})
-	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "AuthUser",
-			Step:      "SendAuthRequest",
-			Err:       err,
-		}
+	}); err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "SendAuthRequest", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to send auth request")
 		return err
@@ -190,22 +165,14 @@ func (s *Service) AuthUser(ctx context.Context, userUUID uuid.UUID) error {
 
 	cookies, err := s.client.AcquireClientCookies(client)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "AuthUser",
-			Step:      "AcquireClientCookies",
-			Err:       err,
-		}
+		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "AcquireClientCookies", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to acquire client cookies")
 		return err
 	}
 
 	if cookies.CookieName == nil || cookies.Token == nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "AuthUser",
-			Step:      "AcquireClientCookies",
-			Err:       fmt.Errorf("no cookie_name or token found"),
-		}
+		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "AcquireClientCookies", Err: fmt.Errorf("no cookie_name or token found")}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "bad client cookies")
 		return err
@@ -213,65 +180,93 @@ func (s *Service) AuthUser(ctx context.Context, userUUID uuid.UUID) error {
 
 	session, err := s.client.AcquireSessionID(*cookies.CookieName)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "AuthUser",
-			Step:      "AcquireSessionID",
-			Err:       err,
-		}
+		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "AcquireSessionID", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to acquire session ID")
 		return err
 	}
 
-	encSession, err := encryptWithDEK(session, rawDEK)
-	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "AuthUser",
-			Step:      "EncryptSession",
-			Err:       err,
-		}
+	if err = s.EncryptAndSaveCookies(ctx, data.UserUUID, rawDEK, cookies, session); err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "encryptAndSaveCookies", Err: err}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to encrypt session")
+		span.SetStatus(codes.Error, "failed to encrypt and save cookies")
 		return err
 	}
 
-	encToken, err := encryptWithDEK(*cookies.Token, rawDEK)
+	return nil
+}
+
+func (s *Service) RefreshUserCookies(ctx context.Context, userUUID uuid.UUID) error {
+	ctx, span := tracer.Start(ctx, "lab_enrollment_service.refresh_user_cookies")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
+
+	eData, err := s.repo.GetUserData(ctx, userUUID)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "AuthUser",
-			Step:      "EncryptToken",
-			Err:       err,
-		}
+		err = &errors.ErrServiceProcedure{Procedure: "RefreshUserCookies", Step: "GetUserData", Err: err}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to encrypt token")
+		span.SetStatus(codes.Error, "failed to get user data")
 		return err
 	}
 
-	encCookies, err := encryptWithDEK(cookies.All, rawDEK)
+	rawDEK, err := s.DecryptDEK(eData.DEK, eData.UserUUID)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "AuthUser",
-			Step:      "EncryptCookies",
-			Err:       err,
-		}
+		err = &errors.ErrServiceProcedure{Procedure: "RefreshUserCookies", Step: "DecryptDEK", Err: err}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to encrypt cookies")
+		span.SetStatus(codes.Error, "failed to decrypt DEK")
 		return err
 	}
 
-	dbCookies := &DBUserCookies{
-		Session: &encSession,
-		Token:   &encToken,
-		Cookies: &encCookies,
-	}
-	if err := s.repo.SetUserCookies(ctx, data.UserUUID, dbCookies); err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "AuthUser",
-			Step:      "SetUserCookies",
-			Err:       err,
-		}
+	existingCookies, err := decryptPtrWithDEK(eData.Cookies, rawDEK)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "RefreshUserCookies", Step: "DecryptCookies", Err: err}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to set user cookies")
+		span.SetStatus(codes.Error, "failed to decrypt existing cookies")
+		return err
+	}
+
+	client, err := s.CreateClientWithCookies(existingCookies)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "RefreshUserCookies", Step: "CreateClientWithCookies", Err: err}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to create http client with cookies")
+		return err
+	}
+
+	if err = s.client.RenewCookies(ctx, client); err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "RefreshUserCookies", Step: "RenewCookies", Err: err}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to renew cookies")
+		return err
+	}
+
+	newCookies, err := s.client.AcquireClientCookies(client)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "RefreshUserCookies", Step: "AcquireClientCookies", Err: err}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to acquire client cookies")
+		return err
+	}
+
+	if newCookies.CookieName == nil || newCookies.Token == nil {
+		err = &errors.ErrServiceProcedure{Procedure: "RefreshUserCookies", Step: "AcquireClientCookies", Err: fmt.Errorf("no cookie_name or token found")}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "bad client cookies")
+		return err
+	}
+
+	session, err := s.client.AcquireSessionID(*newCookies.CookieName)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "RefreshUserCookies", Step: "AcquireSessionID", Err: err}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to acquire session ID")
+		return err
+	}
+
+	if err = s.EncryptAndSaveCookies(ctx, eData.UserUUID, rawDEK, newCookies, session); err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "RefreshUserCookies", Step: "encryptAndSaveCookies", Err: err}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to encrypt and save cookies")
 		return err
 	}
 
@@ -281,18 +276,11 @@ func (s *Service) AuthUser(ctx context.Context, userUUID uuid.UUID) error {
 func (s *Service) Enroll(ctx context.Context, req *EnrollReq) error {
 	ctx, span := tracer.Start(ctx, "lab_enrollment_service.Enroll")
 	defer span.End()
-
-	span.SetAttributes(
-		attribute.String("user.uuid", req.UserUUID.String()),
-	)
+	span.SetAttributes(attribute.String("user.uuid", req.UserUUID.String()))
 
 	eData, err := s.repo.GetUserData(ctx, req.UserUUID)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "AuthUser",
-			Step:      "GetUserData",
-			Err:       err,
-		}
+		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "GetUserData", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to get user data")
 		return err
@@ -300,32 +288,28 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollReq) error {
 
 	data, err := s.DecryptUserData(eData)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "AuthUser",
-			Step:      "DecryptUserData",
-			Err:       err,
-		}
+		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "DecryptUserData", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to decrypt user data")
+		return err
 	}
-	timeStr := req.Time.Format("2006-01-02 15:04:05")
-	reservationReq := &dikidi.SlotReservationRequest{
+
+	client, err := s.CreateClientWithCookies(data.Cookies)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "CreateClientWithCookies", Err: err}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to create http client with cookies")
+		return err
+	}
+
+	reservation, err := s.client.AcquireTimeReservation(ctx, client, &dikidi.SlotReservationRequest{
 		MasterID:   req.MasterID,
 		ServicesID: req.ServiceID,
-		Time:       timeStr,
+		Time:       req.Time.Format("2006-01-02 15:04:05"),
 		Session:    *data.Session,
-		Cookies:    *data.Cookies,
-	}
-
-	client := s.CreateRandomHTTPClient()
-
-	reservation, err := s.client.AcquireTimeReservation(ctx, client, reservationReq)
+	})
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "AuthUser",
-			Step:      "AcquireTimeReservation",
-			Err:       err,
-		}
+		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "AcquireTimeReservation", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to acquire time reservation")
 		return err
@@ -337,7 +321,7 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollReq) error {
 }
 
 func (s *Service) DecryptUserData(data *DBUserData) (*DecryptedUserData, error) {
-	rawDEK, err := s.decryptDEK(data.DEK, data.UserUUID)
+	rawDEK, err := s.DecryptDEK(data.DEK, data.UserUUID)
 	if err != nil {
 		return nil, &errors.ErrServiceProcedure{
 			Procedure: "DecryptUserData",
@@ -408,12 +392,74 @@ func (s *Service) EncryptPassword(password string, userUUID uuid.UUID) (string, 
 	return encPass, base64.StdEncoding.EncodeToString(eDEK), nil
 }
 
-func (s *Service) decryptDEK(encDEK string, userUUID uuid.UUID) ([]byte, error) {
+func (s *Service) DecryptDEK(encDEK string, userUUID uuid.UUID) ([]byte, error) {
 	eDEK, err := base64.StdEncoding.DecodeString(encDEK)
 	if err != nil {
 		return nil, err
 	}
 	return s.kekGCM.Open(nil, nil, eDEK, []byte(userUUID.String()))
+}
+
+func (s *Service) CreateRandomHTTPClient() *req.Client {
+	client := req.NewClient().
+		ImpersonateChrome().
+		EnableAutoDecode().
+		SetCommonHeaders(map[string]string{
+			"User-Agent":                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Mobile Safari/537.36",
+			"Accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+			"Accept-Language":           "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
+			"Accept-Encoding":           "gzip, deflate, br, zstd",
+			"Sec-Ch-Ua":                 `"Chromium";v="145", "Google Chrome";v="145", "Not/A)Brand";v="99"`,
+			"Sec-Ch-Ua-Mobile":          "?1",
+			"Sec-Ch-Ua-Platform":        `"Android"`,
+			"Upgrade-Insecure-Requests": "1",
+		})
+
+	return client
+}
+
+func (s *Service) CreateClientWithCookies(rawCookies *string) (*req.Client, error) {
+	client := s.CreateRandomHTTPClient()
+	if rawCookies == nil {
+		return client, nil
+	}
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	parsedURL, err := url.Parse("https://dikidi.net")
+	if err != nil {
+		return nil, err
+	}
+
+	jar.SetCookies(parsedURL, parseCookieString(*rawCookies))
+	client.SetCookieJar(jar)
+	return client, nil
+}
+
+func (s *Service) EncryptAndSaveCookies(ctx context.Context, userUUID uuid.UUID, rawDEK []byte, cookies *dikidi.ClientCookies, session string) error {
+	encSession, err := encryptWithDEK(session, rawDEK)
+	if err != nil {
+		return &errors.ErrServiceProcedure{Procedure: "encryptAndSaveCookies", Step: "EncryptSession", Err: err}
+	}
+
+	encToken, err := encryptWithDEK(*cookies.Token, rawDEK)
+	if err != nil {
+		return &errors.ErrServiceProcedure{Procedure: "encryptAndSaveCookies", Step: "EncryptToken", Err: err}
+	}
+
+	encCookies, err := encryptWithDEK(cookies.All, rawDEK)
+	if err != nil {
+		return &errors.ErrServiceProcedure{Procedure: "encryptAndSaveCookies", Step: "EncryptCookies", Err: err}
+	}
+
+	return s.repo.SetUserCookies(ctx, userUUID, &DBUserCookies{
+		Session: &encSession,
+		Token:   &encToken,
+		Cookies: &encCookies,
+	})
 }
 
 func encryptWithDEK(plaintext string, rawDEK []byte) (string, error) {
@@ -460,24 +506,6 @@ func decryptPtrWithDEK(ciphertext *string, rawDEK []byte) (*string, error) {
 	return &plain, nil
 }
 
-func (s *Service) CreateRandomHTTPClient() *req.Client {
-	client := req.NewClient().
-		ImpersonateChrome().
-		EnableAutoDecode().
-		SetCommonHeaders(map[string]string{
-			"User-Agent":                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Mobile Safari/537.36",
-			"Accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-			"Accept-Language":           "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
-			"Accept-Encoding":           "gzip, deflate, br, zstd",
-			"Sec-Ch-Ua":                 `"Chromium";v="145", "Google Chrome";v="145", "Not/A)Brand";v="99"`,
-			"Sec-Ch-Ua-Mobile":          "?1",
-			"Sec-Ch-Ua-Platform":        `"Android"`,
-			"Upgrade-Insecure-Requests": "1",
-		})
-
-	return client
-}
-
 func sanitizePhoneNumber(phoneNumber string) string {
 	return strings.Map(func(r rune) rune {
 		if unicode.IsDigit(r) {
@@ -485,4 +513,20 @@ func sanitizePhoneNumber(phoneNumber string) string {
 		}
 		return -1
 	}, phoneNumber)
+}
+
+func parseCookieString(raw string) []*http.Cookie {
+	var cookies []*http.Cookie
+	for _, part := range strings.Split(raw, ";") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		name, value, _ := strings.Cut(part, "=")
+		cookies = append(cookies, &http.Cookie{
+			Name:  strings.TrimSpace(name),
+			Value: strings.TrimSpace(value),
+		})
+	}
+	return cookies
 }

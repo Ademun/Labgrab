@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"labgrab/internal/shared/errors"
-	"net/http"
 	"strings"
 
 	"github.com/imroc/req/v3"
@@ -78,20 +77,4 @@ func (c *Client) AcquireClientCookies(client *req.Client) (*ClientCookies, error
 	fmt.Println(cookies.All)
 
 	return &cookies, nil
-}
-
-func parseCookieString(raw string) []*http.Cookie {
-	var cookies []*http.Cookie
-	for _, part := range strings.Split(raw, ";") {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
-		}
-		name, value, _ := strings.Cut(part, "=")
-		cookies = append(cookies, &http.Cookie{
-			Name:  strings.TrimSpace(name),
-			Value: strings.TrimSpace(value),
-		})
-	}
-	return cookies
 }

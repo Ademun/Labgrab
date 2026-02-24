@@ -28,7 +28,6 @@ type SlotReservationRequest struct {
 	ServicesID int
 	Time       string
 	Session    string
-	Cookies    string
 }
 
 type SlotReservationResponse struct {

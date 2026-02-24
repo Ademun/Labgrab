@@ -6,37 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"labgrab/internal/shared/errors"
-	"net/http/cookiejar"
-	"net/url"
 
 	"github.com/imroc/req/v3"
 )
 
 func (c *Client) AcquireTimeReservation(ctx context.Context, client *req.Client, req *SlotReservationRequest) (*SlotReservationResponse, error) {
-	const baseURL = "https://dikidi.net/ru/ajax/newrecord/time_reservation/"
-
-	jar, err := cookiejar.New(nil)
-	if err != nil {
-		return nil, &errors.ExternalAPIError{
-			Procedure: "AcquireTimeReservation",
-			Step:      "Cookie jar initialisation",
-			Err:       err,
-		}
-	}
-
-	parsedURL, err := url.Parse(baseURL)
-	if err != nil {
-		return nil, &errors.ExternalAPIError{
-			Procedure: "AcquireTimeReservation",
-			Step:      "URL parsing",
-			Err:       err,
-		}
-	}
-
-	jar.SetCookies(parsedURL, parseCookieString(req.Cookies))
-	client.SetCookieJar(jar)
-
-	resp := client.Get(baseURL).
+	resp := client.Get("https://dikidi.net/ru/ajax/newrecord/time_reservation/").
 		SetQueryParams(map[string]string{
 			"company_id":    "550001",
 			"master_id":     fmt.Sprintf("%d", req.MasterID),
