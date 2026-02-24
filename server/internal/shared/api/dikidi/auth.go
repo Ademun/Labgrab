@@ -156,57 +156,6 @@ func (c *Client) SendAuthRequest(ctx context.Context, client *req.Client, req Au
 	return nil
 }
 
-func (c *Client) AcquireClientCookies(client *req.Client) (*ClientCookies, error) {
-	var cookies ClientCookies
-	all := make(map[string]string)
-	rootCookies, err := client.GetCookies("https://dikidi.net")
-	if err != nil {
-		return nil, &errors.ExternalAPIError{
-			Procedure: "AcquireClientCookies",
-			Step:      "Get root cookies",
-			Err:       err,
-		}
-	}
-
-	authCookies, err := client.GetCookies("https://auth.dikidi.net")
-	if err != nil {
-		return nil, &errors.ExternalAPIError{
-			Procedure: "AcquireClientCookies",
-			Step:      "Get auth cookies",
-			Err:       err,
-		}
-	}
-
-	for _, cookie := range rootCookies {
-		all[cookie.Name] = cookie.Value
-		if cookie.Name == "cookie_name" {
-			cookies.CookieName = &cookie.Value
-		}
-		if cookie.Name == "token" {
-			cookies.Token = &cookie.Value
-		}
-	}
-
-	for _, cookie := range authCookies {
-		all[cookie.Name] = cookie.Value
-		if cookie.Name == "cookie_name" {
-			cookies.CookieName = &cookie.Value
-		}
-		if cookie.Name == "token" {
-			cookies.Token = &cookie.Value
-		}
-	}
-
-	allList := make([]string, 0)
-	for name, value := range all {
-		allList = append(allList, fmt.Sprintf("%s=%s", name, value))
-	}
-	cookies.All = strings.Join(allList, ";")
-	fmt.Println(cookies.All)
-
-	return &cookies, nil
-}
-
 func (c *Client) AcquireSessionID(cookieName string) (string, error) {
 	parts := strings.Split(cookieName, "~")
 	if len(parts) != 2 {
