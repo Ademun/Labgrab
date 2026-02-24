@@ -79,7 +79,7 @@ func (s *Service) CreateUserData(ctx context.Context, req *CreateUserDataReq) er
 		UserUUID:          req.UserUUID,
 		DikidiPhoneNumber: req.DikidiPhoneNumber,
 		DikidiPassword:    pass,
-		PasswordDEK:       dek,
+		DEK:               dek,
 	}
 
 	if err := s.repo.CreateUserData(ctx, dbUserData, req.Tx); err != nil {
@@ -116,7 +116,19 @@ func (s *Service) AuthUser(ctx context.Context, userUUID uuid.UUID) error {
 		return err
 	}
 
-	password, err := s.DecryptPassword(data.DikidiPassword, data.PasswordDEK, data.UserUUID)
+	rawDEK, err := s.decryptDEK(data.DEK, data.UserUUID)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "AuthUser",
+			Step:      "DecryptDEK",
+			Err:       err,
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to decrypt DEK")
+		return err
+	}
+
+	password, err := decryptWithDEK(data.DikidiPassword, rawDEK)
 	if err != nil {
 		err = &errors.ErrServiceProcedure{
 			Procedure: "AuthUser",
@@ -211,10 +223,46 @@ func (s *Service) AuthUser(ctx context.Context, userUUID uuid.UUID) error {
 		return err
 	}
 
+	encSession, err := encryptWithDEK(session, rawDEK)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "AuthUser",
+			Step:      "EncryptSession",
+			Err:       err,
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to encrypt session")
+		return err
+	}
+
+	encToken, err := encryptWithDEK(*cookies.Token, rawDEK)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "AuthUser",
+			Step:      "EncryptToken",
+			Err:       err,
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to encrypt token")
+		return err
+	}
+
+	encCookies, err := encryptWithDEK(cookies.All, rawDEK)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "AuthUser",
+			Step:      "EncryptCookies",
+			Err:       err,
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to encrypt cookies")
+		return err
+	}
+
 	dbCookies := &DBUserCookies{
-		Session:      &session,
-		Token:        cookies.Token,
-		NoiseCookies: &cookies.All,
+		Session: &encSession,
+		Token:   &encToken,
+		Cookies: &encCookies,
 	}
 	if err := s.repo.SetUserCookies(ctx, data.UserUUID, dbCookies); err != nil {
 		err = &errors.ErrServiceProcedure{
@@ -230,62 +278,128 @@ func (s *Service) AuthUser(ctx context.Context, userUUID uuid.UUID) error {
 	return nil
 }
 
+func (s *Service) DecryptUserData(data *DBUserData) (*DecryptedUserData, error) {
+	rawDEK, err := s.decryptDEK(data.DEK, data.UserUUID)
+	if err != nil {
+		return nil, &errors.ErrServiceProcedure{
+			Procedure: "DecryptUserData",
+			Step:      "DecryptDEK",
+			Err:       err,
+		}
+	}
+
+	password, err := decryptWithDEK(data.DikidiPassword, rawDEK)
+	if err != nil {
+		return nil, &errors.ErrServiceProcedure{
+			Procedure: "DecryptUserData",
+			Step:      "DecryptPassword",
+			Err:       err,
+		}
+	}
+
+	session, err := decryptPtrWithDEK(data.Session, rawDEK)
+	if err != nil {
+		return nil, &errors.ErrServiceProcedure{
+			Procedure: "DecryptUserData",
+			Step:      "DecryptSession",
+			Err:       err,
+		}
+	}
+
+	token, err := decryptPtrWithDEK(data.Token, rawDEK)
+	if err != nil {
+		return nil, &errors.ErrServiceProcedure{
+			Procedure: "DecryptUserData",
+			Step:      "DecryptToken",
+			Err:       err,
+		}
+	}
+
+	cookies, err := decryptPtrWithDEK(data.Cookies, rawDEK)
+	if err != nil {
+		return nil, &errors.ErrServiceProcedure{
+			Procedure: "DecryptUserData",
+			Step:      "DecryptCookies",
+			Err:       err,
+		}
+	}
+
+	return &DecryptedUserData{
+		UserUUID:          data.UserUUID,
+		DikidiPhoneNumber: data.DikidiPhoneNumber,
+		DikidiPassword:    password,
+		Session:           session,
+		Token:             token,
+		Cookies:           cookies,
+	}, nil
+}
+
 func (s *Service) EncryptPassword(password string, userUUID uuid.UUID) (string, string, error) {
 	key := make([]byte, 32)
-	_, err := rand.Read(key)
-	if err != nil {
+	if _, err := rand.Read(key); err != nil {
 		return "", "", err
 	}
 
-	dekCipher, err := aes.NewCipher(key)
+	encPass, err := encryptWithDEK(password, key)
 	if err != nil {
 		return "", "", err
 	}
-
-	dekGCM, err := cipher.NewGCMWithRandomNonce(dekCipher)
-	if err != nil {
-		return "", "", err
-	}
-
-	ePass := dekGCM.Seal(nil, nil, []byte(password), nil)
 
 	eDEK := s.kekGCM.Seal(nil, nil, key, []byte(userUUID.String()))
 
-	return base64.StdEncoding.EncodeToString(ePass), base64.StdEncoding.EncodeToString(eDEK), nil
+	return encPass, base64.StdEncoding.EncodeToString(eDEK), nil
 }
 
-func (s *Service) DecryptPassword(password string, dek string, userUUID uuid.UUID) (string, error) {
-	ePass, err := base64.StdEncoding.DecodeString(password)
+func (s *Service) decryptDEK(encDEK string, userUUID uuid.UUID) ([]byte, error) {
+	eDEK, err := base64.StdEncoding.DecodeString(encDEK)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
+	return s.kekGCM.Open(nil, nil, eDEK, []byte(userUUID.String()))
+}
 
-	eDEK, err := base64.StdEncoding.DecodeString(dek)
-	if err != nil {
-		return "", err
-	}
-
-	rawDEK, err := s.kekGCM.Open(nil, nil, eDEK, []byte(userUUID.String()))
-	if err != nil {
-		return "", err
-	}
-
+func encryptWithDEK(plaintext string, rawDEK []byte) (string, error) {
 	dekCipher, err := aes.NewCipher(rawDEK)
 	if err != nil {
 		return "", err
 	}
-
 	dekGCM, err := cipher.NewGCMWithRandomNonce(dekCipher)
 	if err != nil {
 		return "", err
 	}
+	encrypted := dekGCM.Seal(nil, nil, []byte(plaintext), nil)
+	return base64.StdEncoding.EncodeToString(encrypted), nil
+}
 
-	rawPass, err := dekGCM.Open(nil, nil, ePass, nil)
+func decryptWithDEK(ciphertext string, rawDEK []byte) (string, error) {
+	eCipher, err := base64.StdEncoding.DecodeString(ciphertext)
 	if err != nil {
 		return "", err
 	}
+	dekCipher, err := aes.NewCipher(rawDEK)
+	if err != nil {
+		return "", err
+	}
+	dekGCM, err := cipher.NewGCMWithRandomNonce(dekCipher)
+	if err != nil {
+		return "", err
+	}
+	raw, err := dekGCM.Open(nil, nil, eCipher, nil)
+	if err != nil {
+		return "", err
+	}
+	return string(raw), nil
+}
 
-	return string(rawPass), nil
+func decryptPtrWithDEK(ciphertext *string, rawDEK []byte) (*string, error) {
+	if ciphertext == nil {
+		return nil, nil
+	}
+	plain, err := decryptWithDEK(*ciphertext, rawDEK)
+	if err != nil {
+		return nil, err
+	}
+	return &plain, nil
 }
 
 func (s *Service) CreateRandomHTTPClient() *req.Client {

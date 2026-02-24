@@ -9,16 +9,25 @@ type DBUserData struct {
 	UserUUID          uuid.UUID `db:"user_uuid"`
 	DikidiPhoneNumber string    `db:"dikidi_phone_number"`
 	DikidiPassword    string    `db:"dikidi_password"`
-	PasswordDEK       string    `db:"password_dek"`
+	DEK               string    `db:"dek"`
 	Session           *string   `db:"session"`
 	Token             *string   `db:"token"`
-	NoiseCookies      *string   `db:"noise_cookies"`
+	Cookies           *string   `db:"cookies"`
 }
 
 type DBUserCookies struct {
-	Session      *string `db:"session"`
-	Token        *string `db:"token"`
-	NoiseCookies *string `db:"noise_cookies"`
+	Session *string `db:"session"`
+	Token   *string `db:"token"`
+	Cookies *string `db:"cookies"`
+}
+
+type DecryptedUserData struct {
+	UserUUID          uuid.UUID
+	DikidiPhoneNumber string
+	DikidiPassword    string
+	Session           *string
+	Token             *string
+	Cookies           *string
 }
 
 type CreateUserDataReq struct {
