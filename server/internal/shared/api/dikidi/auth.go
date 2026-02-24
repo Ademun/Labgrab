@@ -1,18 +1,27 @@
 package dikidi
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"labgrab/internal/shared/errors"
 	"regexp"
+	"strings"
 
 	"github.com/imroc/req/v3"
 )
 
 func (c *Client) AcquireTelegramCSRFToken(ctx context.Context, client *req.Client) (string, error) {
-	resp := client.Get("https://dikidi.net/550001?p=0.pi-ssm").Do(ctx)
+	resp := client.Get("https://dikidi.net/550001?p=0.pi-ssm").
+		SetHeaders(map[string]string{
+			"Sec-Fetch-Dest": "document",
+			"Sec-Fetch-Mode": "navigate",
+			"Sec-Fetch-Site": "none",
+			"Sec-Fetch-User": "?1",
+		}).
+		Do(ctx)
 	if resp.Err != nil {
 		return "", &errors.ExternalAPIError{
 			Procedure: "AcquireTelegramCSRFToken",
@@ -22,11 +31,20 @@ func (c *Client) AcquireTelegramCSRFToken(ctx context.Context, client *req.Clien
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	reader, err := gzip.NewReader(resp.Body)
+	if err != nil {
+		return "", &errors.ExternalAPIError{
+			Procedure: "AcquireTelegramCSRFToken",
+			Step:      "Read main page",
+			Err:       err,
+		}
+	}
+	body, err := io.ReadAll(reader)
 	if err != nil {
 		return "", &errors.ExternalAPIError{
 			Procedure: "AcquireTelegramCSRFToken",
 			Step:      "Read main page HTML",
+			Err:       err,
 		}
 	}
 
@@ -39,14 +57,25 @@ func (c *Client) AcquireTelegramCSRFToken(ctx context.Context, client *req.Clien
 			Err:       fmt.Errorf("no telegram CSRF token found"),
 		}
 	}
-	return matches[0], nil
+
+	fmt.Println(matches[1])
+	return matches[1], nil
 }
 
 func (c *Client) AcquireCSRFToken(ctx context.Context, client *req.Client, req CSRFTokenRequest) (string, error) {
-	resp := client.Post("https://auth.dikidi.net/ajax/check/auth/").SetFormData(map[string]string{
-		"telegram_csrf": req.TelegramCSRFToken,
-		"number":        req.PhoneNumber,
-	}).Do(ctx)
+	resp := client.Post("https://auth.dikidi.net/ajax/check/auth/").
+		SetHeaders(map[string]string{
+			"Sec-Fetch-Dest": "empty",
+			"Sec-Fetch-Mode": "cors",
+			"Sec-Fetch-Site": "same-site",
+			"Referer":        "https://dikidi.net/550001?p=0.pi-ssm-sd&s=5159581&rl=0_0",
+			"Origin":         "https://dikidi.net",
+		}).
+		SetFormData(map[string]string{
+			"telegram_csrf": req.TelegramCSRFToken,
+			"number":        req.PhoneNumber,
+		}).
+		Do(ctx)
 	if resp.Err != nil {
 		return "", &errors.ExternalAPIError{
 			Procedure: "AcquireCSRFToken",
@@ -56,8 +85,17 @@ func (c *Client) AcquireCSRFToken(ctx context.Context, client *req.Client, req C
 	}
 	defer resp.Body.Close()
 
+	reader, err := gzip.NewReader(resp.Body)
+	if err != nil {
+		return "", &errors.ExternalAPIError{
+			Procedure: "AcquireCSRFToken",
+			Step:      "Read form CSRF token",
+			Err:       err,
+		}
+	}
+
 	var authData AuthResponse
-	if err := json.NewDecoder(resp.Body).Decode(&authData); err != nil {
+	if err := json.NewDecoder(reader).Decode(&authData); err != nil {
 		return "", &errors.ExternalAPIError{
 			Procedure: "AcquireCSRFToken",
 			Step:      "Parse form HTML",
@@ -75,16 +113,27 @@ func (c *Client) AcquireCSRFToken(ctx context.Context, client *req.Client, req C
 		}
 	}
 
-	return matches[0], nil
+	fmt.Println(matches[1])
+	return matches[1], nil
 }
 
 func (c *Client) SendAuthRequest(ctx context.Context, client *req.Client, req AuthRequest) error {
-	resp := client.Post("https://auth.dikidi.net/ajax/user/auth/").SetFormData(map[string]string{
-		"number":        req.PhoneNumber,
-		"password":      req.Password,
-		"csrf":          req.CSRFToken,
-		"telegram_csrf": req.TelegramCSRFToken,
-	}).Do(ctx)
+	resp := client.Post("https://auth.dikidi.net/ajax/user/auth/").
+		SetHeaders(map[string]string{
+			"Sec-Fetch-Dest": "empty",
+			"Sec-Fetch-Mode": "cors",
+			"Sec-Fetch-Site": "same-site",
+			"Referer":        "https://dikidi.net/550001?p=0.pi-ssm-sd&s=5159581&rl=0_0",
+			"Origin":         "https://dikidi.net",
+		}).
+		SetFormData(map[string]string{
+			"telegram_csrf": req.TelegramCSRFToken,
+			"number":        req.PhoneNumber,
+			"csrf":          req.CSRFToken,
+			"password":      req.Password,
+			"pdAgreement":   "1",
+		}).
+		Do(ctx)
 	if resp.Err != nil {
 		return &errors.ExternalAPIError{
 			Procedure: "SendAuthRequest",
@@ -100,22 +149,72 @@ func (c *Client) SendAuthRequest(ctx context.Context, client *req.Client, req Au
 			Err:       fmt.Errorf("invalid status code %d", resp.StatusCode),
 		}
 	}
+
+	for _, cookie := range client.Cookies {
+		fmt.Println(cookie.Name, cookie.Value)
+	}
 	return nil
 }
 
-func (c *Client) AcquireClientCookies(client *req.Client) ClientCookies {
-	cookies := ClientCookies{
-		Other: make(map[string]string),
-	}
-	for _, cookie := range client.Cookies {
-		switch cookie.Name {
-		case "cookie_name":
-			cookies.CookieName = &cookie.Value
-		case "session":
-			cookies.SessionID = &cookie.Value
-		default:
-			cookies.Other[cookie.Name] = cookie.Value
+func (c *Client) AcquireClientCookies(client *req.Client) (*ClientCookies, error) {
+	var cookies ClientCookies
+	all := make(map[string]string)
+	rootCookies, err := client.GetCookies("https://dikidi.net")
+	if err != nil {
+		return nil, &errors.ExternalAPIError{
+			Procedure: "AcquireClientCookies",
+			Step:      "Get root cookies",
+			Err:       err,
 		}
 	}
-	return cookies
+
+	authCookies, err := client.GetCookies("https://auth.dikidi.net")
+	if err != nil {
+		return nil, &errors.ExternalAPIError{
+			Procedure: "AcquireClientCookies",
+			Step:      "Get auth cookies",
+			Err:       err,
+		}
+	}
+
+	for _, cookie := range rootCookies {
+		all[cookie.Name] = cookie.Value
+		if cookie.Name == "cookie_name" {
+			cookies.CookieName = &cookie.Value
+		}
+		if cookie.Name == "token" {
+			cookies.Token = &cookie.Value
+		}
+	}
+
+	for _, cookie := range authCookies {
+		all[cookie.Name] = cookie.Value
+		if cookie.Name == "cookie_name" {
+			cookies.CookieName = &cookie.Value
+		}
+		if cookie.Name == "token" {
+			cookies.Token = &cookie.Value
+		}
+	}
+
+	allList := make([]string, 0)
+	for name, value := range all {
+		allList = append(allList, fmt.Sprintf("%s=%s", name, value))
+	}
+	cookies.All = strings.Join(allList, ";")
+	fmt.Println(cookies.All)
+
+	return &cookies, nil
+}
+
+func (c *Client) AcquireSessionID(cookieName string) (string, error) {
+	parts := strings.Split(cookieName, "~")
+	if len(parts) != 2 {
+		return "", &errors.ExternalAPIError{
+			Procedure: "AcquireSessionID",
+			Step:      "Parse cookie_name",
+			Err:       fmt.Errorf("invalid cookie_name"),
+		}
+	}
+	return parts[1], nil
 }

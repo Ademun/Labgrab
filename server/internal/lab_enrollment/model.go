@@ -6,17 +6,24 @@ import (
 )
 
 type DBUserData struct {
-	UUID              uuid.UUID `db:"uuid"`
+	UserUUID          uuid.UUID `db:"user_uuid"`
 	DikidiPhoneNumber string    `db:"dikidi_phone_number"`
 	DikidiPassword    string    `db:"dikidi_password"`
 	PasswordDEK       string    `db:"password_dek"`
-	SessionCookie     *string   `db:"password_cookie"`
+	Session           *string   `db:"session"`
+	Token             *string   `db:"token"`
 	NoiseCookies      *string   `db:"noise_cookies"`
 }
 
-type CreateuserDataReq struct {
+type DBUserCookies struct {
+	Session      *string `db:"session"`
+	Token        *string `db:"token"`
+	NoiseCookies *string `db:"noise_cookies"`
+}
+
+type CreateUserDataReq struct {
 	UserUUID          uuid.UUID
 	DikidiPhoneNumber string
 	DikidiPassword    string
-	tx                pgx.Tx
+	Tx                pgx.Tx
 }

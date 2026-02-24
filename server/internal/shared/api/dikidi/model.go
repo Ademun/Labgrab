@@ -19,6 +19,6 @@ type AuthRequest struct {
 
 type ClientCookies struct {
 	CookieName *string
-	SessionID  *string
-	Other      map[string]string
+	Token      *string
+	All        string
 }

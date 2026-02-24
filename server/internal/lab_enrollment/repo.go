@@ -5,6 +5,7 @@ import (
 	repo_errors "labgrab/internal/shared/errors"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -19,9 +20,9 @@ func NewRepo(pool *pgxpool.Pool) *Repo {
 }
 
 func (r *Repo) CreateUserData(ctx context.Context, data *DBUserData, tx pgx.Tx) error {
-	query, args, err := r.sq.Insert("lab_enrollment.user_data").
-		Columns("uuid", "dikidi_password", "password_dek").
-		Values(data.UUID, data.DikidiPassword, data.PasswordDEK).
+	query, args, err := r.sq.Insert("lab_enrollment_service.user_data").
+		Columns("user_uuid", "dikidi_phone_number", "dikidi_password", "password_dek").
+		Values(data.UserUUID, data.DikidiPhoneNumber, data.DikidiPassword, data.PasswordDEK).
 		ToSql()
 	if err != nil {
 		return &repo_errors.ErrDBProcedure{
@@ -35,6 +36,67 @@ func (r *Repo) CreateUserData(ctx context.Context, data *DBUserData, tx pgx.Tx) 
 	if err != nil {
 		return &repo_errors.ErrDBProcedure{
 			Procedure: "CreateUser",
+			Step:      "Query execution",
+			Err:       err,
+		}
+	}
+
+	return err
+}
+
+func (r *Repo) GetUserData(ctx context.Context, userUUID uuid.UUID) (*DBUserData, error) {
+	query, args, err := r.sq.Select("user_uuid", "dikidi_phone_number", "dikidi_password", "password_dek", "session", "noise_cookies").
+		From("lab_enrollment_service.user_data").
+		Where(squirrel.Eq{"user_uuid": userUUID}).
+		ToSql()
+	if err != nil {
+		return nil, &repo_errors.ErrDBProcedure{
+			Procedure: "GetUserData",
+			Step:      "Query setup",
+			Err:       err,
+		}
+	}
+
+	_, err = r.pool.Exec(ctx, query, args...)
+	if err != nil {
+		return nil, &repo_errors.ErrDBProcedure{
+			Procedure: "GetUserData",
+			Step:      "Query execution",
+			Err:       err,
+		}
+	}
+
+	var data DBUserData
+	err = r.pool.QueryRow(ctx, query, args...).Scan(&data.UserUUID, &data.DikidiPhoneNumber, &data.DikidiPassword, &data.PasswordDEK, &data.Session, &data.NoiseCookies)
+	if err != nil {
+		return nil, &repo_errors.ErrDBProcedure{
+			Procedure: "GetUserData",
+			Step:      "Row scanning",
+			Err:       err,
+		}
+	}
+
+	return &data, nil
+}
+
+func (r *Repo) SetUserCookies(ctx context.Context, userUUID uuid.UUID, cookies *DBUserCookies) error {
+	query, args, err := r.sq.Update("lab_enrollment_service.user_data").
+		Set("session", cookies.Session).
+		Set("noise_cookies", cookies.NoiseCookies).
+		Where(squirrel.Eq{"user_uuid": userUUID}).
+		ToSql()
+	if err != nil {
+		return &repo_errors.ErrDBProcedure{
+			Procedure: "SetUserCookies",
+			Step:      "Query setup",
+			Err:       err,
+		}
+	}
+
+	_, err = r.pool.Exec(ctx, query, args...)
+	if err != nil {
+		return &repo_errors.ErrDBProcedure{
+			Procedure: "SetUserCookies",
 			Step:      "Query execution",
 			Err:       err,
 		}
