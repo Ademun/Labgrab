@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"labgrab/pkg/config"
+	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 )
 
@@ -137,4 +139,20 @@ func (c *Client) FetchSlotSource(ctx context.Context, slotSourceID int, date *st
 		return nil, err
 	}
 	return &data, nil
+}
+
+func parseCookieString(raw string) []*http.Cookie {
+	var cookies []*http.Cookie
+	for _, part := range strings.Split(raw, ";") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		name, value, _ := strings.Cut(part, "=")
+		cookies = append(cookies, &http.Cookie{
+			Name:  strings.TrimSpace(name),
+			Value: strings.TrimSpace(value),
+		})
+	}
+	return cookies
 }

@@ -22,3 +22,17 @@ type ClientCookies struct {
 	Token      *string
 	All        string
 }
+
+type SlotReservationRequest struct {
+	MasterID   int
+	ServicesID int
+	Time       string
+	Session    string
+	Cookies    string
+}
+
+type SlotReservationResponse struct {
+	RecordID       int
+	MasterID       string
+	DurationString string
+}

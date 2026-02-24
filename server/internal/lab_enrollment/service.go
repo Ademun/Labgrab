@@ -278,6 +278,64 @@ func (s *Service) AuthUser(ctx context.Context, userUUID uuid.UUID) error {
 	return nil
 }
 
+func (s *Service) Enroll(ctx context.Context, req *EnrollReq) error {
+	ctx, span := tracer.Start(ctx, "lab_enrollment_service.Enroll")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("user.uuid", req.UserUUID.String()),
+	)
+
+	eData, err := s.repo.GetUserData(ctx, req.UserUUID)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "AuthUser",
+			Step:      "GetUserData",
+			Err:       err,
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to get user data")
+		return err
+	}
+
+	data, err := s.DecryptUserData(eData)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "AuthUser",
+			Step:      "DecryptUserData",
+			Err:       err,
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to decrypt user data")
+	}
+	timeStr := req.Time.Format("2006-01-02 15:04:05")
+	reservationReq := &dikidi.SlotReservationRequest{
+		MasterID:   req.MasterID,
+		ServicesID: req.ServiceID,
+		Time:       timeStr,
+		Session:    *data.Session,
+		Cookies:    *data.Cookies,
+	}
+
+	client := s.CreateRandomHTTPClient()
+
+	reservation, err := s.client.AcquireTimeReservation(ctx, client, reservationReq)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{
+			Procedure: "AuthUser",
+			Step:      "AcquireTimeReservation",
+			Err:       err,
+		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to acquire time reservation")
+		return err
+	}
+
+	fmt.Println(reservation.RecordID, reservation.MasterID, reservation.DurationString)
+
+	return nil
+}
+
 func (s *Service) DecryptUserData(data *DBUserData) (*DecryptedUserData, error) {
 	rawDEK, err := s.decryptDEK(data.DEK, data.UserUUID)
 	if err != nil {

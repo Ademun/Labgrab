@@ -1,6 +1,8 @@
 package lab_enrollment
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
@@ -35,4 +37,11 @@ type CreateUserDataReq struct {
 	DikidiPhoneNumber string
 	DikidiPassword    string
 	Tx                pgx.Tx
+}
+
+type EnrollReq struct {
+	UserUUID  uuid.UUID
+	MasterID  int
+	ServiceID int
+	Time      time.Time
 }

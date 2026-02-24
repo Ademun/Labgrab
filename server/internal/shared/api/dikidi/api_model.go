@@ -74,3 +74,9 @@ func (t *APITimes) UnmarshalJSON(b []byte) error {
 type AuthResponse struct {
 	HTML string `json:"html"`
 }
+
+type TimeReservationResponse struct {
+	RecordID       int    `json:"record_id"`
+	MasterID       string `json:"master_id"`
+	DurationString string `json:"duration_string"`
+}
