@@ -55,3 +55,15 @@ type ReservationInfoRequest struct {
 	Time       string // YYYYMMDDHHmm
 	Session    string
 }
+
+type CreateRecordRequest struct {
+	MasterID   int
+	ServicesID int
+	Time       string // YYYYMMDDHHmm
+	RecordID   int
+	Session    string
+	Phone      string
+	FirstName  string
+	LastName   string
+	Comments   string
+}

@@ -351,6 +351,28 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollReq) error {
 		return err
 	}
 
+	mask.Jitter(1000, 2000)
+
+	// Step 4 — создаём запись
+	if _, err = s.client.CreateRecord(ctx, client, &dikidi.CreateRecordRequest{
+		MasterID:   req.MasterID,
+		ServicesID: req.ServiceID,
+		Time:       refererTime,
+		RecordID:   reservation.RecordID,
+		Session:    *data.Session,
+		Phone:      sanitizePhoneNumber(data.DikidiPhoneNumber),
+		FirstName:  fmt.Sprintf("%s %s", req.Name, req.Patronymic),
+		LastName:   req.Surname,
+		Comments:   req.Group,
+	}); err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "CreateRecord", Err: err}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to create record")
+		return err
+	}
+
+	fmt.Println("Succesfully enrolled")
+
 	return nil
 }
 

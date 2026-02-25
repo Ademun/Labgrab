@@ -93,3 +93,12 @@ type ReservationInfoError struct {
 	Code    int     `json:"code"`
 	Message *string `json:"message"`
 }
+
+type CreateRecordResponse struct {
+	Bookings []BookingRecord `json:"bookings"`
+}
+
+type BookingRecord struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+}
