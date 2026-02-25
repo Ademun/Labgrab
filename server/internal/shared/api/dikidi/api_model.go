@@ -80,3 +80,16 @@ type TimeReservationResponse struct {
 	MasterID       string `json:"master_id"`
 	DurationString string `json:"duration_string"`
 }
+
+type EnrollmentCheckResponse struct {
+	Error int `json:"error"`
+}
+
+type ReservationInfoResponse struct {
+	Error ReservationInfoError `json:"error"`
+}
+
+type ReservationInfoError struct {
+	Code    int     `json:"code"`
+	Message *string `json:"message"`
+}
