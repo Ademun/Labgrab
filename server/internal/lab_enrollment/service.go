@@ -302,10 +302,11 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollReq) error {
 		return err
 	}
 
+	timeStr := req.Time.Format("2006-01-02 15:04:05")
 	reservation, err := s.client.AcquireTimeReservation(ctx, client, &dikidi.SlotReservationRequest{
 		MasterID:   req.MasterID,
 		ServicesID: req.ServiceID,
-		Time:       req.Time.Format("2006-01-02 15:04:05"),
+		Time:       timeStr,
 		Session:    *data.Session,
 	})
 	if err != nil {
@@ -315,7 +316,40 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollReq) error {
 		return err
 	}
 
-	fmt.Println(reservation.RecordID, reservation.MasterID, reservation.DurationString)
+	refererTime := req.Time.Format("200601021504")
+
+	mask.Jitter(1000, 2000)
+	if err = s.client.CheckEnrollment(ctx, client, &dikidi.EnrollmentCheckRequest{
+		MasterID:   req.MasterID,
+		ServicesID: req.ServiceID,
+		Time:       refererTime,
+		RecordID:   reservation.RecordID,
+		Session:    *data.Session,
+		Phone:      sanitizePhoneNumber(data.DikidiPhoneNumber),
+		FirstName:  fmt.Sprintf("%s %s", req.Name, req.Patronymic),
+		LastName:   req.Surname,
+		Comments:   req.Group,
+	}); err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "CheckEnrollment", Err: err}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to check enrollment")
+		return err
+	}
+
+	mask.Jitter(500, 1500)
+
+	if err = s.client.GetReservationInfo(ctx, client, &dikidi.ReservationInfoRequest{
+		RecordID:   reservation.RecordID,
+		MasterID:   req.MasterID,
+		ServicesID: req.ServiceID,
+		Time:       refererTime,
+		Session:    *data.Session,
+	}); err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "GetReservationInfo", Err: err}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to get reservation info")
+		return err
+	}
 
 	return nil
 }
