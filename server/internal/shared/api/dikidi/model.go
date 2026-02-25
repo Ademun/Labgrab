@@ -35,3 +35,23 @@ type SlotReservationResponse struct {
 	MasterID       string
 	DurationString string
 }
+
+type EnrollmentCheckRequest struct {
+	MasterID   int
+	ServicesID int
+	Time       string // YYYYMMDDHHmm
+	RecordID   int
+	Session    string
+	Phone      string
+	FirstName  string
+	LastName   string
+	Comments   string
+}
+
+type ReservationInfoRequest struct {
+	RecordID   int
+	MasterID   int
+	ServicesID int
+	Time       string // YYYYMMDDHHmm
+	Session    string
+}
