@@ -1,18 +1,17 @@
 package dikidi
 
 import (
-	"compress/gzip"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"labgrab/internal/shared/errors"
 
 	"github.com/imroc/req/v3"
 )
 
 func (c *Client) GetRecords(ctx context.Context, client *req.Client, req *GetRecordsRequest) (*GetRecordsResult, error) {
-	resp := client.Get("https://dikidi.net/ru/mobile/ajax/newrecord/get_records/").
+	var apiResp GetRecordsResponse
+	resp, err := client.R().
+		SetContext(ctx).
 		SetQueryParams(map[string]string{
 			"company":    "550001",
 			"session":    req.Session,
@@ -26,51 +25,16 @@ func (c *Client) GetRecords(ctx context.Context, client *req.Client, req *GetRec
 			"X-Requested-With": "XMLHttpRequest",
 			"Referer":          "https://dikidi.net/550001?p=0.pi-ssm",
 		}).
-		Do(ctx)
-	if resp.Err != nil {
-		return nil, &errors.ExternalAPIError{
-			Procedure: "GetRecords",
-			Step:      "Request",
-			Err:       resp.Err,
-		}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return nil, &errors.ExternalAPIError{
-			Procedure: "GetRecords",
-			Step:      "Request",
-			Err:       fmt.Errorf("bad status code: %d", resp.StatusCode),
-		}
-	}
-
-	reader, err := gzip.NewReader(resp.Body)
+		SetSuccessResult(&apiResp).
+		Get("https://dikidi.net/ru/mobile/ajax/newrecord/get_records/")
 	if err != nil {
 		return nil, &errors.ExternalAPIError{
 			Procedure: "GetRecords",
-			Step:      "Read from body",
+			Step:      "Request",
 			Err:       err,
 		}
 	}
-
-	body, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, &errors.ExternalAPIError{
-			Procedure: "GetRecords",
-			Step:      "Read from body",
-			Err:       err,
-		}
-	}
-	fmt.Printf("[GetRecords] response body: %s\n", body)
-
-	var apiResp GetRecordsResponse
-	if err := json.Unmarshal(body, &apiResp); err != nil {
-		return nil, &errors.ExternalAPIError{
-			Procedure: "GetRecords",
-			Step:      "Parse from body",
-			Err:       err,
-		}
-	}
+	fmt.Printf("[GetRecords] response body: %s\n", resp.String())
 
 	if apiResp.Error.Code != 0 {
 		msg := "<nil>"

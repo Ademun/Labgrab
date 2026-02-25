@@ -561,7 +561,7 @@ func (s *Service) DecryptDEK(encDEK string, userUUID uuid.UUID) ([]byte, error) 
 }
 
 func (s *Service) CreateRandomHTTPClient() *req.Client {
-	client := req.NewClient().
+	client := req.C().
 		ImpersonateChrome().
 		EnableAutoDecode().
 		SetCommonHeaders(map[string]string{
@@ -573,6 +573,12 @@ func (s *Service) CreateRandomHTTPClient() *req.Client {
 			"Sec-Ch-Ua-Mobile":          "?1",
 			"Sec-Ch-Ua-Platform":        `"Android"`,
 			"Upgrade-Insecure-Requests": "1",
+		}).
+		OnAfterResponse(func(_ *req.Client, resp *req.Response) error {
+			if resp.IsErrorState() {
+				return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+			}
+			return nil
 		})
 
 	return client

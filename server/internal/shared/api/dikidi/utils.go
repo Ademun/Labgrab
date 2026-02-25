@@ -10,19 +10,20 @@ import (
 )
 
 func (c *Client) RenewCookies(ctx context.Context, client *req.Client) error {
-	resp := client.Get("https://dikidi.net/550001?p=0.pi-ssm").
+	_, err := client.R().
+		SetContext(ctx).
 		SetHeaders(map[string]string{
 			"Sec-Fetch-Dest": "document",
 			"Sec-Fetch-Mode": "navigate",
 			"Sec-Fetch-Site": "none",
 			"Sec-Fetch-User": "?1",
 		}).
-		Do(ctx)
-	if resp.Err != nil {
+		Get("https://dikidi.net/550001?p=0.pi-ssm")
+	if err != nil {
 		return &errors.ExternalAPIError{
-			Procedure: "AcquireTelegramCSRFToken",
+			Procedure: "RenewCookies",
 			Step:      "Fetch main page",
-			Err:       resp.Err,
+			Err:       err,
 		}
 	}
 	return nil
@@ -31,6 +32,7 @@ func (c *Client) RenewCookies(ctx context.Context, client *req.Client) error {
 func (c *Client) AcquireClientCookies(client *req.Client) (*ClientCookies, error) {
 	var cookies ClientCookies
 	all := make(map[string]string)
+
 	rootCookies, err := client.GetCookies("https://dikidi.net")
 	if err != nil {
 		return nil, &errors.ExternalAPIError{
@@ -69,7 +71,7 @@ func (c *Client) AcquireClientCookies(client *req.Client) (*ClientCookies, error
 		}
 	}
 
-	allList := make([]string, 0)
+	allList := make([]string, 0, len(all))
 	for name, value := range all {
 		allList = append(allList, fmt.Sprintf("%s=%s", name, value))
 	}

@@ -1,18 +1,17 @@
 package dikidi
 
 import (
-	"compress/gzip"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"labgrab/internal/shared/errors"
 
 	"github.com/imroc/req/v3"
 )
 
 func (c *Client) RemoveRecord(ctx context.Context, client *req.Client, req *RemoveRecordRequest) error {
-	resp := client.Get("https://dikidi.net/ru/mobile/newrecord/remove_record/").
+	var removeResp RemoveRecordResponse
+	resp, err := client.R().
+		SetContext(ctx).
 		SetQueryParams(map[string]string{
 			"id":         req.RecordID,
 			"session":    req.Session,
@@ -25,51 +24,16 @@ func (c *Client) RemoveRecord(ctx context.Context, client *req.Client, req *Remo
 			"X-Requested-With": "XMLHttpRequest",
 			"Referer":          "https://dikidi.net/550001?p=1.pi-ur",
 		}).
-		Do(ctx)
-	if resp.Err != nil {
-		return &errors.ExternalAPIError{
-			Procedure: "RemoveRecord",
-			Step:      "Request",
-			Err:       resp.Err,
-		}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return &errors.ExternalAPIError{
-			Procedure: "RemoveRecord",
-			Step:      "Request",
-			Err:       fmt.Errorf("bad status code: %d", resp.StatusCode),
-		}
-	}
-
-	reader, err := gzip.NewReader(resp.Body)
+		SetSuccessResult(&removeResp).
+		Get("https://dikidi.net/ru/mobile/newrecord/remove_record/")
 	if err != nil {
 		return &errors.ExternalAPIError{
 			Procedure: "RemoveRecord",
-			Step:      "Read from body",
+			Step:      "Request",
 			Err:       err,
 		}
 	}
-
-	body, err := io.ReadAll(reader)
-	if err != nil {
-		return &errors.ExternalAPIError{
-			Procedure: "RemoveRecord",
-			Step:      "Read from body",
-			Err:       err,
-		}
-	}
-	fmt.Printf("[RemoveRecord] response body: %s\n", body)
-
-	var removeResp RemoveRecordResponse
-	if err := json.Unmarshal(body, &removeResp); err != nil {
-		return &errors.ExternalAPIError{
-			Procedure: "RemoveRecord",
-			Step:      "Parse from body",
-			Err:       err,
-		}
-	}
+	fmt.Printf("[RemoveRecord] response body: %s\n", resp.String())
 
 	if removeResp.Error != 0 {
 		return &errors.ExternalAPIError{
