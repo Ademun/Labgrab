@@ -67,3 +67,26 @@ type CreateRecordRequest struct {
 	LastName   string
 	Comments   string
 }
+
+type GetRecordsRequest struct {
+	Session string
+}
+
+type Record struct {
+	ID          string
+	Time        string
+	TimeTo      string
+	Duration    string
+	ServiceName string
+	MasterName  string
+}
+
+type GetRecordsResult struct {
+	New []Record
+	Old []Record
+}
+
+type RemoveRecordRequest struct {
+	RecordID string
+	Session  string
+}

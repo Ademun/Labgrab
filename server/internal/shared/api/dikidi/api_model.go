@@ -102,3 +102,44 @@ type BookingRecord struct {
 	ID     string `json:"id"`
 	Status string `json:"status"`
 }
+
+type GetRecordsResponse struct {
+	Error GetRecordsError `json:"error"`
+	Data  GetRecordsData  `json:"data"`
+}
+
+type GetRecordsError struct {
+	Code    int     `json:"code"`
+	Message *string `json:"message"`
+}
+
+type GetRecordsData struct {
+	New GetRecordsList `json:"new"`
+	Old GetRecordsList `json:"old"`
+}
+
+type GetRecordsList struct {
+	More bool        `json:"more"`
+	List []APIRecord `json:"list"`
+}
+
+type APIRecord struct {
+	ID        string              `json:"id"`
+	Time      string              `json:"time"`
+	TimeTo    string              `json:"time_to"`
+	Duration  string              `json:"duration"`
+	Services  []APIRecordService  `json:"services"`
+	Employees []APIRecordEmployee `json:"employees"`
+}
+
+type APIRecordService struct {
+	Name string `json:"name"`
+}
+
+type APIRecordEmployee struct {
+	Username string `json:"username"`
+}
+
+type RemoveRecordResponse struct {
+	Error int `json:"error"`
+}
