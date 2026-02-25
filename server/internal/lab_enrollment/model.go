@@ -40,8 +40,12 @@ type CreateUserDataReq struct {
 }
 
 type EnrollReq struct {
-	UserUUID  uuid.UUID
-	MasterID  int
-	ServiceID int
-	Time      time.Time
+	UserUUID   uuid.UUID
+	MasterID   int
+	ServiceID  int
+	Time       time.Time
+	Name       string
+	Surname    string
+	Patronymic string
+	Group      string
 }
