@@ -39,6 +39,7 @@ func (c *Client) AcquireTelegramCSRFToken(ctx context.Context, client *req.Clien
 			Err:       err,
 		}
 	}
+
 	body, err := io.ReadAll(reader)
 	if err != nil {
 		return "", &errors.ExternalAPIError{
@@ -58,7 +59,6 @@ func (c *Client) AcquireTelegramCSRFToken(ctx context.Context, client *req.Clien
 		}
 	}
 
-	fmt.Println(matches[1])
 	return matches[1], nil
 }
 
@@ -68,8 +68,8 @@ func (c *Client) AcquireCSRFToken(ctx context.Context, client *req.Client, req C
 			"Sec-Fetch-Dest": "empty",
 			"Sec-Fetch-Mode": "cors",
 			"Sec-Fetch-Site": "same-site",
-			"Referer":        "https://dikidi.net/550001?p=0.pi-ssm-sd&s=5159581&rl=0_0",
 			"Origin":         "https://dikidi.net",
+			"Referer":        "https://dikidi.net/550001?p=0.pi-ssm",
 		}).
 		SetFormData(map[string]string{
 			"telegram_csrf": req.TelegramCSRFToken,
@@ -94,8 +94,18 @@ func (c *Client) AcquireCSRFToken(ctx context.Context, client *req.Client, req C
 		}
 	}
 
+	body, err := io.ReadAll(reader)
+	if err != nil {
+		return "", &errors.ExternalAPIError{
+			Procedure: "AcquireCSRFToken",
+			Step:      "Read form CSRF token body",
+			Err:       err,
+		}
+	}
+	fmt.Printf("[AcquireCSRFToken] response body: %s\n", body)
+
 	var authData AuthResponse
-	if err := json.NewDecoder(reader).Decode(&authData); err != nil {
+	if err := json.Unmarshal(body, &authData); err != nil {
 		return "", &errors.ExternalAPIError{
 			Procedure: "AcquireCSRFToken",
 			Step:      "Parse form HTML",
@@ -113,7 +123,6 @@ func (c *Client) AcquireCSRFToken(ctx context.Context, client *req.Client, req C
 		}
 	}
 
-	fmt.Println(matches[1])
 	return matches[1], nil
 }
 
@@ -123,8 +132,8 @@ func (c *Client) SendAuthRequest(ctx context.Context, client *req.Client, req Au
 			"Sec-Fetch-Dest": "empty",
 			"Sec-Fetch-Mode": "cors",
 			"Sec-Fetch-Site": "same-site",
-			"Referer":        "https://dikidi.net/550001?p=0.pi-ssm-sd&s=5159581&rl=0_0",
 			"Origin":         "https://dikidi.net",
+			"Referer":        "https://dikidi.net/550001?p=0.pi-ssm",
 		}).
 		SetFormData(map[string]string{
 			"telegram_csrf": req.TelegramCSRFToken,
@@ -141,6 +150,7 @@ func (c *Client) SendAuthRequest(ctx context.Context, client *req.Client, req Au
 			Err:       resp.Err,
 		}
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		return &errors.ExternalAPIError{
@@ -150,9 +160,6 @@ func (c *Client) SendAuthRequest(ctx context.Context, client *req.Client, req Au
 		}
 	}
 
-	for _, cookie := range client.Cookies {
-		fmt.Println(cookie.Name, cookie.Value)
-	}
 	return nil
 }
 

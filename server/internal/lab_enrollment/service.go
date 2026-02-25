@@ -353,7 +353,6 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollReq) error {
 
 	mask.Jitter(1000, 2000)
 
-	// Step 4 — создаём запись
 	if _, err = s.client.CreateRecord(ctx, client, &dikidi.CreateRecordRequest{
 		MasterID:   req.MasterID,
 		ServicesID: req.ServiceID,
@@ -374,6 +373,111 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollReq) error {
 	fmt.Println("Succesfully enrolled")
 
 	return nil
+}
+
+func (s *Service) GetRecords(ctx context.Context, userUUID uuid.UUID) (*GetRecordsRes, error) {
+	ctx, span := tracer.Start(ctx, "lab_enrollment_service.GetRecords")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
+
+	eData, err := s.repo.GetUserData(ctx, userUUID)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "GetRecords", Step: "GetUserData", Err: err}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to get user data")
+		return nil, err
+	}
+
+	data, err := s.DecryptUserData(eData)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "GetRecords", Step: "DecryptUserData", Err: err}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to decrypt user data")
+		return nil, err
+	}
+
+	client, err := s.CreateClientWithCookies(data.Cookies)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "GetRecords", Step: "CreateClientWithCookies", Err: err}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to create http client with cookies")
+		return nil, err
+	}
+
+	result, err := s.client.GetRecords(ctx, client, &dikidi.GetRecordsRequest{
+		Session: *data.Session,
+	})
+	if err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "GetRecords", Step: "GetRecords", Err: err}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to get records")
+		return nil, err
+	}
+
+	return &GetRecordsRes{
+		New: mapToRecordItems(result.New),
+		Old: mapToRecordItems(result.Old),
+	}, nil
+}
+
+func (s *Service) RemoveRecord(ctx context.Context, req *RemoveRecordReq) error {
+	ctx, span := tracer.Start(ctx, "lab_enrollment_service.RemoveRecord")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("user.uuid", req.UserUUID.String()),
+		attribute.String("record.id", req.RecordID),
+	)
+
+	eData, err := s.repo.GetUserData(ctx, req.UserUUID)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "RemoveRecord", Step: "GetUserData", Err: err}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to get user data")
+		return err
+	}
+
+	data, err := s.DecryptUserData(eData)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "RemoveRecord", Step: "DecryptUserData", Err: err}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to decrypt user data")
+		return err
+	}
+
+	client, err := s.CreateClientWithCookies(data.Cookies)
+	if err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "RemoveRecord", Step: "CreateClientWithCookies", Err: err}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to create http client with cookies")
+		return err
+	}
+
+	if err = s.client.RemoveRecord(ctx, client, &dikidi.RemoveRecordRequest{
+		RecordID: req.RecordID,
+		Session:  *data.Session,
+	}); err != nil {
+		err = &errors.ErrServiceProcedure{Procedure: "RemoveRecord", Step: "RemoveRecord", Err: err}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to remove record")
+		return err
+	}
+
+	return nil
+}
+
+func mapToRecordItems(records []dikidi.Record) []RecordItem {
+	items := make([]RecordItem, 0, len(records))
+	for _, r := range records {
+		items = append(items, RecordItem{
+			ID:          r.ID,
+			Time:        r.Time,
+			TimeTo:      r.TimeTo,
+			Duration:    r.Duration,
+			ServiceName: r.ServiceName,
+			MasterName:  r.MasterName,
+		})
+	}
+	return items
 }
 
 func (s *Service) DecryptUserData(data *DBUserData) (*DecryptedUserData, error) {

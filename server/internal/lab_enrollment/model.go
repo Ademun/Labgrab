@@ -49,3 +49,26 @@ type EnrollReq struct {
 	Patronymic string
 	Group      string
 }
+
+type GetRecordsReq struct {
+	UserUUID uuid.UUID
+}
+
+type GetRecordsRes struct {
+	New []RecordItem
+	Old []RecordItem
+}
+
+type RecordItem struct {
+	ID          string
+	Time        string
+	TimeTo      string
+	Duration    string
+	ServiceName string
+	MasterName  string
+}
+
+type RemoveRecordReq struct {
+	UserUUID uuid.UUID
+	RecordID string
+}
