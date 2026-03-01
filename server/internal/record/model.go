@@ -31,3 +31,32 @@ type DBSlotFilter struct {
 	UserUUID          uuid.UUID
 	MatchingTimeslots domain.Schedule
 }
+
+// CreateRecordReq holds user-facing input for creating a record.
+type CreateRecordReq struct {
+	UserUUID      uuid.UUID
+	LabType       domain.LabType
+	LabTopic      domain.LabTopic
+	LabAuditorium int
+	Lesson        int
+	RecordID      int
+	StartTime     time.Time
+	EndTime       time.Time
+}
+
+type GetRecordsRes struct {
+	RecordID      int
+	LabType       domain.LabType
+	LabTopic      domain.LabTopic
+	LabAuditorium int
+	Lesson        int
+	StartTime     time.Time
+	EndTime       time.Time
+	Status        Status
+	UserUUID      uuid.UUID
+}
+
+type FilterSlotsReq struct {
+	UserUUID          uuid.UUID
+	MatchingTimeslots domain.Schedule
+}

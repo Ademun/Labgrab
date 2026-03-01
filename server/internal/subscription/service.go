@@ -352,7 +352,6 @@ func (s *Service) GetMatchingSubscriptions(ctx context.Context, req *GetMatching
 		AvailableSlots: req.AvailableSlots,
 	}
 
-	// Get matches from repository
 	matches, err := s.repo.GetMatchingSubscriptionsBySlot(ctx, search)
 	if err != nil {
 		err = &errors.ErrServiceProcedure{
@@ -365,26 +364,13 @@ func (s *Service) GetMatchingSubscriptions(ctx context.Context, req *GetMatching
 		return nil, err
 	}
 
-	span.SetAttributes(attribute.Int("matches.before_deduplication", len(matches)))
-
-	relevantMatches, err := s.deduplicator.Deduplicate(ctx, req, matches)
-	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "GetMatchingSubscriptions",
-			Step:      "Deduplication",
-			Err:       err,
-		}
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to deduplicate matching subscriptions")
-		return nil, err
-	}
-
-	result := make([]GetMatchingSubscriptionsRes, len(relevantMatches))
-	for i, match := range relevantMatches {
+	result := make([]GetMatchingSubscriptionsRes, len(matches))
+	for i, match := range matches {
 		result[i] = GetMatchingSubscriptionsRes{
 			UserUUID:                   match.UserUUID,
 			SubscriptionUUID:           match.SubscriptionUUID,
 			AutoEnroll:                 match.AutoEnroll,
+			AnyDate:                    match.AnyDate,
 			SuccessfulSubscriptions:    match.SuccessfulSubscriptions,
 			LastSuccessfulSubscription: match.LastSuccessfulSubscription,
 			MatchingTimeslots:          match.MatchingTimeslots,
