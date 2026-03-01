@@ -11,7 +11,7 @@ create table if not exists record_service.records
     lesson         int                          not null,
     start_time     timestamptz                  not null,
     end_time       timestamptz                  not null,
-    status         record_service.record_status not null,
+    status         record_service.record_status not null default 'Open',
     user_uuid      uuid                         not null,
     constraint records_pk primary key (record_id)
 )
