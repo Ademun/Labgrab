@@ -370,7 +370,7 @@ func (r *Repo) GetTeacherPreferences(ctx context.Context, userUUID uuid.UUID) (*
 func (r *Repo) SetTeacherPreferences(ctx context.Context, userUUID uuid.UUID, preferences *DBTeacherPreferences) error {
 	query, args, err := r.sq.Insert("subscription_service.teacher_preferences").
 		Columns("user_uuid", "blacklisted_teachers").
-		Values(preferences.UserUUID, preferences.BlacklistedTeachers).
+		Values(userUUID, preferences.BlacklistedTeachers).
 		Suffix("ON CONFLICT (user_uuid) DO UPDATE SET blacklisted_teachers = EXCLUDED.blacklisted_teachers").
 		ToSql()
 	if err != nil {
@@ -416,8 +416,8 @@ func (r *Repo) GetMatchingSubscriptionsBySlot(ctx context.Context, search *DBSub
 matching_subscriptions AS (
     SELECT 
         s.subscription_uuid,
-		s.auto_enroll,
-		s.any_date,
+        s.auto_enroll,
+        s.any_date,
         s.user_uuid,
         d.successful_subscriptions,
         d.last_successful_subscription,
@@ -432,7 +432,7 @@ matching_subscriptions AS (
         SELECT 
             true as has_any,
             bool_or(
-                tp.day_of_week = ase.weekday::day_of_week 
+                tp.day_of_week = ase.weekday::day_of_week
                 AND ase.lesson = ANY(tp.lessons)
             ) as is_match
         FROM subscription_service.time_preferences tp
@@ -453,25 +453,25 @@ grouped_by_time AS (
     SELECT 
         user_uuid,
         subscription_uuid,
-		auto_enroll,
-		any_date,
+        auto_enroll,
+        any_date,
         successful_subscriptions,
         last_successful_subscription,
         time,
         jsonb_object_agg(lesson::text, teachers ORDER BY lesson) as lessons_map
     FROM matching_subscriptions
-    GROUP BY user_uuid, subscription_uuid, successful_subscriptions, last_successful_subscription, time
+    GROUP BY user_uuid, subscription_uuid, auto_enroll, any_date, successful_subscriptions, last_successful_subscription, time
 )
 SELECT 
     user_uuid,
     subscription_uuid,
-	auto_enroll,
-	any_date,
+    auto_enroll,
+    any_date,
     successful_subscriptions,
     last_successful_subscription,
     jsonb_object_agg(time, lessons_map) as matching_timeslots
 FROM grouped_by_time
-GROUP BY user_uuid, subscription_uuid, successful_subscriptions, last_successful_subscription
+GROUP BY user_uuid, subscription_uuid, auto_enroll, any_date, successful_subscriptions, last_successful_subscription
 ORDER BY auto_enroll DESC,
     successful_subscriptions ASC,
     last_successful_subscription ASC NULLS FIRST

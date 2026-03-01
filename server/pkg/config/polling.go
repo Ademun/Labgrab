@@ -12,8 +12,6 @@ type ParserConfig struct {
 
 	NamePrefix string `yaml:"name_prefix"`
 
-	Timezone string `yaml:"timezone"`
-
 	TopicMap    map[string]string `yaml:"topic_map"`
 	TypeMap     map[string]string `yaml:"type_map"`
 	DefaultType string            `yaml:"default_type"`

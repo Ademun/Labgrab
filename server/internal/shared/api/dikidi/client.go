@@ -122,7 +122,11 @@ func (c *Client) FetchSlotSource(ctx context.Context, slotSourceID int, date *st
 	q := u.Query()
 	if date != nil {
 		q.Set("date", *date)
+		q.Set("with_first", "false")
+	} else {
+		q.Set("with_first", "1")
 	}
+	q.Set("day_month", "")
 	q.Set("service_id[]", fmt.Sprintf("%d", slotSourceID))
 	u.RawQuery = q.Encode()
 

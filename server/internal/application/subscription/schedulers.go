@@ -37,7 +37,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		return err
 	}
 	_, err = scheduler.NewJob(
-		gocron.DurationRandomJob(time.Minute, time.Minute*10),
+		gocron.DurationRandomJob(time.Second*2, time.Second*10),
 		gocron.NewTask(s.ProcessNewSlots, ctx),
 	)
 	if err != nil {

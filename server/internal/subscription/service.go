@@ -5,6 +5,7 @@ import (
 	"labgrab/internal/shared/domain"
 	"labgrab/internal/shared/errors"
 	"labgrab/internal/shared/types"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
@@ -350,6 +351,10 @@ func (s *Service) GetMatchingSubscriptions(ctx context.Context, req *GetMatching
 		LabNumber:      req.LabNumber,
 		LabAuditorium:  req.LabAuditorium,
 		AvailableSlots: req.AvailableSlots,
+	}
+
+	if req.LabNumber == 4 && req.LabTopic == domain.LabTopicOptics {
+		slog.Info("req", req)
 	}
 
 	matches, err := s.repo.GetMatchingSubscriptionsBySlot(ctx, search)

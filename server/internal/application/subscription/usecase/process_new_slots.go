@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"labgrab/internal/lab_polling"
+	"labgrab/internal/record"
 	"labgrab/internal/subscription"
 	"labgrab/internal/telegram"
 	"labgrab/internal/user"
@@ -19,6 +20,7 @@ type ProcessNewSlotsUseCase struct {
 	labPollingSvc   *lab_polling.Service
 	subscriptionSvc *subscription.Service
 	userSvc         *user.Service
+	recordSvc       *record.Service
 	telegramSvc     *telegram.Service
 	logger          *zap.SugaredLogger
 }
@@ -131,51 +133,56 @@ func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_po
 
 	span.SetAttributes(attribute.Int("subscriptions.matched", len(relevantSubs)))
 
-	for i, sub := range relevantSubs {
+	for _, sub := range relevantSubs {
 		select {
 		case <-ctx.Done():
 			span.RecordError(ctx.Err())
 			span.SetStatus(codes.Error, "context cancelled")
 			return ctx.Err()
 		default:
-			notifyCtx, notifySpan := tracer.Start(ctx, "subscription_usecase.notify_user")
-			notifySpan.SetAttributes(
-				attribute.Int("notification.index", i),
-				attribute.String("user.uuid", sub.UserUUID.String()),
-				attribute.String("subscription.uuid", sub.SubscriptionUUID.String()),
-			)
-
-			userData, err := uc.userSvc.GetUser(notifyCtx, sub.UserUUID)
+			userData, err := uc.userSvc.GetUser(ctx, sub.UserUUID)
 			if err != nil {
-				notifySpan.RecordError(err)
-				notifySpan.SetStatus(codes.Error, "failed to retrieve user data")
-				notifySpan.End()
+				span.RecordError(err)
+				span.SetStatus(codes.Error, "failed to retrieve user data")
+				span.End()
 				return err
 			}
 
-			notifySpan.SetAttributes(attribute.Int64("telegram.user_id", int64(userData.TelegramID)))
+			fTimeslots, err := uc.recordSvc.FilterAvailableSlots(ctx, &record.FilterSlotsReq{
+				UserUUID:          sub.UserUUID,
+				MatchingTimeslots: sub.MatchingTimeslots,
+			})
 
-			notifyReq := telegram.NotifyUserReq{
-				UserID:        userData.TelegramID,
-				LabName:       event.Data.Name,
-				LabType:       event.Data.Type,
-				LabTopic:      event.Data.Topic,
-				LabNumber:     event.Data.Number,
-				LabAuditorium: event.Data.Auditorium,
-				Schedule:      sub.MatchingTimeslots,
-				PageURL:       "https://dikidi.net/550001?p=0.pi-ssm-sd&s=5300027&rl=0_undefined", // TODO: include
-			}
-
-			err = uc.telegramSvc.NotifyUser(notifyCtx, notifyReq)
 			if err != nil {
-				notifySpan.RecordError(err)
-				notifySpan.SetStatus(codes.Error, "failed to send telegram notification")
-				notifySpan.End()
+				span.RecordError(err)
+				span.SetStatus(codes.Error, "failed to filter available slots")
+				span.End()
 				return err
 			}
 
-			notifySpan.SetStatus(codes.Ok, "")
-			notifySpan.End()
+			sub.MatchingTimeslots = fTimeslots
+
+			if !sub.AutoEnroll {
+				span.SetAttributes(attribute.Int64("telegram.user_id", int64(userData.TelegramID)))
+
+				err = uc.telegramSvc.NotifyUser(ctx, telegram.NotifyUserReq{
+					UserID:        userData.TelegramID,
+					LabName:       event.Data.Name,
+					LabType:       event.Data.Type,
+					LabTopic:      event.Data.Topic,
+					LabNumber:     event.Data.Number,
+					LabAuditorium: event.Data.Auditorium,
+					Schedule:      sub.MatchingTimeslots,
+					PageURL:       "https://dikidi.net/550001?p=0.pi-ssm-sd&s=5300027&rl=0_undefined", // TODO: include
+				})
+				if err != nil {
+					span.RecordError(err)
+					span.SetStatus(codes.Error, "failed to send telegram notification")
+					span.End()
+					return err
+				}
+			}
+
 		}
 	}
 

@@ -18,7 +18,6 @@ polling_service:
     spot_pattern: '\((\d+)-?\p{L}*\s*место\)'
     topic_pattern: '(Оптика|Тв\.?\s*тело|Электричество|Механика|Виртуальная\s*лаб\.?)'
     name_prefix: 'Лабораторная работа'
-    timezone: 'Europe/Moscow'
     topic_map:
       'Оптика': 'Optics'
       'Тв. тело': 'Rigid Body'

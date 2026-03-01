@@ -19,8 +19,6 @@ type Parser struct {
 
 	namePrefix string
 
-	timezone *time.Location
-
 	topicMap    map[string]domain.LabTopic
 	typeMap     map[string]domain.LabType
 	defaultType domain.LabType
@@ -47,11 +45,6 @@ func NewParser(cfg *config.ParserConfig) (*Parser, error) {
 		return nil, fmt.Errorf("invalid topic_regexp pattern: %v", err)
 	}
 
-	timezone, err := time.LoadLocation(cfg.Timezone)
-	if err != nil {
-		return nil, fmt.Errorf("invalid timezone: %v", err)
-	}
-
 	topicMap := make(map[string]domain.LabTopic)
 	for k, v := range cfg.TopicMap {
 		topicMap[k] = domain.LabTopic(v)
@@ -68,7 +61,6 @@ func NewParser(cfg *config.ParserConfig) (*Parser, error) {
 		spotRegexp:       spotRegexp,
 		topicRegexp:      topicRegexp,
 		namePrefix:       cfg.NamePrefix,
-		timezone:         timezone,
 		topicMap:         topicMap,
 		typeMap:          typeMap,
 		defaultType:      domain.LabType(cfg.DefaultType),
@@ -210,7 +202,7 @@ func (p *Parser) parseType(username, serviceName string) domain.LabType {
 }
 
 func (p *Parser) parseTimeString(timeString string) (time.Time, domain.Lesson, error) {
-	datetime, err := time.ParseInLocation("2006-01-02 15:04:05", timeString, p.timezone)
+	datetime, err := time.Parse("2006-01-02 15:04:05", timeString)
 	if err != nil {
 		return time.Time{}, 0, err
 	}
