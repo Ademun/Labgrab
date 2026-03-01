@@ -2,7 +2,9 @@ package record
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"labgrab/internal/shared/domain"
 	"labgrab/internal/shared/errors"
 	"time"
 
@@ -210,4 +212,93 @@ func (r *Repo) CloseExpiredRecords(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (r *Repo) FilterAvailableSlots(ctx context.Context, filter *DBSlotFilter) (domain.Schedule, error) {
+	slotsJSON, err := convertAvailableSlotsToJSON(filter.MatchingTimeslots)
+	if err != nil {
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "FilterAvailableSlots",
+			Step:      "JSON conversion",
+			Err:       err,
+		}
+	}
+
+	query := `
+WITH input_slots AS (
+    SELECT
+        times.key  AS time,
+        lessons.key::int AS lesson,
+        lessons.value    AS teachers
+    FROM jsonb_each($2::jsonb) AS times,
+         LATERAL jsonb_each(times.value) AS lessons
+),
+user_lessons AS (
+    SELECT
+        lesson,
+        start_time::date AS lesson_date
+    FROM record_service.records
+    WHERE user_uuid = $1
+      AND status = 'Open'
+),
+filtered_slots AS (
+    SELECT
+        i.time,
+        i.lesson,
+        i.teachers
+    FROM input_slots i
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM user_lessons ul
+        WHERE ul.lesson      = i.lesson
+          AND ul.lesson_date = i.time::timestamptz::date
+    )
+),
+grouped AS (
+    SELECT
+        time,
+        jsonb_object_agg(lesson::text, teachers ORDER BY lesson) AS lessons_map
+    FROM filtered_slots
+    GROUP BY time
+)
+SELECT jsonb_object_agg(time, lessons_map) AS result
+FROM grouped
+`
+
+	var raw []byte
+	err = r.pool.QueryRow(ctx, query, filter.UserUUID, slotsJSON).Scan(&raw)
+	if err != nil {
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "FilterAvailableSlots",
+			Step:      "Query execution",
+			Err:       err,
+		}
+	}
+
+	if raw == nil {
+		return domain.Schedule{}, nil
+	}
+
+	result, err := convertJSONToMatchingTimeslots(raw)
+	if err != nil {
+		return nil, &errors.ErrDBProcedure{
+			Procedure: "FilterAvailableSlots",
+			Step:      "JSON conversion",
+			Err:       err,
+		}
+	}
+
+	return result, nil
+}
+
+func convertAvailableSlotsToJSON(slots domain.Schedule) ([]byte, error) {
+	return json.Marshal(slots)
+}
+
+func convertJSONToMatchingTimeslots(data []byte) (domain.Schedule, error) {
+	var result domain.Schedule
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }

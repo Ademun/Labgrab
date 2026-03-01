@@ -26,3 +26,8 @@ type DBRecord struct {
 	Status        Status          `db:"status"`
 	UserUUID      uuid.UUID       `db:"user_uuid"`
 }
+
+type DBSlotFilter struct {
+	UserUUID          uuid.UUID
+	MatchingTimeslots domain.Schedule
+}
