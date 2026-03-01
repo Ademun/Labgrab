@@ -148,19 +148,19 @@ func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_po
 				return err
 			}
 
-			fTimeslots, err := uc.recordSvc.FilterAvailableSlots(ctx, &record.FilterSlotsReq{
-				UserUUID:          sub.UserUUID,
-				MatchingTimeslots: sub.MatchingTimeslots,
-			})
-
-			if err != nil {
-				span.RecordError(err)
-				span.SetStatus(codes.Error, "failed to filter available slots")
-				span.End()
-				return err
-			}
-
-			sub.MatchingTimeslots = fTimeslots
+			//fTimeslots, err := uc.recordSvc.FilterAvailableSlots(ctx, &record.FilterSlotsReq{
+			//	UserUUID:          sub.UserUUID,
+			//	MatchingTimeslots: sub.MatchingTimeslots,
+			//})
+			//
+			//if err != nil {
+			//	span.RecordError(err)
+			//	span.SetStatus(codes.Error, "failed to filter available slots")
+			//	span.End()
+			//	return err
+			//}
+			//
+			//sub.MatchingTimeslots = fTimeslots
 
 			if !sub.AutoEnroll {
 				span.SetAttributes(attribute.Int64("telegram.user_id", int64(userData.TelegramID)))
