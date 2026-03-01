@@ -5,7 +5,7 @@ import (
 	"labgrab/internal/shared/domain"
 	"labgrab/internal/shared/errors"
 	"labgrab/internal/shared/types"
-	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
@@ -345,19 +345,20 @@ func (s *Service) GetMatchingSubscriptions(ctx context.Context, req *GetMatching
 		attribute.Int("available_slots.count", len(req.AvailableSlots)),
 	)
 
-	search := &DBSubscriptionSearch{
+	relevantSlots := make(domain.Schedule)
+	for date, data := range req.AvailableSlots {
+		if date.Sub(time.Now()).Hours() >= 48 {
+			relevantSlots[date] = data
+		}
+	}
+
+	matches, err := s.repo.GetMatchingSubscriptionsBySlot(ctx, &DBSubscriptionSearch{
 		LabType:        req.LabType,
 		LabTopic:       req.LabTopic,
 		LabNumber:      req.LabNumber,
 		LabAuditorium:  req.LabAuditorium,
-		AvailableSlots: req.AvailableSlots,
-	}
-
-	if req.LabNumber == 4 && req.LabTopic == domain.LabTopicOptics {
-		slog.Info("req", req)
-	}
-
-	matches, err := s.repo.GetMatchingSubscriptionsBySlot(ctx, search)
+		AvailableSlots: relevantSlots,
+	})
 	if err != nil {
 		err = &errors.ErrServiceProcedure{
 			Procedure: "GetMatchingSubscriptions",
