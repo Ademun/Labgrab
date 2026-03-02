@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"labgrab/internal/shared/errors"
-	"time"
 
 	"github.com/imroc/req/v3"
 )
@@ -48,7 +47,7 @@ func (c *Client) GetBookings(ctx context.Context, client *req.Client, req *GetBo
 		}
 	}
 
-	active, err := mapBookings(apiResp.Data.New.List)
+	active, err := c.parser.ParseRecords(apiResp.Data.New.List)
 	if err != nil {
 		return nil, &errors.ExternalAPIError{
 			Procedure: "GetRecords",
@@ -57,7 +56,7 @@ func (c *Client) GetBookings(ctx context.Context, client *req.Client, req *GetBo
 		}
 	}
 
-	closed, err := mapBookings(apiResp.Data.Old.List)
+	closed, err := c.parser.ParseRecords(apiResp.Data.Old.List)
 	if err != nil {
 		return nil, &errors.ExternalAPIError{
 			Procedure: "GetRecords",
@@ -70,22 +69,4 @@ func (c *Client) GetBookings(ctx context.Context, client *req.Client, req *GetBo
 		Active: active,
 		Closed: closed,
 	}, nil
-}
-
-func mapBookings(list []APIRecord) ([]Booking, error) {
-	bookings := make([]Booking, 0, len(list))
-	for _, r := range list {
-		startTime, err := time.Parse(r.Time, "2006-01-02 15:04:05")
-		if err != nil {
-			return nil, err
-		}
-		endTime, err := time.Parse(r.Time, "2006-01-02 15:04:05")
-		rec := Booking{
-			ID:    r.ID,
-			Start: startTime,
-			End:   endTime,
-		}
-		bookings = append(bookings, rec)
-	}
-	return bookings, nil
 }

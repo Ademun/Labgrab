@@ -10,7 +10,7 @@ import (
 )
 
 type Client struct {
-	httpClient    *AdaptiveHTTPClient
+	parser        *Parser
 	slotSourceIDs []int
 	cfg           *config.DikidiClientConfig
 }

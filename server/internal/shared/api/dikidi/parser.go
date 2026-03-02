@@ -76,7 +76,7 @@ func (p *Parser) ParseServiceData(data *APIServiceData) ([]Event, error) {
 	}
 
 	for id, master := range masters {
-		event, err := p.ParseEventInfo(master.Username, master.ServiceName)
+		event, err := p.parseEventInfo(master.Username, master.ServiceName)
 		if err != nil {
 			pErrors = append(pErrors, err)
 			continue
@@ -85,7 +85,7 @@ func (p *Parser) ParseServiceData(data *APIServiceData) ([]Event, error) {
 		schedule := make(domain.Schedule, 0)
 		times := data.Times
 		for _, timeStr := range times[id] {
-			datetime, lesson, err := p.ParseTimeString(timeStr)
+			datetime, lesson, err := p.parseTimeString(timeStr)
 			if err != nil {
 				pErrors = append(pErrors, err)
 				continue
@@ -117,7 +117,7 @@ func (p *Parser) ParseRecords(data []APIRecord) ([]Booking, error) {
 		}
 		serviceName := record.Services[0].Name
 		username := record.Employees[0].Username
-		eventInfo, err := p.ParseEventInfo(username, serviceName)
+		eventInfo, err := p.parseEventInfo(username, serviceName)
 		if err != nil {
 			pErrors = append(pErrors, err)
 			continue
@@ -160,25 +160,25 @@ func (p *Parser) ParseRecords(data []APIRecord) ([]Booking, error) {
 	return bookings, nil
 }
 
-func (p *Parser) ParseEventInfo(username, serviceName string) (*Event, error) {
-	number, err := p.ParseEventNumber(username, serviceName)
+func (p *Parser) parseEventInfo(username, serviceName string) (*Event, error) {
+	number, err := p.parseEventNumber(username, serviceName)
 	if err != nil {
 		return nil, err
 	}
-	auditorium, err := p.ParseEventAuditorium(username, serviceName)
+	auditorium, err := p.parseEventAuditorium(username, serviceName)
 	if err != nil {
 		return nil, err
 	}
-	spot, err := p.ParseEventSpot(username, serviceName)
+	spot, err := p.parseEventSpot(username, serviceName)
 	if err != nil {
 		return nil, err
 	}
-	topic, err := p.ParseEventTopic(username, serviceName)
+	topic, err := p.parseEventTopic(username, serviceName)
 	if err != nil {
 		return nil, err
 	}
-	labType := p.ParseEventType(username, serviceName)
-	name := p.ParseEventName(username)
+	labType := p.parseEventType(username, serviceName)
+	name := p.parseEventName(username)
 
 	return &Event{
 		Name:       name,
@@ -190,7 +190,7 @@ func (p *Parser) ParseEventInfo(username, serviceName string) (*Event, error) {
 	}, nil
 }
 
-func (p *Parser) ParseEventName(username string) string {
+func (p *Parser) parseEventName(username string) string {
 	name := p.numberRegexp.ReplaceAllString(username, "")
 	name = p.auditoriumRegexp.ReplaceAllString(name, "")
 	name = p.spotRegexp.ReplaceAllString(name, "")
@@ -200,7 +200,7 @@ func (p *Parser) ParseEventName(username string) string {
 	return name
 }
 
-func (p *Parser) ParseEventNumber(username, serviceName string) (int, error) {
+func (p *Parser) parseEventNumber(username, serviceName string) (int, error) {
 	if match := p.numberRegexp.FindStringSubmatch(username); match != nil {
 		return strconv.Atoi(match[1])
 	}
@@ -210,7 +210,7 @@ func (p *Parser) ParseEventNumber(username, serviceName string) (int, error) {
 	return 0, fmt.Errorf("lab number not found")
 }
 
-func (p *Parser) ParseEventAuditorium(username, serviceName string) (int, error) {
+func (p *Parser) parseEventAuditorium(username, serviceName string) (int, error) {
 	if match := p.auditoriumRegexp.FindStringSubmatch(username); match != nil {
 		return strconv.Atoi(match[1])
 	}
@@ -220,7 +220,7 @@ func (p *Parser) ParseEventAuditorium(username, serviceName string) (int, error)
 	return 0, fmt.Errorf("lab auditorium not found")
 }
 
-func (p *Parser) ParseEventSpot(username, serviceName string) (*int, error) {
+func (p *Parser) parseEventSpot(username, serviceName string) (*int, error) {
 	if match := p.spotRegexp.FindStringSubmatch(username); match != nil {
 		spot, err := strconv.Atoi(match[1])
 		return &spot, err
@@ -232,7 +232,7 @@ func (p *Parser) ParseEventSpot(username, serviceName string) (*int, error) {
 	return nil, nil
 }
 
-func (p *Parser) ParseEventType(username, serviceName string) domain.LabType {
+func (p *Parser) parseEventType(username, serviceName string) domain.LabType {
 	for keyword := range p.typeMap {
 		if strings.Contains(username, keyword) || strings.Contains(serviceName, keyword) {
 			return p.typeMap[keyword]
@@ -241,7 +241,7 @@ func (p *Parser) ParseEventType(username, serviceName string) domain.LabType {
 	return p.defaultType
 }
 
-func (p *Parser) ParseEventTopic(username, serviceName string) (domain.LabTopic, error) {
+func (p *Parser) parseEventTopic(username, serviceName string) (domain.LabTopic, error) {
 	if match := p.topicRegexp.FindStringSubmatch(username); match != nil {
 		if topic, ok := p.topicMap[match[1]]; ok {
 			return topic, nil
@@ -255,7 +255,7 @@ func (p *Parser) ParseEventTopic(username, serviceName string) (domain.LabTopic,
 	return "", fmt.Errorf("topic not found")
 }
 
-func (p *Parser) ParseTimeString(timeString string) (time.Time, domain.Lesson, error) {
+func (p *Parser) parseTimeString(timeString string) (time.Time, domain.Lesson, error) {
 	datetime, err := time.Parse("2006-01-02 15:04:05", timeString)
 	if err != nil {
 		return time.Time{}, 0, err
