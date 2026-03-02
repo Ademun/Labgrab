@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"labgrab/internal/shared/errors"
+	"strconv"
 
 	"github.com/imroc/req/v3"
 )
@@ -148,13 +149,13 @@ func (c *Client) GetReservationInfo(ctx context.Context, client *req.Client, req
 	return nil
 }
 
-func (c *Client) CreateRecord(ctx context.Context, client *req.Client, req *CreateRecordRequest) (*CreateRecordResponse, error) {
+func (c *Client) CreateRecord(ctx context.Context, client *req.Client, req *CreateRecordRequest) (int, error) {
 	referer := fmt.Sprintf(
 		"https://dikidi.net/550001?p=3.pi-ssm-sd-cf&o=7&m=%d&s=%d&d=%s&r=%d&rl=0_%d&sdr=",
 		req.MasterID, req.ServicesID, req.Time, req.RecordID, req.RecordID,
 	)
 
-	var createResp CreateRecordResponse
+	var createResp APICreateRecordResponse
 	resp, err := client.R().
 		SetContext(ctx).
 		SetQueryParams(map[string]string{
@@ -191,7 +192,7 @@ func (c *Client) CreateRecord(ctx context.Context, client *req.Client, req *Crea
 		SetSuccessResult(&createResp).
 		Post("https://dikidi.net/ru/ajax/newrecord/record/")
 	if err != nil {
-		return nil, &errors.ExternalAPIError{
+		return 0, &errors.ExternalAPIError{
 			Procedure: "CreateRecord",
 			Step:      "Request",
 			Err:       err,
@@ -200,7 +201,7 @@ func (c *Client) CreateRecord(ctx context.Context, client *req.Client, req *Crea
 	fmt.Printf("[CreateRecord] response body: %s\n", resp.String())
 
 	if len(createResp.Bookings) == 0 {
-		return nil, &errors.ExternalAPIError{
+		return 0, &errors.ExternalAPIError{
 			Procedure: "CreateRecord",
 			Step:      "Check bookings",
 			Err:       fmt.Errorf("empty bookings in response"),
@@ -208,12 +209,21 @@ func (c *Client) CreateRecord(ctx context.Context, client *req.Client, req *Crea
 	}
 
 	if createResp.Bookings[0].Status != "1" {
-		return nil, &errors.ExternalAPIError{
+		return 0, &errors.ExternalAPIError{
 			Procedure: "CreateRecord",
 			Step:      "Check status",
 			Err:       fmt.Errorf("unexpected booking status: %s", createResp.Bookings[0].Status),
 		}
 	}
 
-	return &createResp, nil
+	id, err := strconv.Atoi(createResp.Bookings[0].ID)
+	if err != nil {
+		return 0, &errors.ExternalAPIError{
+			Procedure: "CreateRecord",
+			Step:      "Convert id",
+			Err:       err,
+		}
+	}
+
+	return id, nil
 }

@@ -94,7 +94,7 @@ type ReservationInfoError struct {
 	Message *string `json:"message"`
 }
 
-type CreateRecordResponse struct {
+type APICreateRecordResponse struct {
 	Bookings []BookingRecord `json:"bookings"`
 }
 
