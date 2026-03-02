@@ -53,7 +53,11 @@ func createNotificationMessage(req NotifyUserReq) string {
 	var sb strings.Builder
 	sb.WriteString(bold("🔥 Появилась запись!"))
 	sb.WriteString(breakLine(2))
-	sb.WriteString(bold(fmt.Sprintf("📚 Работа №%d. %s. %s", req.LabNumber, req.LabType.RU(), req.LabName)))
+	var spotString string
+	if req.Spot != nil {
+		spotString = fmt.Sprintf("(%d-е место)", *req.Spot)
+	}
+	sb.WriteString(bold(fmt.Sprintf("📚 Работа №%d. %s. %s %s", req.LabNumber, req.LabType.RU(), req.LabName, spotString)))
 	sb.WriteString(breakLine(2))
 	sb.WriteString(bold(fmt.Sprintf("%s %s", req.LabTopic.Icon(), req.LabTopic.RU())))
 	sb.WriteString(breakLine(2))

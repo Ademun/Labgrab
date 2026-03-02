@@ -12,6 +12,7 @@ type NotifyUserReq struct {
 	LabTopic      domain.LabTopic
 	LabNumber     int
 	LabAuditorium int
+	Spot          *int
 	Schedule      domain.Schedule
 	PageURL       string
 }

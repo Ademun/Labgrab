@@ -251,7 +251,7 @@ filtered_slots AS (
         SELECT 1
         FROM user_lessons ul
         WHERE ul.lesson      = i.lesson
-          AND ul.lesson_date = i.time::timestamptz::date
+          AND (ul.lesson_date = i.time::timestamp::date OR ABS(ul.lesson_date - i.time::timestamp::date) >= 2
     )
 ),
 grouped AS (

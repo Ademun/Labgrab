@@ -10,6 +10,7 @@ import (
 	"labgrab/internal/auth"
 	"labgrab/internal/lab_enrollment"
 	"labgrab/internal/lab_polling"
+	"labgrab/internal/record"
 	"labgrab/internal/shared/api/dikidi"
 	"labgrab/internal/shared/routing"
 	"labgrab/internal/subscription"
@@ -192,8 +193,11 @@ func initServices(
 	}
 	log.Info("Finished setting up enrollment service")
 
+	recordRepo := record.NewRepo(pool)
+	recordSvc := record.NewService(recordRepo, log)
+
 	log.Info("Setting up schedulers")
-	subscriptionScheduler := api_subscription.NewScheduler(dikidiClient, labPollingService, subscriptionService, userService, telegramService, log)
+	subscriptionScheduler := api_subscription.NewScheduler(dikidiClient, labPollingService, subscriptionService, userService, recordSvc, telegramService, log)
 	if err := subscriptionScheduler.Start(ctx); err != nil {
 		return nil, fmt.Errorf("starting subscription scheduler: %w", err)
 	}

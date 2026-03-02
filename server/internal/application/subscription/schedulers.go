@@ -4,6 +4,7 @@ import (
 	"context"
 	"labgrab/internal/application/subscription/usecase"
 	"labgrab/internal/lab_polling"
+	"labgrab/internal/record"
 	"labgrab/internal/shared/api/dikidi"
 	"labgrab/internal/subscription"
 	"labgrab/internal/telegram"
@@ -22,11 +23,11 @@ type Scheduler struct {
 	processNewSlots *usecase.ProcessNewSlotsUseCase
 }
 
-func NewScheduler(dikidiClient *dikidi.Client, pollingSvc *lab_polling.Service, subscriptionSvc *subscription.Service, userSvc *user.Service, telegramSvc *telegram.Service, logger *zap.SugaredLogger) *Scheduler {
+func NewScheduler(dikidiClient *dikidi.Client, pollingSvc *lab_polling.Service, subscriptionSvc *subscription.Service, userSvc *user.Service, recordSvc *record.Service, telegramSvc *telegram.Service, logger *zap.SugaredLogger) *Scheduler {
 	return &Scheduler{
 		dikidiClient:    dikidiClient,
 		logger:          logger,
-		processNewSlots: usecase.NewProcessNewSlotsUseCase(pollingSvc, subscriptionSvc, userSvc, telegramSvc, logger),
+		processNewSlots: usecase.NewProcessNewSlotsUseCase(pollingSvc, subscriptionSvc, userSvc, recordSvc, telegramSvc, logger),
 	}
 }
 
@@ -37,7 +38,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		return err
 	}
 	_, err = scheduler.NewJob(
-		gocron.DurationRandomJob(time.Second*2, time.Second*10),
+		gocron.DurationRandomJob(time.Second*5, time.Second*20),
 		gocron.NewTask(s.ProcessNewSlots, ctx),
 	)
 	if err != nil {

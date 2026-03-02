@@ -8,6 +8,7 @@ import (
 	"labgrab/internal/subscription"
 	"labgrab/internal/telegram"
 	"labgrab/internal/user"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 
@@ -25,11 +26,12 @@ type ProcessNewSlotsUseCase struct {
 	logger          *zap.SugaredLogger
 }
 
-func NewProcessNewSlotsUseCase(labPollingSvc *lab_polling.Service, subscriptionSvc *subscription.Service, userSvc *user.Service, telegramSvc *telegram.Service, logger *zap.SugaredLogger) *ProcessNewSlotsUseCase {
+func NewProcessNewSlotsUseCase(labPollingSvc *lab_polling.Service, subscriptionSvc *subscription.Service, userSvc *user.Service, recordSvc *record.Service, telegramSvc *telegram.Service, logger *zap.SugaredLogger) *ProcessNewSlotsUseCase {
 	return &ProcessNewSlotsUseCase{
 		labPollingSvc:   labPollingSvc,
 		subscriptionSvc: subscriptionSvc,
 		userSvc:         userSvc,
+		recordSvc:       recordSvc,
 		telegramSvc:     telegramSvc,
 		logger:          logger,
 	}
@@ -148,19 +150,21 @@ func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_po
 				return err
 			}
 
-			//fTimeslots, err := uc.recordSvc.FilterAvailableSlots(ctx, &record.FilterSlotsReq{
-			//	UserUUID:          sub.UserUUID,
-			//	MatchingTimeslots: sub.MatchingTimeslots,
-			//})
-			//
-			//if err != nil {
-			//	span.RecordError(err)
-			//	span.SetStatus(codes.Error, "failed to filter available slots")
-			//	span.End()
-			//	return err
-			//}
-			//
-			//sub.MatchingTimeslots = fTimeslots
+			fTimeslots, err := uc.recordSvc.FilterAvailableSlots(ctx, &record.FilterSlotsReq{
+				UserUUID:          sub.UserUUID,
+				MatchingTimeslots: sub.MatchingTimeslots,
+			})
+
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, "failed to filter available slots")
+				span.End()
+				return err
+			}
+
+			sub.MatchingTimeslots = fTimeslots
+
+			slog.Info("slot", sub)
 
 			if !sub.AutoEnroll {
 				span.SetAttributes(attribute.Int64("telegram.user_id", int64(userData.TelegramID)))
@@ -172,6 +176,7 @@ func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_po
 					LabTopic:      event.Data.Topic,
 					LabNumber:     event.Data.Number,
 					LabAuditorium: event.Data.Auditorium,
+					Spot:          event.Data.Spot,
 					Schedule:      sub.MatchingTimeslots,
 					PageURL:       "https://dikidi.net/550001?p=0.pi-ssm-sd&s=5300027&rl=0_undefined", // TODO: include
 				})
