@@ -42,7 +42,7 @@ func (c *Client) AcquireTelegramCSRFToken(ctx context.Context, client *req.Clien
 }
 
 func (c *Client) AcquireCSRFToken(ctx context.Context, client *req.Client, req CSRFTokenRequest) (string, error) {
-	var authData AuthResponse
+	var authData APIAuth
 	resp, err := client.R().
 		SetContext(ctx).
 		SetHeaders(map[string]string{
