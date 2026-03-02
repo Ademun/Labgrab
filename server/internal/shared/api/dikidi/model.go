@@ -23,7 +23,7 @@ type Event struct {
 }
 
 type Booking struct {
-	ID         string
+	ID         int
 	Name       string
 	Type       domain.LabType
 	Topic      domain.LabTopic
