@@ -5,23 +5,23 @@ import (
 	"fmt"
 )
 
-type HTMLPageOptions struct {
-	StepData HTMLStepData `json:"step_data"`
+type APIHTMLPageOptions struct {
+	StepData APIHTMLStepData `json:"step_data"`
 }
 
-type HTMLStepData struct {
-	List []HTMLList `json:"list"`
+type APIHTMLStepData struct {
+	List []APIHTMLList `json:"list"`
 }
 
-type HTMLList struct {
-	Services []HTMLService `json:"services"`
+type APIHTMLList struct {
+	Services []APIHTMLService `json:"services"`
 }
 
-type HTMLService struct {
+type APIHTMLService struct {
 	ID int `json:"id"`
 }
 
-type APISlotData struct {
+type APIService struct {
 	Data APIServiceData `json:"data"`
 }
 
@@ -71,54 +71,54 @@ func (t *APITimes) UnmarshalJSON(b []byte) error {
 	return fmt.Errorf("unknown times format")
 }
 
-type AuthResponse struct {
+type APIAuth struct {
 	HTML string `json:"html"`
 }
 
-type TimeReservationResponse struct {
+type APITimeReservation struct {
 	RecordID       int    `json:"record_id"`
 	MasterID       string `json:"master_id"`
 	DurationString string `json:"duration_string"`
 }
 
-type EnrollmentCheckResponse struct {
+type APIEnrollmentCheck struct {
 	Error int `json:"error"`
 }
 
-type ReservationInfoResponse struct {
-	Error ReservationInfoError `json:"error"`
+type APIReservationInfo struct {
+	Error APIReservationInfoError `json:"error"`
 }
 
-type ReservationInfoError struct {
+type APIReservationInfoError struct {
 	Code    int     `json:"code"`
 	Message *string `json:"message"`
 }
 
-type APICreateRecordResponse struct {
-	Bookings []BookingRecord `json:"bookings"`
+type APICreateRecord struct {
+	Bookings []APIBookingRecord `json:"bookings"`
 }
 
-type BookingRecord struct {
+type APIBookingRecord struct {
 	ID     string `json:"id"`
 	Status string `json:"status"`
 }
 
-type GetRecordsResponse struct {
-	Error GetRecordsError `json:"error"`
-	Data  GetRecordsData  `json:"data"`
+type APIGetRecords struct {
+	Error APIGetRecordsError `json:"error"`
+	Data  APIGetRecordsData  `json:"data"`
 }
 
-type GetRecordsError struct {
+type APIGetRecordsError struct {
 	Code    int     `json:"code"`
 	Message *string `json:"message"`
 }
 
-type GetRecordsData struct {
-	New GetRecordsList `json:"new"`
-	Old GetRecordsList `json:"old"`
+type APIGetRecordsData struct {
+	New APIGetRecordsList `json:"new"`
+	Old APIGetRecordsList `json:"old"`
 }
 
-type GetRecordsList struct {
+type APIGetRecordsList struct {
 	More bool        `json:"more"`
 	List []APIRecord `json:"list"`
 }
@@ -140,6 +140,6 @@ type APIRecordEmployee struct {
 	Username string `json:"username"`
 }
 
-type RemoveRecordResponse struct {
+type APIRemoveRecord struct {
 	Error int `json:"error"`
 }
