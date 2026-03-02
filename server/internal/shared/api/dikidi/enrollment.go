@@ -9,13 +9,13 @@ import (
 	"github.com/imroc/req/v3"
 )
 
-func (c *Client) AcquireTimeReservation(ctx context.Context, client *req.Client, req *SlotReservationRequest) (*SlotReservationResponse, error) {
-	var reservationData TimeReservationResponse
+func (c *Client) AcquireTimeReservation(ctx context.Context, client *req.Client, req *EventReservationRequest) (*EventReservationResponse, error) {
+	var reservationData APITimeReservation
 	resp, err := client.R().
 		SetContext(ctx).
 		SetQueryParams(map[string]string{
 			"company_id":    "550001",
-			"master_id":     fmt.Sprintf("%d", req.MasterID),
+			"master_id":     fmt.Sprintf("%d", req.EventID),
 			"services_id[]": fmt.Sprintf("%d", req.ServicesID),
 			"time":          req.Time,
 			"action_source": "direct_link",
@@ -39,9 +39,9 @@ func (c *Client) AcquireTimeReservation(ctx context.Context, client *req.Client,
 	}
 	fmt.Printf("[AcquireTimeReservation] response body: %s\n", resp.String())
 
-	return &SlotReservationResponse{
-		RecordID:       reservationData.RecordID,
-		MasterID:       reservationData.MasterID,
+	return &EventReservationResponse{
+		BookingID:      reservationData.RecordID,
+		EventID:        reservationData.MasterID,
 		DurationString: reservationData.DurationString,
 	}, nil
 }
@@ -52,7 +52,7 @@ func (c *Client) CheckEnrollment(ctx context.Context, client *req.Client, req *E
 		req.MasterID, req.ServicesID, req.Time, req.RecordID, req.RecordID,
 	)
 
-	var checkResp EnrollmentCheckResponse
+	var checkResp APIEnrollmentCheck
 	resp, err := client.R().
 		SetContext(ctx).
 		SetQueryParams(map[string]string{
@@ -108,7 +108,7 @@ func (c *Client) GetReservationInfo(ctx context.Context, client *req.Client, req
 		req.MasterID, req.ServicesID, req.Time, req.RecordID, req.RecordID,
 	)
 
-	var infoResp ReservationInfoResponse
+	var infoResp APIReservationInfo
 	resp, err := client.R().
 		SetContext(ctx).
 		SetQueryParams(map[string]string{
@@ -149,13 +149,13 @@ func (c *Client) GetReservationInfo(ctx context.Context, client *req.Client, req
 	return nil
 }
 
-func (c *Client) CreateRecord(ctx context.Context, client *req.Client, req *CreateRecordRequest) (int, error) {
+func (c *Client) CreateBooking(ctx context.Context, client *req.Client, req *CreateBookingRequest) (int, error) {
 	referer := fmt.Sprintf(
 		"https://dikidi.net/550001?p=3.pi-ssm-sd-cf&o=7&m=%d&s=%d&d=%s&r=%d&rl=0_%d&sdr=",
-		req.MasterID, req.ServicesID, req.Time, req.RecordID, req.RecordID,
+		req.EventID, req.ServiceID, req.Time, req.RecordID, req.RecordID,
 	)
 
-	var createResp APICreateRecordResponse
+	var createResp APICreateRecord
 	resp, err := client.R().
 		SetContext(ctx).
 		SetQueryParams(map[string]string{

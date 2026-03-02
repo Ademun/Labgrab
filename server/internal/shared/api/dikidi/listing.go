@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"labgrab/internal/shared/errors"
+	"time"
 
 	"github.com/imroc/req/v3"
 )
 
-func (c *Client) GetRecords(ctx context.Context, client *req.Client, req *GetRecordsRequest) (*GetRecordsResult, error) {
-	var apiResp GetRecordsResponse
-	resp, err := client.R().
+func (c *Client) GetBookings(ctx context.Context, client *req.Client, req *GetBookingsRequest) (*GetBookingsResult, error) {
+	var apiResp APIGetRecords
+	_, err := client.R().
 		SetContext(ctx).
 		SetQueryParams(map[string]string{
 			"company":    "550001",
@@ -34,7 +35,6 @@ func (c *Client) GetRecords(ctx context.Context, client *req.Client, req *GetRec
 			Err:       err,
 		}
 	}
-	fmt.Printf("[GetRecords] response body: %s\n", resp.String())
 
 	if apiResp.Error.Code != 0 {
 		msg := "<nil>"
@@ -48,28 +48,44 @@ func (c *Client) GetRecords(ctx context.Context, client *req.Client, req *GetRec
 		}
 	}
 
-	return &GetRecordsResult{
-		New: mapRecords(apiResp.Data.New.List),
-		Old: mapRecords(apiResp.Data.Old.List),
+	active, err := mapBookings(apiResp.Data.New.List)
+	if err != nil {
+		return nil, &errors.ExternalAPIError{
+			Procedure: "GetRecords",
+			Step:      "Map records",
+			Err:       err,
+		}
+	}
+
+	closed, err := mapBookings(apiResp.Data.Old.List)
+	if err != nil {
+		return nil, &errors.ExternalAPIError{
+			Procedure: "GetRecords",
+			Step:      "Map records",
+			Err:       err,
+		}
+	}
+
+	return &GetBookingsResult{
+		Active: active,
+		Closed: closed,
 	}, nil
 }
 
-func mapRecords(list []APIRecord) []Record {
-	records := make([]Record, 0, len(list))
+func mapBookings(list []APIRecord) ([]Booking, error) {
+	bookings := make([]Booking, 0, len(list))
 	for _, r := range list {
-		rec := Record{
-			ID:       r.ID,
-			Time:     r.Time,
-			TimeTo:   r.TimeTo,
-			Duration: r.Duration,
+		startTime, err := time.Parse(r.Time, "2006-01-02 15:04:05")
+		if err != nil {
+			return nil, err
 		}
-		if len(r.Services) > 0 {
-			rec.ServiceName = r.Services[0].Name
+		endTime, err := time.Parse(r.Time, "2006-01-02 15:04:05")
+		rec := Booking{
+			ID:    r.ID,
+			Start: startTime,
+			End:   endTime,
 		}
-		if len(r.Employees) > 0 {
-			rec.MasterName = r.Employees[0].Username
-		}
-		records = append(records, rec)
+		bookings = append(bookings, rec)
 	}
-	return records
+	return bookings, nil
 }

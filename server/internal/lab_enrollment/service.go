@@ -466,7 +466,7 @@ func (s *Service) RemoveRecord(ctx context.Context, req *RemoveRecordReq) error 
 	return nil
 }
 
-func mapToRecordItems(records []dikidi.Record) []RecordItem {
+func mapToRecordItems(records []dikidi.Booking) []RecordItem {
 	items := make([]RecordItem, 0, len(records))
 	for _, r := range records {
 		items = append(items, RecordItem{

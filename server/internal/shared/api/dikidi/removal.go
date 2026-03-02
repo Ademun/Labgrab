@@ -8,12 +8,12 @@ import (
 	"github.com/imroc/req/v3"
 )
 
-func (c *Client) RemoveRecord(ctx context.Context, client *req.Client, req *RemoveRecordRequest) error {
-	var removeResp RemoveRecordResponse
+func (c *Client) RemoveBooking(ctx context.Context, client *req.Client, req *RemoveBookingRequest) error {
+	var removeResp APIRemoveRecord
 	resp, err := client.R().
 		SetContext(ctx).
 		SetQueryParams(map[string]string{
-			"id":         req.RecordID,
+			"id":         req.BookingID,
 			"session":    req.Session,
 			"social_key": "",
 		}).

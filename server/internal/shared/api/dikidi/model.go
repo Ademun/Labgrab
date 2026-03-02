@@ -60,8 +60,8 @@ type EventReservationRequest struct {
 }
 
 type EventReservationResponse struct {
+	EventID        string
 	BookingID      int
-	MasterID       string
 	DurationString string
 }
 
@@ -102,8 +102,8 @@ type GetBookingsRequest struct {
 }
 
 type GetBookingsResult struct {
-	New []Booking
-	Old []Booking
+	Active []Booking
+	Closed []Booking
 }
 
 type RemoveBookingRequest struct {
