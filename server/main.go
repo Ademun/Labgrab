@@ -8,7 +8,7 @@ import (
 	api_user "labgrab/internal/application/user"
 	"labgrab/internal/application/web"
 	"labgrab/internal/auth"
-	"labgrab/internal/lab_enrollment"
+	"labgrab/internal/event"
 	"labgrab/internal/lab_polling"
 	"labgrab/internal/record"
 	"labgrab/internal/shared/api/dikidi"
@@ -186,8 +186,8 @@ func initServices(
 	log.Info("Finished setting up telegram service")
 
 	log.Info("Setting up enrollment service")
-	enrollmentRepo := lab_enrollment.NewRepo(pool)
-	_, err = lab_enrollment.NewService(enrollmentRepo, dikidiClient, &cfg.EncryptionConfig)
+	enrollmentRepo := event.NewRepo(pool)
+	_, err = event.NewService(enrollmentRepo, dikidiClient, &cfg.EncryptionConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set up enrollment service: %w", err)
 	}

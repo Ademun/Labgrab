@@ -1,4 +1,4 @@
-package lab_enrollment
+package event
 
 import (
 	"context"
@@ -25,7 +25,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 )
 
-var tracer = otel.Tracer("lab_enrollment-service")
+var tracer = otel.Tracer("event-service")
 
 type Service struct {
 	repo   *Repo

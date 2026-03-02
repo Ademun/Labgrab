@@ -1,4 +1,4 @@
-package lab_enrollment
+package event
 
 import (
 	"context"

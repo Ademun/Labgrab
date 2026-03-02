@@ -3,7 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"labgrab/internal/lab_enrollment"
+	"labgrab/internal/event"
 	"labgrab/internal/lab_polling"
 	"labgrab/internal/record"
 	"labgrab/internal/subscription"
@@ -23,7 +23,7 @@ type ProcessNewSlotsUseCase struct {
 	subscriptionSvc *subscription.Service
 	userSvc         *user.Service
 	recordSvc       *record.Service
-	enrollmentSvc   *lab_enrollment.Service
+	enrollmentSvc   *event.Service
 	telegramSvc     *telegram.Service
 	logger          *zap.SugaredLogger
 }
@@ -189,7 +189,7 @@ func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_po
 					return err
 				}
 			} else {
-				//recordID, err := uc.enrollmentSvc.Enroll(ctx, &lab_enrollment.EnrollReq{
+				//recordID, err := uc.enrollmentSvc.Enroll(ctx, &event.EnrollReq{
 				//	UserUUID:   sub.UserUUID,
 				//	MasterID:   0,
 				//	ServiceID:  0,
