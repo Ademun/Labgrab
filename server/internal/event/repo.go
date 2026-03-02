@@ -20,7 +20,7 @@ func NewRepo(pool *pgxpool.Pool) *Repo {
 }
 
 func (r *Repo) CreateUserData(ctx context.Context, data *DBUserData, tx pgx.Tx) error {
-	query, args, err := r.sq.Insert("lab_enrollment_service.user_data").
+	query, args, err := r.sq.Insert("event_service.user_data").
 		Columns("user_uuid", "dikidi_phone_number", "dikidi_password", "dek").
 		Values(data.UserUUID, data.DikidiPhoneNumber, data.DikidiPassword, data.DEK).
 		ToSql()
@@ -46,7 +46,7 @@ func (r *Repo) CreateUserData(ctx context.Context, data *DBUserData, tx pgx.Tx) 
 
 func (r *Repo) GetUserData(ctx context.Context, userUUID uuid.UUID) (*DBUserData, error) {
 	query, args, err := r.sq.Select("user_uuid", "dikidi_phone_number", "dikidi_password", "dek", "session", "token", "cookies").
-		From("lab_enrollment_service.user_data").
+		From("event_service.user_data").
 		Where(squirrel.Eq{"user_uuid": userUUID}).
 		ToSql()
 	if err != nil {
@@ -79,7 +79,7 @@ func (r *Repo) GetUserData(ctx context.Context, userUUID uuid.UUID) (*DBUserData
 }
 
 func (r *Repo) SetUserCookies(ctx context.Context, userUUID uuid.UUID, cookies *DBUserCookies) error {
-	query, args, err := r.sq.Update("lab_enrollment_service.user_data").
+	query, args, err := r.sq.Update("event_service.user_data").
 		Set("session", cookies.Session).
 		Set("token", cookies.Token).
 		Set("cookies", cookies.Cookies).

@@ -1,6 +1,6 @@
-create schema if not exists lab_enrollment_service;
+create schema if not exists event_service;
 
-CREATE TABLE IF NOT EXISTS lab_enrollment_service.user_data
+CREATE TABLE IF NOT EXISTS event_service.user_data
 (
     user_uuid           uuid not null,
     dikidi_phone_number text not null,
