@@ -34,6 +34,11 @@ type Booking struct {
 	End        time.Time
 }
 
+type GetEventsResult struct {
+	Event *Event
+	Error error
+}
+
 type CSRFTokenRequest struct {
 	PhoneNumber       string
 	TelegramCSRFToken string

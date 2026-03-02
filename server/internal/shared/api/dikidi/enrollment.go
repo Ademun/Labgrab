@@ -15,8 +15,8 @@ func (c *Client) AcquireTimeReservation(ctx context.Context, client *req.Client,
 		SetContext(ctx).
 		SetQueryParams(map[string]string{
 			"company_id":    "550001",
-			"master_id":     fmt.Sprintf("%d", req.EventID),
-			"services_id[]": fmt.Sprintf("%d", req.ServicesID),
+			"master_id":     strconv.Itoa(req.EventID),
+			"services_id[]": strconv.Itoa(req.ServicesID),
 			"time":          req.Time,
 			"action_source": "direct_link",
 			"session":       req.Session,
