@@ -273,7 +273,7 @@ func (s *Service) RefreshUserCookies(ctx context.Context, userUUID uuid.UUID) er
 	return nil
 }
 
-func (s *Service) Enroll(ctx context.Context, req *EnrollReq) error {
+func (s *Service) Enroll(ctx context.Context, req *EnrollReq) (int, error) {
 	ctx, span := tracer.Start(ctx, "lab_enrollment_service.Enroll")
 	defer span.End()
 	span.SetAttributes(attribute.String("user.uuid", req.UserUUID.String()))
@@ -283,7 +283,7 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollReq) error {
 		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "GetUserData", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to get user data")
-		return err
+		return 0, err
 	}
 
 	data, err := s.DecryptUserData(eData)
@@ -291,7 +291,7 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollReq) error {
 		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "DecryptUserData", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to decrypt user data")
-		return err
+		return 0, err
 	}
 
 	client, err := s.CreateClientWithCookies(data.Cookies)
@@ -299,7 +299,7 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollReq) error {
 		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "CreateClientWithCookies", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to create http client with cookies")
-		return err
+		return 0, err
 	}
 
 	timeStr := req.Time.Format("2006-01-02 15:04:05")
@@ -313,7 +313,7 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollReq) error {
 		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "AcquireTimeReservation", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to acquire time reservation")
-		return err
+		return 0, err
 	}
 
 	refererTime := req.Time.Format("200601021504")
@@ -333,7 +333,7 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollReq) error {
 		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "CheckEnrollment", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to check enrollment")
-		return err
+		return 0, err
 	}
 
 	mask.Jitter(500, 1500)
@@ -348,12 +348,12 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollReq) error {
 		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "GetReservationInfo", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to get reservation info")
-		return err
+		return 0, err
 	}
 
 	mask.Jitter(1000, 2000)
 
-	recordResp, err := s.client.CreateRecord(ctx, client, &dikidi.CreateRecordRequest{
+	recordID, err := s.client.CreateRecord(ctx, client, &dikidi.CreateRecordRequest{
 		MasterID:   req.MasterID,
 		ServicesID: req.ServiceID,
 		Time:       refererTime,
@@ -368,12 +368,12 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollReq) error {
 		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "CreateRecord", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to create record")
-		return err
+		return 0, err
 	}
 
 	fmt.Println("Succesfully enrolled")
 
-	return nil
+	return recordID, nil
 }
 
 func (s *Service) GetRecords(ctx context.Context, userUUID uuid.UUID) (*GetRecordsRes, error) {

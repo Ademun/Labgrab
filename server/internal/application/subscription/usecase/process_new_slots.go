@@ -189,7 +189,16 @@ func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_po
 					return err
 				}
 			} else {
-				err := uc.enrollmentSvc.Enroll(ctx)
+				//recordID, err := uc.enrollmentSvc.Enroll(ctx, &lab_enrollment.EnrollReq{
+				//	UserUUID:   sub.UserUUID,
+				//	MasterID:   0,
+				//	ServiceID:  0,
+				//	Time:       ,
+				//	Name:       "",
+				//	Surname:    "",
+				//	Patronymic: "",
+				//	Group:      "",
+				//})
 			}
 		}
 	}
