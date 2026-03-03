@@ -14,7 +14,6 @@ const (
 	StatusClosed Status = "Closed"
 )
 
-// DBRecord record_service.records
 type DBBooking struct {
 	BookingID  int             `db:"booking_id"`
 	Type       domain.LabType  `db:"type"`
