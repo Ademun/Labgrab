@@ -370,6 +370,31 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollmentReq) (int, error) {
 	return recordID, nil
 }
 
+func (s *Service) GetCurrentEvents(ctx context.Context, clientCookies *string) (chan *GetEventsRes, error) {
+	ctx, span := tracer.Start(ctx, "event_service.GetCurrentEvents")
+
+	ch := make(chan *GetEventsRes)
+	client, err := mask.CreateClientWithCookies(clientCookies)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to get current events")
+		return nil, fmt.Errorf("event service: get current events: create hhtp client: %w", err)
+	}
+
+	go func() {
+		events := s.client.GetEventStream(ctx, client)
+		for event := range events {
+			ch <- &GetEventsRes{
+				Data: event.Event,
+				Err:  event.Error,
+			}
+		}
+		close(events)
+	}()
+
+	return ch, nil
+}
+
 func sanitizePhoneNumber(phoneNumber string) string {
 	return strings.Map(func(r rune) rune {
 		if unicode.IsDigit(r) {

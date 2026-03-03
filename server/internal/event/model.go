@@ -1,6 +1,7 @@
 package event
 
 import (
+	"labgrab/internal/shared/domain"
 	"time"
 
 	"github.com/google/uuid"
@@ -48,4 +49,9 @@ type EnrollmentReq struct {
 	Surname    string
 	Patronymic string
 	Group      string
+}
+
+type GetEventsRes struct {
+	Data *domain.Event
+	Err  error
 }
