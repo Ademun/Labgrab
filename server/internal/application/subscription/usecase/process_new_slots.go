@@ -3,9 +3,9 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"labgrab/internal/booking"
 	"labgrab/internal/event"
 	"labgrab/internal/lab_polling"
-	"labgrab/internal/record"
 	"labgrab/internal/subscription"
 	"labgrab/internal/telegram"
 	"labgrab/internal/user"
@@ -22,13 +22,13 @@ type ProcessNewSlotsUseCase struct {
 	labPollingSvc   *lab_polling.Service
 	subscriptionSvc *subscription.Service
 	userSvc         *user.Service
-	recordSvc       *record.Service
+	recordSvc       *booking.Service
 	enrollmentSvc   *event.Service
 	telegramSvc     *telegram.Service
 	logger          *zap.SugaredLogger
 }
 
-func NewProcessNewSlotsUseCase(labPollingSvc *lab_polling.Service, subscriptionSvc *subscription.Service, userSvc *user.Service, recordSvc *record.Service, telegramSvc *telegram.Service, logger *zap.SugaredLogger) *ProcessNewSlotsUseCase {
+func NewProcessNewSlotsUseCase(labPollingSvc *lab_polling.Service, subscriptionSvc *subscription.Service, userSvc *user.Service, recordSvc *booking.Service, telegramSvc *telegram.Service, logger *zap.SugaredLogger) *ProcessNewSlotsUseCase {
 	return &ProcessNewSlotsUseCase{
 		labPollingSvc:   labPollingSvc,
 		subscriptionSvc: subscriptionSvc,
@@ -152,7 +152,7 @@ func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_po
 				return err
 			}
 
-			fTimeslots, err := uc.recordSvc.FilterAvailableSlots(ctx, &record.FilterSlotsReq{
+			fTimeslots, err := uc.recordSvc.FilterAvailableSlots(ctx, &booking.FilterScheduleReq{
 				UserUUID:          sub.UserUUID,
 				MatchingTimeslots: sub.MatchingTimeslots,
 			})
@@ -189,9 +189,9 @@ func (uc *ProcessNewSlotsUseCase) HandleEvent(ctx context.Context, event *lab_po
 					return err
 				}
 			} else {
-				//recordID, err := uc.enrollmentSvc.Enroll(ctx, &event.EnrollReq{
+				//recordID, err := uc.enrollmentSvc.Enroll(ctx, &event.EnrollmentReq{
 				//	UserUUID:   sub.UserUUID,
-				//	MasterID:   0,
+				//	EventID:   0,
 				//	ServiceID:  0,
 				//	Time:       ,
 				//	Name:       "",

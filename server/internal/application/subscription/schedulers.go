@@ -3,8 +3,8 @@ package subscription
 import (
 	"context"
 	"labgrab/internal/application/subscription/usecase"
+	"labgrab/internal/booking"
 	"labgrab/internal/lab_polling"
-	"labgrab/internal/record"
 	"labgrab/internal/shared/api/dikidi"
 	"labgrab/internal/subscription"
 	"labgrab/internal/telegram"
@@ -23,7 +23,7 @@ type Scheduler struct {
 	processNewSlots *usecase.ProcessNewSlotsUseCase
 }
 
-func NewScheduler(dikidiClient *dikidi.Client, pollingSvc *lab_polling.Service, subscriptionSvc *subscription.Service, userSvc *user.Service, recordSvc *record.Service, telegramSvc *telegram.Service, logger *zap.SugaredLogger) *Scheduler {
+func NewScheduler(dikidiClient *dikidi.Client, pollingSvc *lab_polling.Service, subscriptionSvc *subscription.Service, userSvc *user.Service, recordSvc *booking.Service, telegramSvc *telegram.Service, logger *zap.SugaredLogger) *Scheduler {
 	return &Scheduler{
 		dikidiClient:    dikidiClient,
 		logger:          logger,

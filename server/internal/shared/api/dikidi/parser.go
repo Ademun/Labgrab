@@ -67,8 +67,8 @@ func NewParser(cfg *config.ParserConfig) (*Parser, error) {
 	}, nil
 }
 
-func (p *Parser) ParseServiceData(data *APIServiceData) ([]Event, error) {
-	events := make([]Event, 0)
+func (p *Parser) ParseServiceData(data *APIServiceData) ([]domain.Event, error) {
+	events := make([]domain.Event, 0)
 	pErrors := make([]error, 0)
 	masters := data.Masters
 	if len(masters) == 0 {
@@ -106,13 +106,13 @@ func (p *Parser) ParseServiceData(data *APIServiceData) ([]Event, error) {
 	return events, nil
 }
 
-func (p *Parser) ParseRecords(data []APIRecord) ([]Booking, error) {
-	bookings := make([]Booking, 0)
+func (p *Parser) ParseRecords(data []APIRecord) ([]domain.Booking, error) {
+	bookings := make([]domain.Booking, 0)
 	pErrors := make([]error, 0)
 
 	for _, record := range data {
 		if len(record.Services) < 1 || len(record.Employees) < 1 {
-			pErrors = append(pErrors, fmt.Errorf("invalid record, no services or employees"))
+			pErrors = append(pErrors, fmt.Errorf("invalid booking, no services or employees"))
 			continue
 		}
 		serviceName := record.Services[0].Name
@@ -129,18 +129,18 @@ func (p *Parser) ParseRecords(data []APIRecord) ([]Booking, error) {
 			continue
 		}
 
-		startTime, err := time.Parse("2006-01-02 15:04:05", record.Time)
+		startTime, startLesson, err := p.parseTimeString(record.Time)
 		if err != nil {
 			pErrors = append(pErrors, err)
 			continue
 		}
-		endTime, err := time.Parse("2006-01-02 15:04:05", record.TimeTo)
+		endTime, _, err := p.parseTimeString(record.TimeTo)
 		if err != nil {
 			pErrors = append(pErrors, err)
 			continue
 		}
 
-		bookings = append(bookings, Booking{
+		bookings = append(bookings, domain.Booking{
 			ID:         bookingID,
 			Name:       eventInfo.Name,
 			Type:       eventInfo.Type,
@@ -148,6 +148,7 @@ func (p *Parser) ParseRecords(data []APIRecord) ([]Booking, error) {
 			Number:     eventInfo.Number,
 			Auditorium: eventInfo.Auditorium,
 			Spot:       eventInfo.Spot,
+			Lesson:     startLesson,
 			Start:      startTime,
 			End:        endTime,
 		})
@@ -160,7 +161,7 @@ func (p *Parser) ParseRecords(data []APIRecord) ([]Booking, error) {
 	return bookings, nil
 }
 
-func (p *Parser) parseEventInfo(username, serviceName string) (*Event, error) {
+func (p *Parser) parseEventInfo(username, serviceName string) (*domain.Event, error) {
 	number, err := p.parseEventNumber(username, serviceName)
 	if err != nil {
 		return nil, err
@@ -180,7 +181,7 @@ func (p *Parser) parseEventInfo(username, serviceName string) (*Event, error) {
 	labType := p.parseEventType(username, serviceName)
 	name := p.parseEventName(username)
 
-	return &Event{
+	return &domain.Event{
 		Name:       name,
 		Number:     number,
 		Auditorium: auditorium,

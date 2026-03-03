@@ -39,36 +39,13 @@ type CreateUserDataReq struct {
 	Tx                pgx.Tx
 }
 
-type EnrollReq struct {
+type EnrollmentReq struct {
 	UserUUID   uuid.UUID
-	MasterID   int
+	EventID    int
 	ServiceID  int
 	Time       time.Time
 	Name       string
 	Surname    string
 	Patronymic string
 	Group      string
-}
-
-type GetRecordsReq struct {
-	UserUUID uuid.UUID
-}
-
-type GetRecordsRes struct {
-	New []RecordItem
-	Old []RecordItem
-}
-
-type RecordItem struct {
-	ID          string
-	Time        string
-	TimeTo      string
-	Duration    string
-	ServiceName string
-	MasterName  string
-}
-
-type RemoveRecordReq struct {
-	UserUUID uuid.UUID
-	RecordID string
 }

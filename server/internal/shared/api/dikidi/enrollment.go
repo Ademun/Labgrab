@@ -11,7 +11,7 @@ import (
 
 func (c *Client) AcquireTimeReservation(ctx context.Context, client *req.Client, req *EventReservationRequest) (*EventReservationResponse, error) {
 	var reservationData APITimeReservation
-	resp, err := client.R().
+	_, err := client.R().
 		SetContext(ctx).
 		SetQueryParams(map[string]string{
 			"company_id":    "550001",
@@ -37,11 +37,19 @@ func (c *Client) AcquireTimeReservation(ctx context.Context, client *req.Client,
 			Err:       err,
 		}
 	}
-	fmt.Printf("[AcquireTimeReservation] response body: %s\n", resp.String())
+
+	eventID, err := strconv.Atoi(reservationData.MasterID)
+	if err != nil {
+		return nil, &errors.ExternalAPIError{
+			Procedure: "AcquireTimeReservation",
+			Step:      "ID parsing",
+			Err:       err,
+		}
+	}
 
 	return &EventReservationResponse{
 		BookingID:      reservationData.RecordID,
-		EventID:        reservationData.MasterID,
+		EventID:        eventID,
 		DurationString: reservationData.DurationString,
 	}, nil
 }
@@ -105,7 +113,7 @@ func (c *Client) CheckEnrollment(ctx context.Context, client *req.Client, req *E
 func (c *Client) GetReservationInfo(ctx context.Context, client *req.Client, req *ReservationInfoRequest) error {
 	referer := fmt.Sprintf(
 		"https://dikidi.net/550001?p=3.pi-ssm-sd-cf&o=7&m=%d&s=%d&d=%s&r=%d&rl=0_%d&sdr=",
-		req.MasterID, req.ServicesID, req.Time, req.RecordID, req.RecordID,
+		req.MasterID, req.ServicesID, req.Time, req.BookingID, req.BookingID,
 	)
 
 	var infoResp APIReservationInfo
@@ -113,7 +121,7 @@ func (c *Client) GetReservationInfo(ctx context.Context, client *req.Client, req
 		SetContext(ctx).
 		SetQueryParams(map[string]string{
 			"company_id":       "550001",
-			"record_id_list[]": fmt.Sprintf("%d", req.RecordID),
+			"record_id_list[]": fmt.Sprintf("%d", req.BookingID),
 			"session":          req.Session,
 		}).
 		SetHeaders(map[string]string{
@@ -152,7 +160,7 @@ func (c *Client) GetReservationInfo(ctx context.Context, client *req.Client, req
 func (c *Client) CreateBooking(ctx context.Context, client *req.Client, req *CreateBookingRequest) (int, error) {
 	referer := fmt.Sprintf(
 		"https://dikidi.net/550001?p=3.pi-ssm-sd-cf&o=7&m=%d&s=%d&d=%s&r=%d&rl=0_%d&sdr=",
-		req.EventID, req.ServiceID, req.Time, req.RecordID, req.RecordID,
+		req.EventID, req.ServiceID, req.Time, req.BookingID, req.BookingID,
 	)
 
 	var createResp APICreateRecord

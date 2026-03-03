@@ -15,7 +15,7 @@ req := &GetMatchingSubscriptionsReq{
     LabType:       "Defence",
     LabTopic:      "Virtual",
     LabNumber:     3,
-    LabAuditorium: 201,
+    Auditorium: 201,
     AvailableSlots: map[DayOfWeek]map[int][]string{
         "MON": {
             1: []string{"Ivanov", "Petrov"},
@@ -392,7 +392,7 @@ hasNewSlot = true
 
 ## Резюме работы дедупликатора
 
-1. **Генерация уникальных ключей**: Для каждой комбинации (LabType, LabTopic, LabNumber, LabAuditorium, SubscriptionUUID, Day, Lesson) генерируется SHA3-256 хэш с префиксом.
+1. **Генерация уникальных ключей**: Для каждой комбинации (LabType, LabTopic, LabNumber, Auditorium, SubscriptionUUID, Day, Lesson) генерируется SHA3-256 хэш с префиксом.
 
 2. **Проверка в Redis**: Каждый ключ проверяется на существование в кэше.
 

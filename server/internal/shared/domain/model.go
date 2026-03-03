@@ -64,3 +64,33 @@ func (lt LabTopic) Icon() string {
 }
 
 type Schedule map[time.Time]map[Lesson][]string
+
+type Service struct {
+	ID int
+}
+
+type Event struct {
+	ID         int
+	ServiceID  int
+	Name       string
+	Type       LabType
+	Topic      LabTopic
+	Number     int
+	Auditorium int
+	Spot       *int
+	Schedule   Schedule
+	Link       string
+}
+
+type Booking struct {
+	ID         int
+	Name       string
+	Type       LabType
+	Topic      LabTopic
+	Number     int
+	Auditorium int
+	Spot       *int
+	Lesson     Lesson
+	Start      time.Time
+	End        time.Time
+}

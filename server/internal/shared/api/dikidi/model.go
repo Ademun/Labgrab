@@ -2,40 +2,10 @@ package dikidi
 
 import (
 	"labgrab/internal/shared/domain"
-	"time"
 )
 
-type Service struct {
-	ID int
-}
-
-type Event struct {
-	ID         int
-	ServiceID  int
-	Name       string
-	Type       domain.LabType
-	Topic      domain.LabTopic
-	Number     int
-	Auditorium int
-	Spot       *int
-	Schedule   domain.Schedule
-	Link       string
-}
-
-type Booking struct {
-	ID         int
-	Name       string
-	Type       domain.LabType
-	Topic      domain.LabTopic
-	Number     int
-	Auditorium int
-	Spot       *int
-	Start      time.Time
-	End        time.Time
-}
-
 type GetEventsResult struct {
-	Event *Event
+	Event *domain.Event
 	Error error
 }
 
@@ -65,7 +35,7 @@ type EventReservationRequest struct {
 }
 
 type EventReservationResponse struct {
-	EventID        string
+	EventID        int
 	BookingID      int
 	DurationString string
 }
@@ -83,7 +53,7 @@ type EnrollmentCheckRequest struct {
 }
 
 type ReservationInfoRequest struct {
-	RecordID   int
+	BookingID  int
 	MasterID   int
 	ServicesID int
 	Time       string // YYYYMMDDHHmm
@@ -94,7 +64,7 @@ type CreateBookingRequest struct {
 	EventID   int
 	ServiceID int
 	Time      string // YYYYMMDDHHmm
-	RecordID  int
+	BookingID int
 	Session   string
 	Phone     string
 	FirstName string
@@ -107,8 +77,8 @@ type GetBookingsRequest struct {
 }
 
 type GetBookingsResult struct {
-	Active []Booking
-	Closed []Booking
+	Active []domain.Booking
+	Closed []domain.Booking
 }
 
 type RemoveBookingRequest struct {
