@@ -31,7 +31,7 @@ func (s *Service) GetBookings(ctx context.Context, userUUID uuid.UUID) ([]GetBoo
 	bookings, err := s.repo.GetBookings(ctx, userUUID)
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to retrieve bookings from repository")
+		span.SetStatus(codes.Error, "failed to get bookings")
 		return nil, fmt.Errorf("booking service: get bookings: repository call: %w", err)
 	}
 
@@ -64,7 +64,7 @@ func (s *Service) LoadClientBookings(ctx context.Context, req *LoadClientBooking
 	client, err := mask.CreateClientWithCookies(&req.Cookies)
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to create http client")
+		span.SetStatus(codes.Error, "failed to load client bookings")
 		return fmt.Errorf("booking service: load client bookings: client initialization: %w", err)
 	}
 
@@ -73,7 +73,7 @@ func (s *Service) LoadClientBookings(ctx context.Context, req *LoadClientBooking
 	})
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to load bookings")
+		span.SetStatus(codes.Error, "failed to load client bookings")
 		return fmt.Errorf("booking service: load client bookings: get bookings: %w", err)
 	}
 
@@ -112,7 +112,7 @@ func (s *Service) LoadClientBookings(ctx context.Context, req *LoadClientBooking
 
 	if err = s.repo.LoadBookings(ctx, dbBookings); err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to load bookings")
+		span.SetStatus(codes.Error, "failed to load client bookings")
 		return fmt.Errorf("booking service: load client bookings: load bookings: %w", err)
 	}
 
@@ -127,7 +127,7 @@ func (s *Service) CancelClientBooking(ctx context.Context, req *CancelClientBook
 	client, err := mask.CreateClientWithCookies(&req.Cookies)
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to create http client")
+		span.SetStatus(codes.Error, "failed to cancel client booking")
 		return fmt.Errorf("booking service: cancel client booking: client initialization: %w", err)
 	}
 
@@ -136,7 +136,7 @@ func (s *Service) CancelClientBooking(ctx context.Context, req *CancelClientBook
 		Session:   req.Session,
 	}); err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to cancel booking in repository")
+		span.SetStatus(codes.Error, "failed to cancel client booking")
 		return fmt.Errorf("booking service: cancel client booking: remove booking: %w", err)
 	}
 
@@ -147,7 +147,7 @@ func (s *Service) CancelClientBooking(ctx context.Context, req *CancelClientBook
 		Cookies:  req.Cookies,
 	}); err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to reload bookings after cancel")
+		span.SetStatus(codes.Error, "failed to cancel client booking")
 		return fmt.Errorf("booking service: cancel client booking: load client bookings: %w", err)
 	}
 
@@ -164,7 +164,7 @@ func (s *Service) FilterSchedule(ctx context.Context, req *FilterScheduleReq) (d
 	})
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to filter available slots in repository")
+		span.SetStatus(codes.Error, "failed to filter schedule")
 		return nil, fmt.Errorf("booking service: filter schedule: repository call: %w", err)
 	}
 
