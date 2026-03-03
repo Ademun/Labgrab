@@ -19,22 +19,19 @@ import (
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
-	"go.uber.org/zap"
 )
 
 var tracer = otel.Tracer("auth-service")
 
 type Service struct {
-	cache  *redis.Client
-	cfg    *config.AuthServiceConfig
-	logger *zap.SugaredLogger
+	cache *redis.Client
+	cfg   *config.AuthServiceConfig
 }
 
-func NewService(cache *redis.Client, cfg *config.AuthServiceConfig, logger *zap.SugaredLogger) *Service {
+func NewService(cache *redis.Client, cfg *config.AuthServiceConfig) *Service {
 	return &Service{
-		cache:  cache,
-		cfg:    cfg,
-		logger: logger,
+		cache: cache,
+		cfg:   cfg,
 	}
 }
 
@@ -125,7 +122,6 @@ func (s *Service) ValidateTelegramAuthData(ctx context.Context, data *TelegramAu
 		}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		s.logger.Errorw(err.Error())
 	}
 
 	return nil

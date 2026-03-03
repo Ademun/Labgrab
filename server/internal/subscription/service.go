@@ -11,7 +11,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.uber.org/zap"
 )
 
 var tracer = otel.Tracer("subscription-service")
@@ -19,11 +18,10 @@ var tracer = otel.Tracer("subscription-service")
 type Service struct {
 	repo         *Repo
 	deduplicator *Deduplicator
-	logger       *zap.SugaredLogger
 }
 
-func NewService(repo *Repo, deduplicator *Deduplicator, logger *zap.SugaredLogger) *Service {
-	return &Service{repo: repo, deduplicator: deduplicator, logger: logger}
+func NewService(repo *Repo, deduplicator *Deduplicator) *Service {
+	return &Service{repo: repo, deduplicator: deduplicator}
 }
 
 func (s *Service) CreateSubscription(ctx context.Context, req *CreateSubscriptionReq) (uuid.UUID, error) {

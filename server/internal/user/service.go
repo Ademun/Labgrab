@@ -7,18 +7,16 @@ import (
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
-	"go.uber.org/zap"
 )
 
 var tracer = otel.Tracer("user-service")
 
 type Service struct {
-	repo   *Repo
-	logger *zap.SugaredLogger
+	repo *Repo
 }
 
-func NewService(repo *Repo, logger *zap.SugaredLogger) *Service {
-	return &Service{repo: repo, logger: logger}
+func NewService(repo *Repo) *Service {
+	return &Service{repo: repo}
 }
 
 func (s *Service) CreateUser(ctx context.Context, req *CreateUserReq) (uuid.UUID, error) {

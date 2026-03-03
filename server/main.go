@@ -10,7 +10,6 @@ import (
 	"labgrab/internal/auth"
 	"labgrab/internal/booking"
 	"labgrab/internal/event"
-	"labgrab/internal/lab_polling"
 	"labgrab/internal/shared/api/dikidi"
 	"labgrab/internal/shared/routing"
 	"labgrab/internal/subscription"
@@ -36,39 +35,36 @@ func main() {
 	defer cancel()
 
 	log := logger.Init()
-	log.Info("Starting service")
 
-	log.Info("Loading config")
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal("Fatal error occurred when loading config", "error", err)
+		log.Fatal("Failed to load config", "error", err)
 	}
-	log.Info("Loaded config")
 
 	tp, err := tracer.Init(ctx, &cfg.InfraConfig.OpenTelemetryConfig)
 	if err != nil {
-		log.Fatal("Fatal error occurred when initializing tracer", "error", err)
+		log.Fatal("Failed to initialize tracer", "error", err)
 	}
 
 	defer func() {
 		if err := tp.Shutdown(ctx); err != nil {
-			log.Fatal("Fatal error occurred when shutting down tracer", "error", err)
+			log.Fatal("Failed to shutdown tracer", "error", err)
 		}
 	}()
 
 	pool, cache, err := initInfrastructure(ctx, cfg, log)
 	if err != nil {
-		log.Fatal("Failed to initialize infrastructure", "error", err)
+		log.Fatal("Failed to init infrastructure", "error", err)
 	}
 	defer pool.Close()
 	defer cache.Close()
 
-	dikidiClient, err := initClients(cfg, log)
+	dikidiClient, err := initClients(cfg)
 	if err != nil {
 		log.Fatal("Failed to initialize clients", "error", err)
 	}
 
-	services, err := initServices(ctx, cfg, pool, cache, dikidiClient, log)
+	services, err := initServices(ctx, cfg, pool, cache, dikidiClient)
 	if err != nil {
 		log.Fatal("Failed to initialize services", "error", err)
 	}
@@ -131,11 +127,12 @@ func initInfrastructure(ctx context.Context, cfg *config.Config, log *zap.Sugare
 	return pool, cache, nil
 }
 
-func initClients(cfg *config.Config, log *zap.SugaredLogger) (*dikidi.Client, error) {
-	log.Info("Setting up dikidi client")
-	httpClient := dikidi.NewAdaptiveHTTPClient(&cfg.APIClientConfig.HTTPClientConfig)
-	dikidiClient := dikidi.NewClient(&cfg.APIClientConfig, httpClient)
-	log.Info("Finished setting up dikidi client")
+func initClients(cfg *config.Config) (*dikidi.Client, error) {
+	parser, err := dikidi.NewParser(&cfg.PollingServiceConfig.ParserConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to setup client parser: %w", err)
+	}
+	dikidiClient := dikidi.NewClient(&cfg.APIClientConfig, parser)
 	return dikidiClient, nil
 }
 
@@ -143,7 +140,8 @@ type Services struct {
 	Subscription *subscription.Service
 	User         *user.Service
 	Auth         *auth.Service
-	LabPolling   *lab_polling.Service
+	Event        *event.Service
+	Booking      *booking.Service
 	Telegram     *telegram.Service
 }
 
@@ -153,66 +151,42 @@ func initServices(
 	pool *pgxpool.Pool,
 	cache *redis.Client,
 	dikidiClient *dikidi.Client,
-	log *zap.SugaredLogger,
 ) (*Services, error) {
-	log.Info("Setting up polling service")
-	slotParser, err := lab_polling.NewParser(&cfg.PollingServiceConfig.ParserConfig)
+	eventRepo := event.NewRepo(pool)
+	eventService, err := event.NewService(eventRepo, dikidiClient, &cfg.EncryptionConfig)
 	if err != nil {
-		return nil, fmt.Errorf("creating lab parser: %w", err)
+		return nil, fmt.Errorf("failed to create event service: %w", err)
 	}
-	labPollingService := lab_polling.NewService(dikidiClient, slotParser, log)
-	log.Info("Finished setting up polling service")
 
-	log.Info("Setting up subscription service")
 	subscriptionRepo := subscription.NewRepo(pool)
 	deduplicator := subscription.NewDeduplicator(cache, cfg.SubscriptionServiceConfig.DeduplicatorConfig)
-	subscriptionService := subscription.NewService(subscriptionRepo, deduplicator, log)
-	log.Info("Finished setting up subscription service")
+	subscriptionService := subscription.NewService(subscriptionRepo, deduplicator)
 
-	log.Info("Setting up user service")
 	userRepo := user.NewRepo(pool)
-	userService := user.NewService(userRepo, log)
-	log.Info("Finished setting up user service")
+	userService := user.NewService(userRepo)
 
-	log.Info("Setting up auth service")
-	authService := auth.NewService(cache, &cfg.AuthServiceConfig, log)
-	log.Info("Finished setting up auth service")
+	authService := auth.NewService(cache, &cfg.AuthServiceConfig)
 
-	log.Info("Setting up telegram service")
 	telegramService, err := telegram.NewService(&cfg.TelegramConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set up telegram service: %w", err)
 	}
-	log.Info("Finished setting up telegram service")
+	telegramService.Start(ctx)
 
-	log.Info("Setting up enrollment service")
-	enrollmentRepo := event.NewRepo(pool)
-	_, err = event.NewService(enrollmentRepo, dikidiClient, &cfg.EncryptionConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to set up enrollment service: %w", err)
-	}
-	log.Info("Finished setting up enrollment service")
-
-	recordRepo := booking.NewRepo(pool)
-	recordSvc := booking.NewService(recordRepo, log)
-
-	log.Info("Setting up schedulers")
-	subscriptionScheduler := api_subscription.NewScheduler(dikidiClient, labPollingService, subscriptionService, userService, recordSvc, telegramService, log)
-	if err := subscriptionScheduler.Start(ctx); err != nil {
-		return nil, fmt.Errorf("starting subscription scheduler: %w", err)
-	}
+	bookingRepo := booking.NewRepo(pool)
+	bookingService := booking.NewService(bookingRepo, dikidiClient)
 
 	return &Services{
 		Subscription: subscriptionService,
 		User:         userService,
 		Auth:         authService,
-		LabPolling:   labPollingService,
+		Event:        eventService,
+		Booking:      bookingService,
 		Telegram:     telegramService,
 	}, nil
 }
 
 func initHTTPServer(cfg *config.Config, pool *pgxpool.Pool, services *Services, log *zap.SugaredLogger) (*http.Server, error) {
-	log.Info("Setting up routes")
 	r := mux.NewRouter()
 
 	log.Info("Setting up user domain routes")
