@@ -3,8 +3,8 @@ package booking
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"labgrab/internal/shared/domain"
-	"labgrab/internal/shared/errors"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
@@ -23,31 +23,19 @@ func NewRepo(pool *pgxpool.Pool) *Repo {
 func (r *Repo) LoadBookings(ctx context.Context, data []DBBooking) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return &errors.ErrDBProcedure{
-			Procedure: "LoadBookings",
-			Step:      "Transaction init",
-			Err:       err,
-		}
+		return fmt.Errorf("booking repo: load bookings: begin tx: %w", err)
 	}
 
 	query, args, err := r.sq.Delete("booking_service.bookings").ToSql()
 	if err != nil {
 		tx.Rollback(ctx)
-		return &errors.ErrDBProcedure{
-			Procedure: "CreateBooking",
-			Step:      "Query setup",
-			Err:       err,
-		}
+		return fmt.Errorf("booking repo: load bookings: build query: %w", err)
 	}
 
 	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
 		tx.Rollback(ctx)
-		return &errors.ErrDBProcedure{
-			Procedure: "CreateBooking",
-			Step:      "Query execution",
-			Err:       err,
-		}
+		return fmt.Errorf("booking repo: load bookings: exec query: %w", err)
 	}
 
 	builder := r.sq.Insert("booking_service.bookings").
@@ -60,29 +48,17 @@ func (r *Repo) LoadBookings(ctx context.Context, data []DBBooking) error {
 	query, args, err = builder.ToSql()
 	if err != nil {
 		tx.Rollback(ctx)
-		return &errors.ErrDBProcedure{
-			Procedure: "CreateBooking",
-			Step:      "Query setup",
-			Err:       err,
-		}
+		return fmt.Errorf("booking repo: load bookings: build query: %w", err)
 	}
 
 	_, err = r.pool.Exec(ctx, query, args...)
 	if err != nil {
 		tx.Rollback(ctx)
-		return &errors.ErrDBProcedure{
-			Procedure: "CreateBooking",
-			Step:      "Query execution",
-			Err:       err,
-		}
+		return fmt.Errorf("booking repo: load bookings: exec query: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return &errors.ErrDBProcedure{
-			Procedure: "CreateBooking",
-			Step:      "Commit transaction",
-			Err:       err,
-		}
+		return fmt.Errorf("booking repo: load bookings: commit tx: %w", err)
 	}
 
 	return nil
@@ -105,20 +81,12 @@ func (r *Repo) GetBookings(ctx context.Context, userUUID uuid.UUID) ([]DBBooking
 		Where(squirrel.Eq{"user_uuid": userUUID}).
 		ToSql()
 	if err != nil {
-		return nil, &errors.ErrDBProcedure{
-			Procedure: "GetBookings",
-			Step:      "Query setup",
-			Err:       err,
-		}
+		return nil, fmt.Errorf("booking repo: get bookings: build query: %w", err)
 	}
 
 	rows, err := r.pool.Query(ctx, query, args...)
 	if err != nil {
-		return nil, &errors.ErrDBProcedure{
-			Procedure: "GetBookings",
-			Step:      "Query execution",
-			Err:       err,
-		}
+		return nil, fmt.Errorf("booking repo: get bookings: exec query: %w", err)
 	}
 	defer rows.Close()
 
@@ -138,21 +106,13 @@ func (r *Repo) GetBookings(ctx context.Context, userUUID uuid.UUID) ([]DBBooking
 			&data.UserUUID,
 		)
 		if err != nil {
-			return nil, &errors.ErrDBProcedure{
-				Procedure: "GetBookings",
-				Step:      "Row scanning",
-				Err:       err,
-			}
+			return nil, fmt.Errorf("booking repo: get bookings: scan rows: %w", err)
 		}
 		bookings = append(bookings, data)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, &errors.ErrDBProcedure{
-			Procedure: "GetBookings",
-			Step:      "Row error check",
-			Err:       err,
-		}
+		return nil, fmt.Errorf("booking repo: get bookings: rows error: %w", err)
 	}
 
 	return bookings, nil
@@ -161,11 +121,7 @@ func (r *Repo) GetBookings(ctx context.Context, userUUID uuid.UUID) ([]DBBooking
 func (r *Repo) FilterSchedule(ctx context.Context, filter *DBSlotFilter) (domain.Schedule, error) {
 	slotsJSON, err := convertScheduleToJSON(filter.Schedule)
 	if err != nil {
-		return nil, &errors.ErrDBProcedure{
-			Procedure: "FilterAvailableSlots",
-			Step:      "JSON conversion",
-			Err:       err,
-		}
+		return nil, fmt.Errorf("booking repo: filter schedule: covert schedule to json: %w", err)
 	}
 
 	query := `
@@ -212,11 +168,7 @@ FROM grouped
 	var raw []byte
 	err = r.pool.QueryRow(ctx, query, filter.UserUUID, slotsJSON).Scan(&raw)
 	if err != nil {
-		return nil, &errors.ErrDBProcedure{
-			Procedure: "FilterAvailableSlots",
-			Step:      "Query execution",
-			Err:       err,
-		}
+		return nil, fmt.Errorf("booking repo: filter schedule: exec query: %w", err)
 	}
 
 	if raw == nil {
@@ -225,11 +177,7 @@ FROM grouped
 
 	result, err := convertJSONToSchedule(raw)
 	if err != nil {
-		return nil, &errors.ErrDBProcedure{
-			Procedure: "FilterAvailableSlots",
-			Step:      "JSON conversion",
-			Err:       err,
-		}
+		return nil, fmt.Errorf("booking repo: filter schedule: covert json to schedule: %w", err)
 	}
 
 	return result, nil
