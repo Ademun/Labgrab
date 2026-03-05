@@ -6,7 +6,7 @@ Read more about creating a library [in the docs](https://svelte.dev/docs/kit/pac
 
 ## Creating a project
 
-If you're seeing this, you've probably already done this step. Congrats!
+If you's seeing this, you've probably already done this step. Congrats!
 
 ```sh
 # create a new project in the current directory

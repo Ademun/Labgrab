@@ -97,11 +97,11 @@ func (r CreateSubscriptionReq) Validate() error {
 }
 
 type GetMatchingSubscriptionsReq struct {
-	LabType        domain.LabType
-	LabTopic       domain.LabTopic
-	LabNumber      int
-	LabAuditorium  int
-	AvailableSlots domain.Schedule
+	Type       domain.LabType
+	Topic      domain.LabTopic
+	Number     int
+	Auditorium int
+	Schedule   domain.Schedule
 }
 
 type GetSubscriptionRes struct {
@@ -154,7 +154,7 @@ type GetMatchingSubscriptionsRes struct {
 	AnyDate                    bool
 	SuccessfulSubscriptions    int
 	LastSuccessfulSubscription *time.Time
-	MatchingTimeslots          domain.Schedule
+	Schedule                   domain.Schedule
 }
 
 type keyGenerationParams struct {

@@ -2,6 +2,7 @@ package dikidi
 
 import (
 	"context"
+	"labgrab/internal/shared/mask"
 	"strconv"
 	"sync"
 
@@ -19,7 +20,7 @@ func (c *Client) UpdateServiceIDs(ctx context.Context, client *req.Client) error
 
 func (c *Client) GetEventStream(ctx context.Context, client *req.Client) chan *GetEventsResult {
 	results := make(chan *GetEventsResult)
-	rate := make(chan struct{}, 50)
+	rate := make(chan struct{}, 5)
 
 	go func() {
 		wg := sync.WaitGroup{}
@@ -123,6 +124,7 @@ func (c *Client) FetchService(ctx context.Context, client *req.Client, serviceID
 		params["with_first"] = "false"
 	}
 
+	mask.Jitter(500, 1000)
 	var data APIService
 	_, err := client.R().
 		SetContext(ctx).

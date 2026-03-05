@@ -389,10 +389,29 @@ func (s *Service) GetCurrentEvents(ctx context.Context, clientCookies *string) (
 				Err:  event.Error,
 			}
 		}
-		close(events)
+		close(ch)
 	}()
 
 	return ch, nil
+}
+
+func (s *Service) UpdateServiceIDs(ctx context.Context, clientCookies *string) error {
+	ctx, span := tracer.Start(ctx, "event_service.UpdateServiceIDs")
+
+	client, err := mask.CreateClientWithCookies(clientCookies)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to get current events")
+		return fmt.Errorf("event service: update service ids: create hhtp client: %w", err)
+	}
+
+	if err := s.client.UpdateServiceIDs(ctx, client); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to update service ids")
+		return fmt.Errorf("event service: update service ids: failed to update service ids: %w", err)
+	}
+
+	return nil
 }
 
 func sanitizePhoneNumber(phoneNumber string) string {
@@ -403,93 +422,3 @@ func sanitizePhoneNumber(phoneNumber string) string {
 		return -1
 	}, phoneNumber)
 }
-
-//func (s *Service) GetBookings(ctx context.Context, userUUID uuid.UUID) ([]domain.Booking, error) {
-//	ctx, span := tracer.Start(ctx, "lab_enrollment_service.GetRecords")
-//	defer span.End()
-//	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
-//
-//	eData, err := s.repo.GetUserData(ctx, userUUID)
-//	if err != nil {
-//		err = &errors.ErrServiceProcedure{Procedure: "GetRecords", Step: "GetUserData", Err: err}
-//		span.RecordError(err)
-//		span.SetStatus(codes.Error, "failed to get user data")
-//		return nil, err
-//	}
-//
-//	data, err := s.DecryptUserData(eData)
-//	if err != nil {
-//		err = &errors.ErrServiceProcedure{Procedure: "GetRecords", Step: "DecryptUserData", Err: err}
-//		span.RecordError(err)
-//		span.SetStatus(codes.Error, "failed to decrypt user data")
-//		return nil, err
-//	}
-//
-//	client, err := s.CreateClientWithCookies(data.Cookies)
-//	if err != nil {
-//		err = &errors.ErrServiceProcedure{Procedure: "GetRecords", Step: "CreateClientWithCookies", Err: err}
-//		span.RecordError(err)
-//		span.SetStatus(codes.Error, "failed to create http client with cookies")
-//		return nil, err
-//	}
-//
-//	result, err := s.client.GetBookings(ctx, client, &dikidi.GetBookingsRequest{
-//		Session: *data.Session,
-//	})
-//	if err != nil {
-//		err = &errors.ErrServiceProcedure{Procedure: "GetRecords", Step: "GetRecords", Err: err}
-//		span.RecordError(err)
-//		span.SetStatus(codes.Error, "failed to get records")
-//		return nil, err
-//	}
-//
-//	return &GetRecordsRes{
-//		New: mapToRecordItems(result.New),
-//		Old: mapToRecordItems(result.Old),
-//	}, nil
-//}
-//
-//func (s *Service) RemoveBooking(ctx context.Context, req *RemoveRecordReq) error {
-//	ctx, span := tracer.Start(ctx, "lab_enrollment_service.RemoveRecord")
-//	defer span.End()
-//	span.SetAttributes(
-//		attribute.String("user.uuid", req.UserUUID.String()),
-//		attribute.String("booking.id", req.RecordID),
-//	)
-//
-//	eData, err := s.repo.GetUserData(ctx, req.UserUUID)
-//	if err != nil {
-//		err = &errors.ErrServiceProcedure{Procedure: "RemoveRecord", Step: "GetUserData", Err: err}
-//		span.RecordError(err)
-//		span.SetStatus(codes.Error, "failed to get user data")
-//		return err
-//	}
-//
-//	data, err := s.DecryptUserData(eData)
-//	if err != nil {
-//		err = &errors.ErrServiceProcedure{Procedure: "RemoveRecord", Step: "DecryptUserData", Err: err}
-//		span.RecordError(err)
-//		span.SetStatus(codes.Error, "failed to decrypt user data")
-//		return err
-//	}
-//
-//	client, err := s.CreateClientWithCookies(data.Cookies)
-//	if err != nil {
-//		err = &errors.ErrServiceProcedure{Procedure: "RemoveRecord", Step: "CreateClientWithCookies", Err: err}
-//		span.RecordError(err)
-//		span.SetStatus(codes.Error, "failed to create http client with cookies")
-//		return err
-//	}
-//
-//	if err = s.client.RemoveBooking(ctx, client, &dikidi.RemoveBookingRequest{
-//		BookingID: req.RecordID,
-//		Session:   *data.Session,
-//	}); err != nil {
-//		err = &errors.ErrServiceProcedure{Procedure: "RemoveRecord", Step: "RemoveRecord", Err: err}
-//		span.RecordError(err)
-//		span.SetStatus(codes.Error, "failed to remove booking")
-//		return err
-//	}
-//
-//	return nil
-//}

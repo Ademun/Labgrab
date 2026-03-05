@@ -34,10 +34,10 @@ func (d *Deduplicator) Deduplicate(
 				key := d.generateKey(
 					&keyGenerationParams{
 						subscriptionUUID: match.SubscriptionUUID,
-						labType:          req.LabType,
-						labTopic:         req.LabTopic,
-						labNumber:        req.LabNumber,
-						labAuditorium:    req.LabAuditorium,
+						labType:          req.Type,
+						labTopic:         req.Topic,
+						labNumber:        req.Number,
+						labAuditorium:    req.Auditorium,
 						time:             time,
 						lesson:           lesson,
 					},

@@ -143,15 +143,15 @@ user_lessons AS (
 ),
 filtered_slots AS (
     SELECT
-        i.time,
-        i.lesson,
-        i.teachers
+        sc.time,
+        sc.lesson,
+        sc.teachers
     FROM schedule sc
     WHERE NOT EXISTS (
         SELECT 1
         FROM user_lessons ul
         WHERE ul.lesson      = sc.lesson
-          AND (ul.lesson_date = sc.time::timestamp::date OR ABS(ul.lesson_date - sc.time::timestamp::date) >= 2
+          AND ABS(ul.lesson_date - sc.time::timestamp::date) < 2
     )
 ),
 grouped AS (

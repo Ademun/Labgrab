@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	api_event "labgrab/internal/application/event"
 	api_subscription "labgrab/internal/application/subscription"
 	api_user "labgrab/internal/application/user"
 	"labgrab/internal/application/web"
@@ -52,32 +53,35 @@ func main() {
 		}
 	}()
 
+	log.Info("Initializing infrastructure")
 	pool, cache, err := initInfrastructure(ctx, cfg, log)
 	if err != nil {
 		log.Fatal("Failed to init infrastructure", "error", err)
 	}
+	log.Info("Initialized infrastructure")
 	defer pool.Close()
 	defer cache.Close()
 
+	log.Info("Initializing clients")
 	dikidiClient, err := initClients(cfg)
 	if err != nil {
 		log.Fatal("Failed to initialize clients", "error", err)
 	}
+	log.Info("Initialized clients")
 
-	services, err := initServices(ctx, cfg, pool, cache, dikidiClient)
+	log.Info("Initializing services")
+	services, err := initServices(ctx, cfg, pool, cache, dikidiClient, log)
 	if err != nil {
 		log.Fatal("Failed to initialize services", "error", err)
 	}
+	log.Info("Initialized services")
 
-	go func() {
-		log.Info("Starting Telegram bot")
-		services.Telegram.Start(ctx)
-	}()
-
+	log.Info("Initializing HTTP server")
 	server, err := initHTTPServer(cfg, pool, services, log)
 	if err != nil {
 		log.Fatal("Failed to initialize HTTP server", "error", err)
 	}
+	log.Info("Initialized HTTP server")
 
 	go func() {
 		log.Info("Starting HTTP server on 127.0.0.1:8080")
@@ -151,6 +155,7 @@ func initServices(
 	pool *pgxpool.Pool,
 	cache *redis.Client,
 	dikidiClient *dikidi.Client,
+	logger *zap.SugaredLogger,
 ) (*Services, error) {
 	eventRepo := event.NewRepo(pool)
 	eventService, err := event.NewService(eventRepo, dikidiClient, &cfg.EncryptionConfig)
@@ -171,10 +176,23 @@ func initServices(
 	if err != nil {
 		return nil, fmt.Errorf("failed to set up telegram service: %w", err)
 	}
-	telegramService.Start(ctx)
+	go telegramService.Start(ctx)
 
 	bookingRepo := booking.NewRepo(pool)
 	bookingService := booking.NewService(bookingRepo, dikidiClient)
+
+	eventScheduler := api_event.NewScheduler(
+		dikidiClient,
+		eventService,
+		subscriptionService,
+		userService,
+		bookingService,
+		telegramService,
+		logger,
+	)
+	if err := eventScheduler.Start(ctx); err != nil {
+		return nil, fmt.Errorf("failed to start event scheduler: %w", err)
+	}
 
 	return &Services{
 		Subscription: subscriptionService,

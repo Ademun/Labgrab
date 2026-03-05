@@ -95,7 +95,10 @@ func (p *Parser) ParseServiceData(data *APIServiceData) ([]domain.Event, error) 
 			}
 			schedule[datetime][lesson] = make([]string, 0)
 		}
+		event.ID = id
+		event.ServiceID = data.ServiceID
 		event.Schedule = schedule
+		event.Link = p.createLink(data.ServiceID)
 		events = append(events, *event)
 	}
 
@@ -264,4 +267,8 @@ func (p *Parser) parseTimeString(timeString string) (time.Time, domain.Lesson, e
 	lesson := domain.LocalTimeToLesson(datetime)
 
 	return datetime, lesson, nil
+}
+
+func (p *Parser) createLink(serviceID int) string {
+	return fmt.Sprintf("https://dikidi.net/550001?p=3.pi-po-ssm-sd&o=7&s=%d&rl=0_undefined", serviceID)
 }

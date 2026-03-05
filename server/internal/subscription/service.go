@@ -336,25 +336,25 @@ func (s *Service) GetMatchingSubscriptions(ctx context.Context, req *GetMatching
 	defer span.End()
 
 	span.SetAttributes(
-		attribute.String("lab.type", string(req.LabType)),
-		attribute.String("lab.topic", string(req.LabTopic)),
-		attribute.Int("lab.number", req.LabNumber),
-		attribute.Int("lab.auditorium", req.LabAuditorium),
-		attribute.Int("available_slots.count", len(req.AvailableSlots)),
+		attribute.String("lab.type", string(req.Type)),
+		attribute.String("lab.topic", string(req.Topic)),
+		attribute.Int("lab.number", req.Number),
+		attribute.Int("lab.auditorium", req.Auditorium),
+		attribute.Int("available_slots.count", len(req.Schedule)),
 	)
 
 	relevantSlots := make(domain.Schedule)
-	for date, data := range req.AvailableSlots {
+	for date, data := range req.Schedule {
 		if date.Sub(time.Now()).Hours() >= 48 {
 			relevantSlots[date] = data
 		}
 	}
 
 	matches, err := s.repo.GetMatchingSubscriptionsBySlot(ctx, &DBSubscriptionSearch{
-		LabType:        req.LabType,
-		LabTopic:       req.LabTopic,
-		LabNumber:      req.LabNumber,
-		LabAuditorium:  req.LabAuditorium,
+		LabType:        req.Type,
+		LabTopic:       req.Topic,
+		LabNumber:      req.Number,
+		LabAuditorium:  req.Auditorium,
 		AvailableSlots: relevantSlots,
 	})
 	if err != nil {
@@ -389,7 +389,7 @@ func (s *Service) GetMatchingSubscriptions(ctx context.Context, req *GetMatching
 			AnyDate:                    match.AnyDate,
 			SuccessfulSubscriptions:    match.SuccessfulSubscriptions,
 			LastSuccessfulSubscription: match.LastSuccessfulSubscription,
-			MatchingTimeslots:          match.MatchingTimeslots,
+			Schedule:                   match.MatchingTimeslots,
 		}
 	}
 

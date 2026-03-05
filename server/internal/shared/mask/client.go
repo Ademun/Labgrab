@@ -13,12 +13,11 @@ import (
 func CreateRandomHTTPClient() *req.Client {
 	client := req.C().
 		ImpersonateChrome().
-		EnableAutoDecode().
 		SetCommonHeaders(map[string]string{
 			"User-Agent":                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Mobile Safari/537.36",
 			"Accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
 			"Accept-Language":           "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
-			"Accept-Encoding":           "gzip, deflate, br, zstd",
+			"Accept-Encoding":           "br, zstd",
 			"Sec-Ch-Ua":                 `"Chromium";v="145", "Google Chrome";v="145", "Not/A)Brand";v="99"`,
 			"Sec-Ch-Ua-Mobile":          "?1",
 			"Sec-Ch-Ua-Platform":        `"Android"`,
@@ -26,7 +25,7 @@ func CreateRandomHTTPClient() *req.Client {
 		}).
 		OnAfterResponse(func(_ *req.Client, resp *req.Response) error {
 			if resp.IsErrorState() {
-				return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+				return fmt.Errorf("unexpected status code: %d for url %s", resp.StatusCode, resp.Request.URL)
 			}
 			return nil
 		})
