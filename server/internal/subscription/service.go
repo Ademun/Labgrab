@@ -2,8 +2,8 @@ package subscription
 
 import (
 	"context"
+	"fmt"
 	"labgrab/internal/shared/domain"
-	"labgrab/internal/shared/errors"
 	"labgrab/internal/shared/types"
 	"time"
 
@@ -41,8 +41,8 @@ func (s *Service) CreateSubscription(ctx context.Context, req *CreateSubscriptio
 
 	if err := req.Validate(); err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "validation failed")
-		return uuid.Nil, err
+		span.SetStatus(codes.Error, "failed to validate request")
+		return uuid.Nil, fmt.Errorf("subscription service: create subscription: validate request: %w", err)
 	}
 
 	dbSub := &DBSubscription{
@@ -57,14 +57,9 @@ func (s *Service) CreateSubscription(ctx context.Context, req *CreateSubscriptio
 
 	subscriptionUUID, err := s.repo.CreateSubscription(ctx, dbSub)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "CreateSubscription",
-			Step:      "Repository call",
-			Err:       err,
-		}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to create subscription in repository")
-		return uuid.Nil, err
+		span.SetStatus(codes.Error, "failed to create subscription")
+		return uuid.Nil, fmt.Errorf("subscription service: create subscription: repository call: %w", err)
 	}
 
 	span.SetAttributes(attribute.String("subscription.uuid", subscriptionUUID.String()))
@@ -80,14 +75,9 @@ func (s *Service) GetSubscription(ctx context.Context, subscriptionUUID uuid.UUI
 
 	sub, err := s.repo.GetSubscription(ctx, subscriptionUUID)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "GetSubscription",
-			Step:      "Repository call",
-			Err:       err,
-		}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to retrieve subscription from repository")
-		return nil, err
+		span.SetStatus(codes.Error, "failed to get subscription")
+		return nil, fmt.Errorf("subscription service: get subscription: repository call: %w", err)
 	}
 
 	span.SetAttributes(
@@ -120,14 +110,9 @@ func (s *Service) GetSubscriptions(ctx context.Context, userUUID uuid.UUID) ([]G
 
 	subs, err := s.repo.GetSubscriptions(ctx, userUUID)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "GetSubscriptions",
-			Step:      "Repository call",
-			Err:       err,
-		}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to retrieve subscriptions from repository")
-		return nil, err
+		span.SetStatus(codes.Error, "failed to get subscriptions")
+		return nil, fmt.Errorf("subscription service: get subscriptions: repository call: %w", err)
 	}
 
 	result := make([]GetSubscriptionRes, len(subs))
@@ -169,11 +154,11 @@ func (s *Service) UpdateSubscription(ctx context.Context, req *UpdateSubscriptio
 
 	if err := req.Validate(); err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "validation failed")
-		return err
+		span.SetStatus(codes.Error, "failed to validate request")
+		return fmt.Errorf("subscription service: update subscription: validate request: %w", err)
 	}
 
-	subscription := &DBSubscription{
+	err := s.repo.UpdateSubscription(ctx, &DBSubscription{
 		SubscriptionUUID: req.SubscriptionUUID,
 		LabType:          req.LabType,
 		LabTopic:         req.LabTopic,
@@ -183,18 +168,11 @@ func (s *Service) UpdateSubscription(ctx context.Context, req *UpdateSubscriptio
 		AutoEnroll:       req.AutoEnroll,
 		AnyDate:          req.AnyDate,
 		UserUUID:         req.UserUUID,
-	}
-
-	err := s.repo.UpdateSubscription(ctx, subscription)
+	})
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "UpdateSubscription",
-			Step:      "Repository call",
-			Err:       err,
-		}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to update subscription in repository")
-		return err
+		span.SetStatus(codes.Error, "failed to update subscription")
+		return fmt.Errorf("subscription service: update subscription: repository call: %w", err)
 	}
 
 	span.SetStatus(codes.Ok, "")
@@ -209,17 +187,11 @@ func (s *Service) GetTimePreferences(ctx context.Context, userUUID uuid.UUID) (U
 
 	dbPrefs, err := s.repo.GetTimePreferences(ctx, userUUID)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "GetTimePreferences",
-			Step:      "Repository call",
-			Err:       err,
-		}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to retrieve time preferences from repository")
-		return nil, err
+		span.SetStatus(codes.Error, "failed to get time preferences")
+		return nil, fmt.Errorf("subscription service: get time preferences: repository call: %w", err)
 	}
 
-	// Transform []DBTimePreferences to map[int]map[types.DayOfWeek][]types.Lesson
 	userPrefs := make(UserTimePreferences)
 	for _, pref := range dbPrefs {
 		if _, exists := userPrefs[pref.WeekNumber]; !exists {
@@ -246,7 +218,6 @@ func (s *Service) SetTimePreferences(ctx context.Context, userUUID uuid.UUID, pr
 		attribute.Int("preferences.weeks_count", len(preferences)),
 	)
 
-	// Transform map[int]map[types.DayOfWeek][]types.Lesson to []DBTimePreferences
 	var dbPrefs []DBTimePreferences
 	for weekNumber, weekPrefs := range preferences {
 		for dayOfWeek, lessons := range weekPrefs {
@@ -261,16 +232,10 @@ func (s *Service) SetTimePreferences(ctx context.Context, userUUID uuid.UUID, pr
 
 	span.SetAttributes(attribute.Int("preferences.records_count", len(dbPrefs)))
 
-	err := s.repo.SetTimePreferences(ctx, userUUID, dbPrefs)
-	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "SetTimePreferences",
-			Step:      "Repository call",
-			Err:       err,
-		}
+	if err := s.repo.SetTimePreferences(ctx, userUUID, dbPrefs); err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to store time preferences in repository")
-		return err
+		span.SetStatus(codes.Error, "failed to set time preferences")
+		return fmt.Errorf("subscription service: set time preferences: repository call: %w", err)
 	}
 
 	span.SetStatus(codes.Ok, "")
@@ -285,14 +250,9 @@ func (s *Service) GetTeacherPreferences(ctx context.Context, userUUID uuid.UUID)
 
 	dbPrefs, err := s.repo.GetTeacherPreferences(ctx, userUUID)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "GetTeacherPreferences",
-			Step:      "Repository call",
-			Err:       err,
-		}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to retrieve teacher preferences from repository")
-		return nil, err
+		span.SetStatus(codes.Error, "failed to get teacher preferences")
+		return nil, fmt.Errorf("subscription service: get teacher preferences: repository call: %w", err)
 	}
 
 	span.SetAttributes(attribute.Int("preferences.blacklisted_count", len(dbPrefs.BlacklistedTeachers)))
@@ -310,21 +270,13 @@ func (s *Service) SetTeacherPreferences(ctx context.Context, userUUID uuid.UUID,
 		attribute.Int("preferences.blacklisted_count", len(preferences)),
 	)
 
-	dbPrefs := &DBTeacherPreferences{
+	if err := s.repo.SetTeacherPreferences(ctx, userUUID, &DBTeacherPreferences{
 		UserUUID:            userUUID,
 		BlacklistedTeachers: preferences,
-	}
-
-	err := s.repo.SetTeacherPreferences(ctx, userUUID, dbPrefs)
-	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "SetTeacherPreferences",
-			Step:      "Repository call",
-			Err:       err,
-		}
+	}); err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to store teacher preferences in repository")
-		return err
+		span.SetStatus(codes.Error, "failed to set teacher preferences")
+		return fmt.Errorf("subscription service: set teacher preferences: repository call: %w", err)
 	}
 
 	span.SetStatus(codes.Ok, "")
@@ -359,26 +311,16 @@ func (s *Service) GetMatchingSubscriptions(ctx context.Context, req *GetMatching
 		WorkerUUID:     req.WorkerUUID,
 	})
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "GetMatchingSubscriptions",
-			Step:      "Repository call",
-			Err:       err,
-		}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to retrieve matching subscriptions from repository")
-		return nil, err
+		span.SetStatus(codes.Error, "failed to get matching subscriptions")
+		return nil, fmt.Errorf("subscription service: get matching subscriptions: repository call: %w", err)
 	}
 
 	relevantMatches, err := s.deduplicator.Deduplicate(ctx, req, matches)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "GetMatchingSubscriptions",
-			Step:      "Deduplication",
-			Err:       err,
-		}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to deduplicate matching subscriptions from repository")
-		return nil, err
+		span.SetStatus(codes.Error, "failed to deduplicate matching subscriptions")
+		return nil, fmt.Errorf("subscription service: get matching subscriptions: deduplicate: %w", err)
 	}
 
 	result := make([]GetMatchingSubscriptionsRes, len(relevantMatches))
