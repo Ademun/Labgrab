@@ -457,3 +457,24 @@ INNER JOIN locked l ON c.subscription_uuid = l.subscription_uuid
 
 	return results, nil
 }
+
+func (r *Repo) UnlockSubscription(ctx context.Context, filter *DBUnlockSubscriptionFilter) error {
+	query, args, err := r.sq.Update("subscription_service.subscriptions").
+		Set("locked_until", nil).
+		Set("locked_by", nil).
+		Where(squirrel.Eq{
+			"subscription_uuid": filter.SubscriptionUUID,
+			"locked_by":         filter.WorkerUUID,
+		}).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("subscription repo: unlock subscription: build query: %w", err)
+	}
+
+	_, err = r.pool.Exec(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("subscription repo: unlock subscription: exec query: %w", err)
+	}
+
+	return nil
+}

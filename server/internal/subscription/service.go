@@ -343,3 +343,25 @@ func (s *Service) GetMatchingSubscriptions(ctx context.Context, req *GetMatching
 	span.SetStatus(codes.Ok, "")
 	return result, nil
 }
+
+func (s *Service) UnlockSubscription(ctx context.Context, req *UnlockSubscriptionReq) error {
+	ctx, span := tracer.Start(ctx, "subscription_service.unlock_subscription")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("subscription.uuid", req.SubscriptionUUID.String()),
+		attribute.String("worker.uuid", req.WorkerUUID.String()),
+	)
+
+	if err := s.repo.UnlockSubscription(ctx, &DBUnlockSubscriptionFilter{
+		SubscriptionUUID: req.SubscriptionUUID,
+		WorkerUUID:       req.WorkerUUID,
+	}); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to unlock subscription")
+		return fmt.Errorf("subscription service: unlock subscription: repository call: %w", err)
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}

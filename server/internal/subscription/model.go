@@ -72,6 +72,11 @@ type DBSubscriptionMatchResult struct {
 	MatchingTimeslots          domain.Schedule
 }
 
+type DBUnlockSubscriptionFilter struct {
+	SubscriptionUUID uuid.UUID
+	WorkerUUID       uuid.UUID
+}
+
 type CreateSubscriptionReq struct {
 	UserUUID      uuid.UUID
 	LabType       domain.LabType
@@ -157,6 +162,11 @@ type GetMatchingSubscriptionsRes struct {
 	SuccessfulSubscriptions    int
 	LastSuccessfulSubscription *time.Time
 	Schedule                   domain.Schedule
+}
+
+type UnlockSubscriptionReq struct {
+	SubscriptionUUID uuid.UUID
+	WorkerUUID       uuid.UUID
 }
 
 type keyGenerationParams struct {
