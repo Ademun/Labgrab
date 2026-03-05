@@ -2,7 +2,7 @@ package user
 
 import (
 	"context"
-	repo_errors "labgrab/internal/shared/errors"
+	"fmt"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
@@ -21,28 +21,21 @@ func NewRepo(pool *pgxpool.Pool) *Repo {
 
 func (r *Repo) CreateUser(ctx context.Context, user *DBUser, tx pgx.Tx) (uuid.UUID, error) {
 	userUUID := uuid.New()
+
 	query, args, err := r.sq.Insert("user_service.users").
 		Columns("uuid", "name", "surname", "telegram_id", "username", "photo_url").
 		Values(userUUID, user.Name, user.Surname, user.TelegramID, user.Username, user.PhotoUrl).
 		ToSql()
 	if err != nil {
-		return userUUID, &repo_errors.ErrDBProcedure{
-			Procedure: "CreateUser",
-			Step:      "Query setup",
-			Err:       err,
-		}
+		return uuid.Nil, fmt.Errorf("user repo: create user: build query: %w", err)
 	}
 
 	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
-		return userUUID, &repo_errors.ErrDBProcedure{
-			Procedure: "CreateUser",
-			Step:      "Query execution",
-			Err:       err,
-		}
+		return uuid.Nil, fmt.Errorf("user repo: create user: exec query: %w", err)
 	}
 
-	return userUUID, err
+	return userUUID, nil
 }
 
 func (r *Repo) GetUser(ctx context.Context, userUUID uuid.UUID) (*DBUser, error) {
@@ -60,33 +53,24 @@ func (r *Repo) GetUser(ctx context.Context, userUUID uuid.UUID) (*DBUser, error)
 		Where(squirrel.Eq{"uuid": userUUID}).
 		ToSql()
 	if err != nil {
-		return nil, &repo_errors.ErrDBProcedure{
-			Procedure: "GetUserInfo",
-			Step:      "Query setup",
-			Err:       err,
-		}
-	}
-	var userInfo DBUser
-	err = r.pool.QueryRow(ctx, query, args...).Scan(
-		&userInfo.Username,
-		&userInfo.Name,
-		&userInfo.Surname,
-		&userInfo.Patronymic,
-		&userInfo.GroupCode,
-		&userInfo.PhoneNumber,
-		&userInfo.TelegramID,
-		&userInfo.PhotoUrl,
-	)
-
-	if err != nil {
-		return nil, &repo_errors.ErrDBProcedure{
-			Procedure: "GetUserInfo",
-			Step:      "Row scanning",
-			Err:       err,
-		}
+		return nil, fmt.Errorf("user repo: get user: build query: %w", err)
 	}
 
-	return &userInfo, nil
+	var user DBUser
+	if err = r.pool.QueryRow(ctx, query, args...).Scan(
+		&user.Username,
+		&user.Name,
+		&user.Surname,
+		&user.Patronymic,
+		&user.GroupCode,
+		&user.PhoneNumber,
+		&user.TelegramID,
+		&user.PhotoUrl,
+	); err != nil {
+		return nil, fmt.Errorf("user repo: get user: scan row: %w", err)
+	}
+
+	return &user, nil
 }
 
 func (r *Repo) UpdateUser(ctx context.Context, user *DBUser) error {
@@ -100,21 +84,14 @@ func (r *Repo) UpdateUser(ctx context.Context, user *DBUser) error {
 		Where(squirrel.Eq{"uuid": user.UUID}).
 		ToSql()
 	if err != nil {
-		return &repo_errors.ErrDBProcedure{
-			Procedure: "UpdateUserDetails",
-			Step:      "Query setup",
-			Err:       err,
-		}
+		return fmt.Errorf("user repo: update user: build query: %w", err)
 	}
 
 	_, err = r.pool.Exec(ctx, query, args...)
 	if err != nil {
-		return &repo_errors.ErrDBProcedure{
-			Procedure: "UpdateUserDetails",
-			Step:      "Query execution",
-			Err:       err,
-		}
+		return fmt.Errorf("user repo: update user: exec query: %w", err)
 	}
+
 	return nil
 }
 
@@ -128,21 +105,12 @@ func (r *Repo) ExistsByTelegramID(ctx context.Context, telegramID int) (bool, er
 		Column(squirrel.Expr("EXISTS(?)", subquery)).
 		ToSql()
 	if err != nil {
-		return false, &repo_errors.ErrDBProcedure{
-			Procedure: "ExistsByTelegramID",
-			Step:      "Query setup",
-			Err:       err,
-		}
+		return false, fmt.Errorf("user repo: exists by telegram id: build query: %w", err)
 	}
 
 	var exists bool
-	err = r.pool.QueryRow(ctx, query, args...).Scan(&exists)
-	if err != nil {
-		return false, &repo_errors.ErrDBProcedure{
-			Procedure: "ExistsByTelegramID",
-			Step:      "Row scanning",
-			Err:       err,
-		}
+	if err = r.pool.QueryRow(ctx, query, args...).Scan(&exists); err != nil {
+		return false, fmt.Errorf("user repo: exists by telegram id: scan row: %w", err)
 	}
 
 	return exists, nil
@@ -154,21 +122,12 @@ func (r *Repo) GetUserUUIDByTelegramID(ctx context.Context, telegramID int) (uui
 		Where(squirrel.Eq{"telegram_id": telegramID}).
 		ToSql()
 	if err != nil {
-		return uuid.Nil, &repo_errors.ErrDBProcedure{
-			Procedure: "GetUserUUIDByTelegramID",
-			Step:      "Query setup",
-			Err:       err,
-		}
+		return uuid.Nil, fmt.Errorf("user repo: get user uuid by telegram id: build query: %w", err)
 	}
 
 	var userUUID uuid.UUID
-	err = r.pool.QueryRow(ctx, query, args...).Scan(&userUUID)
-	if err != nil {
-		return uuid.Nil, &repo_errors.ErrDBProcedure{
-			Procedure: "GetUserUUIDByTelegramID",
-			Step:      "Row scanning",
-			Err:       err,
-		}
+	if err = r.pool.QueryRow(ctx, query, args...).Scan(&userUUID); err != nil {
+		return uuid.Nil, fmt.Errorf("user repo: get user uuid by telegram id: scan row: %w", err)
 	}
 
 	return userUUID, nil
