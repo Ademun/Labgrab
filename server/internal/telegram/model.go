@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type NotifyUserReq struct {
+type NotifyEventReq struct {
 	UserID        int
 	LabName       string
 	LabType       domain.LabType
@@ -15,6 +15,18 @@ type NotifyUserReq struct {
 	Spot          *int
 	Schedule      domain.Schedule
 	PageURL       string
+}
+
+type NotifyEnrollmentReq struct {
+	UserID        int
+	LabName       string
+	LabType       domain.LabType
+	LabTopic      domain.LabTopic
+	LabNumber     int
+	LabAuditorium int
+	Spot          *int
+	Date          time.Time
+	Lesson        domain.Lesson
 }
 
 var ruMonths = map[time.Month]string{

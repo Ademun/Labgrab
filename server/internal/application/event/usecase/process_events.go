@@ -11,6 +11,7 @@ import (
 	"labgrab/internal/telegram"
 	"labgrab/internal/user"
 	"math"
+	"math/rand/v2"
 	"sync"
 	"time"
 
@@ -62,7 +63,7 @@ func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
 	errCh := make(chan error)
 
 	go func() {
-		for range 5 {
+		for range 3 {
 			wg.Add(1)
 			go func() {
 				uc.Worker(ctx, events, errCh)
@@ -89,6 +90,7 @@ func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
 }
 
 func (uc *ProcessEventsUsecase) Worker(ctx context.Context, events chan *event.GetEventsRes, errCh chan error) {
+	workerUUID := uuid.New()
 main:
 	for e := range events {
 		if e.Err != nil {
@@ -102,6 +104,7 @@ main:
 			Number:     e.Data.Number,
 			Auditorium: e.Data.Auditorium,
 			Schedule:   e.Data.Schedule,
+			WorkerUUID: workerUUID,
 		})
 		if err != nil {
 			errCh <- fmt.Errorf("event: worker: match subscriptions: %w", err)
@@ -119,8 +122,7 @@ main:
 			}
 			subUserInfoIdx[subs[i].SubscriptionUUID] = userInfo
 			if !subs[i].AutoEnroll {
-				fmt.Println(subs[i], "notify")
-				err := uc.telegramSvc.NotifyUser(ctx, telegram.NotifyUserReq{
+				err := uc.telegramSvc.NotifyEvent(ctx, telegram.NotifyEventReq{
 					UserID:        userInfo.TelegramID,
 					LabName:       e.Data.Name,
 					LabType:       e.Data.Type,
@@ -213,10 +215,64 @@ main:
 			}
 		}
 
-		for i := range enrollmentSubscriptions {
-			userInfo := subUserInfoIdx[enrollmentSubscriptions[i].SubscriptionUUID]
-			//fmt.Println("info", userInfo, "sub", enrollmentSubscriptions[i], "event", e.Data)
-			fmt.Println("User", userInfo.Name, "Estimated schedule", enrollmentSubscriptions[i].Schedule)
+		for _, sub := range enrollmentSubscriptions {
+			userInfo := subUserInfoIdx[sub.SubscriptionUUID]
+			var selectedDate time.Time
+			rnd := rand.IntN(len(sub.Schedule))
+			for k, v := range sub.Schedule {
+				if len(v) == 0 {
+					continue
+				}
+				if rnd == 0 {
+					selectedDate = k
+					break
+				}
+				rnd--
+			}
+
+			if selectedDate.IsZero() {
+				return
+			}
+
+			var selectedLesson domain.Lesson
+			rnd = rand.IntN(len(sub.Schedule[selectedDate]))
+			for k := range sub.Schedule[selectedDate] {
+				if rnd == 0 {
+					selectedLesson = k
+					break
+				}
+				rnd--
+			}
+
+			fmt.Println("User", userInfo.Name, "Estimated schedule", sub.Schedule, "Worker", workerUUID)
+
+			err = uc.subscriptionSvc.UpdateSubscription(ctx, &subscription.UpdateSubscriptionDataReq{
+				UserUUID:         sub.UserUUID,
+				SubscriptionUUID: sub.SubscriptionUUID,
+				LabType:          e.Data.Type,
+				LabTopic:         e.Data.Topic,
+				LabNumber:        e.Data.Number,
+				LabAuditorium:    &e.Data.Auditorium,
+				Status:           subscription.StatusClosed,
+				AutoEnroll:       false,
+				AnyDate:          false,
+			})
+
+			err = uc.telegramSvc.NotifyEnrollment(ctx, telegram.NotifyEnrollmentReq{
+				UserID:        userInfo.TelegramID,
+				LabName:       e.Data.Name,
+				LabType:       e.Data.Type,
+				LabTopic:      e.Data.Topic,
+				LabNumber:     e.Data.Number,
+				LabAuditorium: e.Data.Auditorium,
+				Spot:          e.Data.Spot,
+				Date:          selectedDate,
+				Lesson:        selectedLesson,
+			})
+			if err != nil {
+				errCh <- fmt.Errorf("event: worker: notify: %w", err)
+				continue main
+			}
 		}
 	}
 }

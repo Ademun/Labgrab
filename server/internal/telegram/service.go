@@ -34,7 +34,7 @@ func (s *Service) Start(ctx context.Context) {
 	s.bot.Start(ctx)
 }
 
-func (s *Service) NotifyUser(ctx context.Context, req NotifyUserReq) error {
+func (s *Service) NotifyEvent(ctx context.Context, req NotifyEventReq) error {
 	msg := createNotificationMessage(req)
 	_, err := s.bot.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:      req.UserID,
@@ -49,7 +49,18 @@ func (s *Service) NotifyUser(ctx context.Context, req NotifyUserReq) error {
 	return err
 }
 
-func createNotificationMessage(req NotifyUserReq) string {
+func (s *Service) NotifyEnrollment(ctx context.Context, req NotifyEnrollmentReq) error {
+	msg := createEnrollmentMessage(req)
+	_, err := s.bot.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:    req.UserID,
+		Text:      msg,
+		ParseMode: models.ParseModeHTML,
+	})
+
+	return err
+}
+
+func createNotificationMessage(req NotifyEventReq) string {
 	var sb strings.Builder
 	sb.WriteString(bold("🔥 Появилась запись!"))
 	sb.WriteString(breakLine(2))
@@ -75,6 +86,24 @@ func createNotificationMessage(req NotifyUserReq) string {
 		}
 		sb.WriteString(breakLine(1))
 	}
+	return sb.String()
+}
+
+func createEnrollmentMessage(req NotifyEnrollmentReq) string {
+	var sb strings.Builder
+	sb.WriteString(bold("⭐ Успешная запись!"))
+	sb.WriteString(breakLine(2))
+	var spotString string
+	if req.Spot != nil {
+		spotString = fmt.Sprintf("(%d-е место)", *req.Spot)
+	}
+	sb.WriteString(bold(fmt.Sprintf("📚 Работа №%d. %s. %s %s", req.LabNumber, req.LabType.RU(), req.LabName, spotString)))
+	sb.WriteString(breakLine(2))
+	sb.WriteString(bold(fmt.Sprintf("%s %s", req.LabTopic.Icon(), req.LabTopic.RU())))
+	sb.WriteString(breakLine(2))
+	sb.WriteString(bold(fmt.Sprintf("🚪 Аудитория №%d", req.LabAuditorium)))
+	sb.WriteString(breakLine(2))
+	sb.WriteString(fmt.Sprintf("📅 Дата работы: %s %s", formatDateTime(req.Date), formatLesson(req.Lesson)))
 	return sb.String()
 }
 

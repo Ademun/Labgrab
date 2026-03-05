@@ -20,7 +20,7 @@ func (c *Client) UpdateServiceIDs(ctx context.Context, client *req.Client) error
 
 func (c *Client) GetEventStream(ctx context.Context, client *req.Client) chan *GetEventsResult {
 	results := make(chan *GetEventsResult)
-	rate := make(chan struct{}, 5)
+	rate := make(chan struct{}, 3)
 
 	go func() {
 		wg := sync.WaitGroup{}

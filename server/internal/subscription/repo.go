@@ -449,6 +449,7 @@ matching_subscriptions AS (
       AND (pref.has_any IS NULL OR pref.is_match IS TRUE OR s.any_date IS TRUE)
       AND (teachp.user_uuid IS NULL OR NOT (ase.teachers ?| teachp.blacklisted_teachers))
 ),
+
 grouped_by_time AS (
     SELECT 
         user_uuid,
@@ -461,20 +462,38 @@ grouped_by_time AS (
         jsonb_object_agg(lesson::text, teachers ORDER BY lesson) as lessons_map
     FROM matching_subscriptions
     GROUP BY user_uuid, subscription_uuid, auto_enroll, any_date, successful_subscriptions, last_successful_subscription, time
+),
+
+candidates AS (
+    SELECT 
+        user_uuid,
+        subscription_uuid,
+        auto_enroll,
+        any_date,
+        successful_subscriptions,
+        last_successful_subscription,
+        jsonb_object_agg(time, lessons_map) as matching_timeslots
+    FROM grouped_by_time
+    GROUP BY user_uuid, subscription_uuid, auto_enroll, any_date, successful_subscriptions, last_successful_subscription
+    ORDER BY auto_enroll DESC,
+        successful_subscriptions ASC,
+        last_successful_subscription ASC NULLS FIRST
+),
+
+locked AS (
+    UPDATE subscription_service.subscriptions s
+    SET 
+        locked_until = NOW() + INTERVAL '10 minutes',
+        locked_by = $6
+    FROM candidates c
+    WHERE s.subscription_uuid = c.subscription_uuid
+      AND (s.locked_until IS NULL OR s.locked_until < NOW())
+    RETURNING s.subscription_uuid
 )
-SELECT 
-    user_uuid,
-    subscription_uuid,
-    auto_enroll,
-    any_date,
-    successful_subscriptions,
-    last_successful_subscription,
-    jsonb_object_agg(time, lessons_map) as matching_timeslots
-FROM grouped_by_time
-GROUP BY user_uuid, subscription_uuid, auto_enroll, any_date, successful_subscriptions, last_successful_subscription
-ORDER BY auto_enroll DESC,
-    successful_subscriptions ASC,
-    last_successful_subscription ASC NULLS FIRST
+
+SELECT c.*
+FROM candidates c
+INNER JOIN locked l ON c.subscription_uuid = l.subscription_uuid
 `
 
 	rows, err := r.pool.Query(ctx, query,
@@ -483,6 +502,7 @@ ORDER BY auto_enroll DESC,
 		search.LabNumber,
 		search.LabAuditorium,
 		availableSlotsJSON,
+		search.WorkerUUID,
 	)
 	if err != nil {
 		return nil, &errors.ErrDBProcedure{

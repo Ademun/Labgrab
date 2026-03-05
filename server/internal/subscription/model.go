@@ -59,6 +59,7 @@ type DBSubscriptionSearch struct {
 	LabNumber      int
 	LabAuditorium  int
 	AvailableSlots domain.Schedule
+	WorkerUUID     uuid.UUID
 }
 
 type DBSubscriptionMatchResult struct {
@@ -102,6 +103,7 @@ type GetMatchingSubscriptionsReq struct {
 	Number     int
 	Auditorium int
 	Schedule   domain.Schedule
+	WorkerUUID uuid.UUID
 }
 
 type GetSubscriptionRes struct {

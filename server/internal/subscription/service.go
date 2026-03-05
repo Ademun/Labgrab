@@ -356,6 +356,7 @@ func (s *Service) GetMatchingSubscriptions(ctx context.Context, req *GetMatching
 		LabNumber:      req.Number,
 		LabAuditorium:  req.Auditorium,
 		AvailableSlots: relevantSlots,
+		WorkerUUID:     req.WorkerUUID,
 	})
 	if err != nil {
 		err = &errors.ErrServiceProcedure{
