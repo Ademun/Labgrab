@@ -39,10 +39,10 @@ func (r *Repo) LoadBookings(ctx context.Context, userUUID uuid.UUID, data []DBBo
 	}
 
 	builder := r.sq.Insert("booking_service.bookings").
-		Columns("booking_id", "type", "topic", "auditorium", "spot", "lesson", "start_time", "end_time", "status", "user_uuid")
+		Columns("booking_id", "type", "topic", "number", "auditorium", "spot", "lesson", "start_time", "end_time", "status", "user_uuid")
 
 	for _, b := range data {
-		builder = builder.Values(b.BookingID, b.Type, b.Topic, b.Auditorium, b.Spot, b.Lesson, b.Start, b.End, b.Status, b.UserUUID)
+		builder = builder.Values(b.BookingID, b.Type, b.Topic, b.Number, b.Auditorium, b.Spot, b.Lesson, b.Start, b.End, b.Status, b.UserUUID)
 	}
 
 	query, args, err = builder.ToSql()
@@ -69,6 +69,7 @@ func (r *Repo) GetBookings(ctx context.Context, userUUID uuid.UUID) ([]DBBooking
 		"booking_id",
 		"type",
 		"topic",
+		"number",
 		"auditorium",
 		"spot",
 		"lesson",
@@ -97,6 +98,7 @@ func (r *Repo) GetBookings(ctx context.Context, userUUID uuid.UUID) ([]DBBooking
 			&data.BookingID,
 			&data.Type,
 			&data.Topic,
+			&data.Number,
 			&data.Auditorium,
 			&data.Spot,
 			&data.Lesson,
@@ -118,20 +120,45 @@ func (r *Repo) GetBookings(ctx context.Context, userUUID uuid.UUID) ([]DBBooking
 	return bookings, nil
 }
 
-func (r *Repo) FilterSchedule(ctx context.Context, filter *DBSlotFilter) (domain.Schedule, error) {
-	slotsJSON, err := convertScheduleToJSON(filter.Schedule)
-	if err != nil {
-		return nil, fmt.Errorf("booking repo: filter schedule: covert schedule to json: %w", err)
-	}
-
-	query := `
-WITH schedule AS (
+// filterScheduleQuery is a raw CTE query because squirrel cannot express
+// lateral joins, jsonb_each, or the already_booked short-circuit pattern.
+//
+// Parameters:
+//
+//	$1 — user_uuid
+//	$2 — schedule JSON  (map[time.Time]map[Lesson][]string)
+//	$3 — lab type       (lab_type enum)
+//	$4 — lab topic      (lab_topic enum)
+//	$5 — lab number     (int)
+//
+// Fix 2: already_booked CTE — if the user already has an Open booking for
+// the exact same lab (type+topic+number), the schedule CTE returns no rows
+// and the entire query short-circuits to NULL, which the caller treats as
+// an empty Schedule.
+//
+// Fix 3: date-gap check no longer includes ul.lesson = sc.lesson.
+// The invariant is "no booking within 2 days", regardless of which lesson
+// number the existing booking occupies.
+const filterScheduleQuery = `
+WITH already_booked AS (
+    SELECT EXISTS(
+        SELECT 1
+        FROM booking_service.bookings
+        WHERE user_uuid = $1
+          AND status    = 'Open'
+          AND type      = $3::lab_type
+          AND topic     = $4::lab_topic
+          AND number    = $5
+    ) AS is_booked
+),
+schedule AS (
     SELECT
-        times.key  AS time,
+        times.key        AS time,
         lessons.key::int AS lesson,
         lessons.value    AS teachers
     FROM jsonb_each($2::jsonb) AS times,
          LATERAL jsonb_each(times.value) AS lessons
+    WHERE NOT (SELECT is_booked FROM already_booked)
 ),
 user_lessons AS (
     SELECT
@@ -139,7 +166,7 @@ user_lessons AS (
         start_time::date AS lesson_date
     FROM booking_service.bookings
     WHERE user_uuid = $1
-      AND status = 'Open'
+      AND status    = 'Open'
 ),
 filtered_slots AS (
     SELECT
@@ -150,8 +177,7 @@ filtered_slots AS (
     WHERE NOT EXISTS (
         SELECT 1
         FROM user_lessons ul
-        WHERE ul.lesson      = sc.lesson
-          AND ABS(ul.lesson_date - sc.time::timestamp::date) < 2
+        WHERE ABS(ul.lesson_date - sc.time::timestamp::date) < 2
     )
 ),
 grouped AS (
@@ -165,8 +191,20 @@ SELECT jsonb_object_agg(time, lessons_map) AS result
 FROM grouped
 `
 
+func (r *Repo) FilterSchedule(ctx context.Context, filter *DBSlotFilter) (domain.Schedule, error) {
+	slotsJSON, err := convertScheduleToJSON(filter.Schedule)
+	if err != nil {
+		return nil, fmt.Errorf("booking repo: filter schedule: covert schedule to json: %w", err)
+	}
+
 	var raw []byte
-	err = r.pool.QueryRow(ctx, query, filter.UserUUID, slotsJSON).Scan(&raw)
+	err = r.pool.QueryRow(ctx, filterScheduleQuery,
+		filter.UserUUID,
+		slotsJSON,
+		filter.Type,
+		filter.Topic,
+		filter.Number,
+	).Scan(&raw)
 	if err != nil {
 		return nil, fmt.Errorf("booking repo: filter schedule: exec query: %w", err)
 	}

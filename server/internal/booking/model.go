@@ -31,6 +31,9 @@ type DBBooking struct {
 type DBSlotFilter struct {
 	UserUUID uuid.UUID
 	Schedule domain.Schedule
+	Type     domain.LabType
+	Topic    domain.LabTopic
+	Number   int
 }
 
 type GetBookingsRes struct {
@@ -55,4 +58,7 @@ type CancelClientBookingReq struct {
 type FilterScheduleReq struct {
 	UserUUID uuid.UUID
 	Schedule domain.Schedule
+	Type     domain.LabType
+	Topic    domain.LabTopic
+	Number   int
 }

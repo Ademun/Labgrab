@@ -48,6 +48,7 @@ func (r *Repo) GetUser(ctx context.Context, userUUID uuid.UUID) (*DBUser, error)
 		"phone_number",
 		"telegram_id",
 		"photo_url",
+		"api_ready",
 	).
 		From("user_service.users").
 		Where(squirrel.Eq{"uuid": userUUID}).
@@ -66,6 +67,7 @@ func (r *Repo) GetUser(ctx context.Context, userUUID uuid.UUID) (*DBUser, error)
 		&user.PhoneNumber,
 		&user.TelegramID,
 		&user.PhotoUrl,
+		&user.ApiReady,
 	); err != nil {
 		return nil, fmt.Errorf("user repo: get user: scan row: %w", err)
 	}

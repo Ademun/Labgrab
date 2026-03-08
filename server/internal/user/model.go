@@ -16,6 +16,7 @@ type DBUser struct {
 	TelegramID  int       `db:"telegram_id"`
 	Username    string    `db:"username"`
 	PhotoUrl    *string   `db:"photo_url"`
+	ApiReady    bool      `db:"api_ready"`
 }
 
 type CreateUserReq struct {
@@ -41,6 +42,7 @@ type GetUserRes struct {
 	PhoneNumber *int
 	TelegramID  int
 	PhotoUrl    *string
+	ApiReady    bool
 }
 
 type UpdateUserReq struct {

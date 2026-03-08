@@ -7,6 +7,7 @@ create table if not exists booking_service.bookings
     booking_id int                            not null unique,
     type       lab_type                       not null,
     topic      lab_topic                      not null,
+    number     int                            not null,
     auditorium int                            not null,
     spot       int,
     lesson     int                            not null,

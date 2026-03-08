@@ -161,6 +161,9 @@ func (s *Service) FilterSchedule(ctx context.Context, req *FilterScheduleReq) (d
 	schedule, err := s.repo.FilterSchedule(ctx, &DBSlotFilter{
 		UserUUID: req.UserUUID,
 		Schedule: req.Schedule,
+		Type:     req.Type,
+		Topic:    req.Topic,
+		Number:   req.Number,
 	})
 	if err != nil {
 		span.RecordError(err)

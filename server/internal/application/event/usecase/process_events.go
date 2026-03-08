@@ -221,6 +221,9 @@ func (uc *ProcessEventsUsecase) eventWorker(
 			filteredSchedule, err := uc.bookingSvc.FilterSchedule(ctx, &booking.FilterScheduleReq{
 				UserUUID: subs[i].UserUUID,
 				Schedule: subs[i].Schedule,
+				Type:     e.Data.Type,
+				Topic:    e.Data.Topic,
+				Number:   e.Data.Number,
 			})
 			if err != nil {
 				errCh <- fmt.Errorf("event usecase: event worker: filter schedule: %w", err)
@@ -320,15 +323,62 @@ func (uc *ProcessEventsUsecase) userWorker(
 	errCh chan<- error,
 ) {
 	for task := range tasks {
+		// Step 1: re-check subscription status before doing any work.
+		// Event workers fan-out tasks in parallel - by the time this worker
+		// picks up a task, a sibling task for the same subscription may have
+		// already enrolled and closed it.
+		sub, err := uc.subscriptionSvc.GetSubscription(ctx, task.sub.SubscriptionUUID)
+		if err != nil {
+			errCh <- fmt.Errorf("event usecase: user worker: get subscription: %w", err)
+			continue
+		}
+		if sub.Status != subscription.StatusActive {
+			continue
+		}
+
+		// Step 2: credentials needed for both LoadClientBookings and Enroll.
+		// Fetch once here; nil session/cookies is a hard stop.
+		creds, err := uc.authSvc.GetUserCredentials(ctx, task.sub.UserUUID)
+		if err != nil {
+			errCh <- fmt.Errorf("event usecase: user worker: get user credentials: %w", err)
+			continue
+		}
+		if creds.Session == nil || creds.Cookies == nil {
+			errCh <- fmt.Errorf("event usecase: user worker: get user credentials: nil session or cookies")
+			continue
+		}
+
+		// Step 3: sync local booking cache from the site before filtering.
+		// FilterSchedule reads from this cache - stale data means stale filter.
+		if err := acquireSem(ctx, sem); err != nil {
+			errCh <- fmt.Errorf("event usecase: user worker: load bookings acquire sem: %w", err)
+			continue
+		}
+		err = uc.bookingSvc.LoadClientBookings(ctx, &booking.LoadClientBookingsReq{
+			UserUUID: task.sub.UserUUID,
+			Session:  *creds.Session,
+			Cookies:  *creds.Cookies,
+		})
+		releaseSem(sem)
+		if err != nil {
+			errCh <- fmt.Errorf("event usecase: user worker: load client bookings: %w", err)
+			continue
+		}
+
+		// Step 4: filter against freshly loaded bookings.
+		// already_booked CTE short-circuits on duplicate lab; date-gap check
+		// no longer requires matching lesson number.
 		freshSchedule, err := uc.bookingSvc.FilterSchedule(ctx, &booking.FilterScheduleReq{
 			UserUUID: task.sub.UserUUID,
 			Schedule: task.sub.Schedule,
+			Type:     task.eventRes.Data.Type,
+			Topic:    task.eventRes.Data.Topic,
+			Number:   task.eventRes.Data.Number,
 		})
 		if err != nil {
 			errCh <- fmt.Errorf("event usecase: user worker: filter schedule: %w", err)
 			continue
 		}
-
 		if len(freshSchedule) == 0 {
 			continue
 		}
@@ -345,24 +395,6 @@ func (uc *ProcessEventsUsecase) userWorker(
 			errCh <- fmt.Errorf("event usecase: user worker: enroll acquire sem: %w", err)
 			continue
 		}
-
-		releaseSem(sem)
-
-		creds, err := uc.authSvc.GetUserCredentials(ctx, task.sub.UserUUID)
-		if err != nil {
-			errCh <- fmt.Errorf("event usecase: user worker: get user credentials: %w", err)
-			continue
-		}
-
-		if creds.Session == nil || creds.Cookies == nil {
-			errCh <- fmt.Errorf("event usecase: user worker: get user credentials: %w", err)
-			continue
-		}
-
-		if err := acquireSem(ctx, sem); err != nil {
-			errCh <- fmt.Errorf("event usecase: user worker: load bookings acquire sem: %w", err)
-			continue
-		}
 		bId, err := uc.eventSvc.Enroll(ctx, &event.EnrollmentReq{
 			UserUUID:    task.sub.UserUUID,
 			EventID:     task.eventRes.Data.ID,
@@ -377,8 +409,9 @@ func (uc *ProcessEventsUsecase) userWorker(
 			Cookies:     *creds.Cookies,
 		})
 		if err != nil {
-			errCh <- fmt.Errorf("event usecase: user worker: enroll acquire sem: %w", err)
-			return
+			releaseSem(sem)
+			errCh <- fmt.Errorf("event usecase: user worker: enroll: %w", err)
+			continue
 		}
 		releaseSem(sem)
 
@@ -400,20 +433,6 @@ func (uc *ProcessEventsUsecase) userWorker(
 			Lesson:        selectedLesson,
 		}); err != nil {
 			errCh <- fmt.Errorf("event usecase: user worker: notify enrollment: %w", err)
-		}
-
-		if err := acquireSem(ctx, sem); err != nil {
-			errCh <- fmt.Errorf("event usecase: user worker: load bookings acquire sem: %w", err)
-			continue
-		}
-		err = uc.bookingSvc.LoadClientBookings(ctx, &booking.LoadClientBookingsReq{
-			UserUUID: task.sub.UserUUID,
-			Session:  *creds.Session,
-			Cookies:  *creds.Cookies,
-		})
-		releaseSem(sem)
-		if err != nil {
-			errCh <- fmt.Errorf("event usecase: user worker: load client bookings: %w", err)
 		}
 	}
 }
