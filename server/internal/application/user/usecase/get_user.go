@@ -42,5 +42,6 @@ func (uc *GetUserUseCase) Exec(ctx context.Context, session string) (*dto.GetUse
 		GroupCode:   userData.GroupCode,
 		PhoneNumber: userData.PhoneNumber,
 		PhotoURL:    userData.PhotoUrl,
+		ApiReady:    userData.ApiReady,
 	}, nil
 }

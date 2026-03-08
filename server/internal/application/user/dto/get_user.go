@@ -8,4 +8,5 @@ type GetUserRespDTO struct {
 	GroupCode   *string `json:"group_code"`
 	PhoneNumber *int    `json:"phone_number"`
 	PhotoURL    *string `json:"photo_url"`
+	ApiReady    bool    `json:"api_ready"`
 }
