@@ -1,6 +1,6 @@
-create schema if not exists event_service;
+create schema if not exists auth_service;
 
-CREATE TABLE IF NOT EXISTS event_service.user_data
+create table if not exists auth_service.user_data
 (
     user_uuid           uuid not null,
     dikidi_phone_number text not null,
@@ -9,5 +9,5 @@ CREATE TABLE IF NOT EXISTS event_service.user_data
     session             text,
     token               text,
     cookies             text,
-    CONSTRAINT user_data_pk PRIMARY KEY (user_uuid)
+    constraint user_data_pk primary key (user_uuid)
 );

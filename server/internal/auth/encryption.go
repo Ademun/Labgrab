@@ -1,4 +1,4 @@
-package event
+package auth
 
 import (
 	"context"
@@ -15,27 +15,27 @@ import (
 func (s *Service) DecryptUserData(data *DBUserData) (*DecryptedUserData, error) {
 	rawDEK, err := s.DecryptDEK(data.DEK, data.UserUUID)
 	if err != nil {
-		return nil, fmt.Errorf("event service: decrypt user data: decrypt dek: %w", err)
+		return nil, fmt.Errorf("auth service: decrypt user data: decrypt dek: %w", err)
 	}
 
 	password, err := decryptWithDEK(data.DikidiPassword, rawDEK)
 	if err != nil {
-		return nil, fmt.Errorf("event service: decrypt user data: decrypt password: %w", err)
+		return nil, fmt.Errorf("auth service: decrypt user data: decrypt password: %w", err)
 	}
 
 	session, err := decryptPtrWithDEK(data.Session, rawDEK)
 	if err != nil {
-		return nil, fmt.Errorf("event service: decrypt user data: decrypt session: %w", err)
+		return nil, fmt.Errorf("auth service: decrypt user data: decrypt session: %w", err)
 	}
 
 	token, err := decryptPtrWithDEK(data.Token, rawDEK)
 	if err != nil {
-		return nil, fmt.Errorf("event service: decrypt user data: decrypt token: %w", err)
+		return nil, fmt.Errorf("auth service: decrypt user data: decrypt token: %w", err)
 	}
 
 	cookies, err := decryptPtrWithDEK(data.Cookies, rawDEK)
 	if err != nil {
-		return nil, fmt.Errorf("event service: decrypt user data: decrypt cookies: %w", err)
+		return nil, fmt.Errorf("auth service: decrypt user data: decrypt cookies: %w", err)
 	}
 
 	return &DecryptedUserData{
@@ -51,12 +51,12 @@ func (s *Service) DecryptUserData(data *DBUserData) (*DecryptedUserData, error) 
 func (s *Service) EncryptPassword(password string, userUUID uuid.UUID) (string, string, error) {
 	key := make([]byte, 32)
 	if _, err := rand.Read(key); err != nil {
-		return "", "", fmt.Errorf("event service: encrypt password: generate dek: %w", err)
+		return "", "", fmt.Errorf("auth service: encrypt password: generate dek: %w", err)
 	}
 
 	encPass, err := encryptWithDEK(password, key)
 	if err != nil {
-		return "", "", fmt.Errorf("event service: encrypt password: encrypt with dek: %w", err)
+		return "", "", fmt.Errorf("auth service: encrypt password: encrypt with dek: %w", err)
 	}
 
 	eDEK := s.kekGCM.Seal(nil, nil, key, []byte(userUUID.String()))
@@ -67,12 +67,12 @@ func (s *Service) EncryptPassword(password string, userUUID uuid.UUID) (string, 
 func (s *Service) DecryptDEK(encDEK string, userUUID uuid.UUID) ([]byte, error) {
 	eDEK, err := base64.StdEncoding.DecodeString(encDEK)
 	if err != nil {
-		return nil, fmt.Errorf("event service: decrypt dek: base64 decode: %w", err)
+		return nil, fmt.Errorf("auth service: decrypt dek: base64 decode: %w", err)
 	}
 
 	raw, err := s.kekGCM.Open(nil, nil, eDEK, []byte(userUUID.String()))
 	if err != nil {
-		return nil, fmt.Errorf("event service: decrypt dek: gcm open: %w", err)
+		return nil, fmt.Errorf("auth service: decrypt dek: gcm open: %w", err)
 	}
 
 	return raw, nil
@@ -81,17 +81,17 @@ func (s *Service) DecryptDEK(encDEK string, userUUID uuid.UUID) ([]byte, error) 
 func (s *Service) EncryptAndSaveCookies(ctx context.Context, userUUID uuid.UUID, rawDEK []byte, cookies *dikidi.ClientCookies, session string) error {
 	encSession, err := encryptWithDEK(session, rawDEK)
 	if err != nil {
-		return fmt.Errorf("event service: encrypt and save cookies: encrypt session: %w", err)
+		return fmt.Errorf("auth service: encrypt and save cookies: encrypt session: %w", err)
 	}
 
 	encToken, err := encryptWithDEK(*cookies.Token, rawDEK)
 	if err != nil {
-		return fmt.Errorf("event service: encrypt and save cookies: encrypt token: %w", err)
+		return fmt.Errorf("auth service: encrypt and save cookies: encrypt token: %w", err)
 	}
 
 	encCookies, err := encryptWithDEK(cookies.All, rawDEK)
 	if err != nil {
-		return fmt.Errorf("event service: encrypt and save cookies: encrypt cookies: %w", err)
+		return fmt.Errorf("auth service: encrypt and save cookies: encrypt cookies: %w", err)
 	}
 
 	if err = s.repo.SetUserCookies(ctx, userUUID, &DBUserCookies{
@@ -99,7 +99,7 @@ func (s *Service) EncryptAndSaveCookies(ctx context.Context, userUUID uuid.UUID,
 		Token:   &encToken,
 		Cookies: &encCookies,
 	}); err != nil {
-		return fmt.Errorf("event service: encrypt and save cookies: repository call: %w", err)
+		return fmt.Errorf("auth service: encrypt and save cookies: repository call: %w", err)
 	}
 
 	return nil
