@@ -21,6 +21,9 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// maxConcurrentRequests matches the site's concurrency limit.
+const maxConcurrentRequests = 5
+
 type ProcessEventsUsecase struct {
 	eventSvc        *event.Service
 	userSvc         *user.Service
@@ -47,6 +50,23 @@ func NewProcessEventsUsecase(
 	}
 }
 
+// enrollTask is produced by event workers after MCMF conflict resolution
+// and consumed by per-user workers for the actual enrollment.
+type enrollTask struct {
+	eventRes *event.GetEventsRes
+	sub      subscription.GetMatchingSubscriptionsRes
+	userInfo *user.GetUserRes
+}
+
+// Exec orchestrates two-phase parallel processing:
+//
+//	Phase 1 — 3 event workers: match subscriptions, filter schedule, resolve
+//	          inter-user conflicts via MCMF, fan-out enrollTasks.
+//	Phase 2 — per-user goroutines: re-filter (fresh DB), enroll (semaphore),
+//	          update state, notify, fetch updated bookings (semaphore).
+//
+// One global semaphore caps all outbound HTTP at maxConcurrentRequests.
+// Per-user serialization guarantees the 2-day gap invariant without any mutex.
 func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
 	ctx, span := uc.tracer.Start(ctx, "process_events_usecase.Exec")
 	defer span.End()
@@ -55,47 +75,88 @@ func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
 	events, err := uc.eventSvc.GetCurrentEvents(ctx, &clientCookies)
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to process events")
-		return fmt.Errorf("event: usecase: process events: %w", err)
+		span.SetStatus(codes.Error, "failed to get current events")
+		return fmt.Errorf("event usecase: exec: get current events: %w", err)
 	}
 
-	wg := sync.WaitGroup{}
-	errCh := make(chan error)
+	// Shared HTTP semaphore — every outbound request to the site acquires one slot.
+	sem := make(chan struct{}, maxConcurrentRequests)
 
+	// enrollCh is buffered so event workers never block on slow user workers.
+	enrollCh := make(chan enrollTask, 100)
+	errCh := make(chan error, 100)
+
+	// ── Phase 1: event workers ───────────────────────────────────────────────
+	var eventWg sync.WaitGroup
+	for range 3 {
+		eventWg.Add(1)
+		go func() {
+			defer eventWg.Done()
+			uc.eventWorker(ctx, events, enrollCh, errCh)
+		}()
+	}
+
+	// Close enrollCh once all event workers exit — signals fan-out to stop.
 	go func() {
-		for range 3 {
-			wg.Add(1)
-			go func() {
-				uc.Worker(ctx, events, errCh)
-				wg.Done()
-			}()
-		}
-		wg.Wait()
-		close(errCh)
+		eventWg.Wait()
+		close(enrollCh)
 	}()
 
+	// ── Phase 2: fan-out + per-user goroutines ───────────────────────────────
+	// Single goroutine owns userChannels — no mutex needed.
+	userChannels := make(map[uuid.UUID]chan enrollTask)
+	var userWg sync.WaitGroup
+
+	for task := range enrollCh {
+		userID := task.sub.UserUUID
+		if _, ok := userChannels[userID]; !ok {
+			ch := make(chan enrollTask, 50)
+			userChannels[userID] = ch
+			userWg.Add(1)
+			go func(userCh <-chan enrollTask) {
+				defer userWg.Done()
+				uc.userWorker(ctx, userCh, sem, errCh)
+			}(ch)
+		}
+		userChannels[userID] <- task
+	}
+
+	// enrollCh drained → all tasks routed → close per-user channels so workers exit.
+	for _, ch := range userChannels {
+		close(ch)
+	}
+
+	userWg.Wait()
+	close(errCh)
+
+	// Collect all errors. Fixed: errors.Join result must be assigned.
 	var collected error
 	for err := range errCh {
-		fmt.Println("Error", err)
-		errors.Join(collected, err)
+		collected = errors.Join(collected, err)
 	}
 
 	if collected != nil {
 		span.RecordError(collected)
 		span.SetStatus(codes.Error, "failed to process events")
-		return fmt.Errorf("event: usecase: process events: %w", collected)
+		return fmt.Errorf("event usecase: exec: %w", collected)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return nil
 }
 
-func (uc *ProcessEventsUsecase) Worker(ctx context.Context, events chan *event.GetEventsRes, errCh chan error) {
-	workerUUID := uuid.New()
-main:
+// eventWorker reads events, matches subscriptions, runs MCMF conflict resolution,
+// and fans out enrollTasks. Pure computation + DB reads — no HTTP, no semaphore.
+func (uc *ProcessEventsUsecase) eventWorker(
+	ctx context.Context,
+	events <-chan *event.GetEventsRes,
+	enrollCh chan<- enrollTask,
+	errCh chan<- error,
+) {
 	for e := range events {
 		if e.Err != nil {
-			errCh <- fmt.Errorf("event: worker: event error: %w", e.Err)
-			continue main
+			errCh <- fmt.Errorf("event usecase: event worker: event error: %w", e.Err)
+			continue
 		}
 
 		subs, err := uc.subscriptionSvc.GetMatchingSubscriptions(ctx, &subscription.GetMatchingSubscriptionsReq{
@@ -104,26 +165,37 @@ main:
 			Number:     e.Data.Number,
 			Auditorium: e.Data.Auditorium,
 			Schedule:   e.Data.Schedule,
-			WorkerUUID: workerUUID,
 		})
 		if err != nil {
-			errCh <- fmt.Errorf("event: worker: match subscriptions: %w", err)
-			continue main
+			errCh <- fmt.Errorf("event usecase: event worker: get matching subscriptions: %w", err)
+			continue
 		}
 
-		enrollmentSubscriptions := make([]subscription.GetMatchingSubscriptionsRes, 0)
-		subUserInfoIdx := make(map[uuid.UUID]*user.GetUserRes, len(subs))
+		if len(subs) == 0 {
+			continue
+		}
 
+		// Pre-fetch all users so we have them for both notify and enroll paths.
+		subUsers := make([]*user.GetUserRes, len(subs))
 		for i := range subs {
 			userInfo, err := uc.userSvc.GetUser(ctx, subs[i].UserUUID)
 			if err != nil {
-				errCh <- fmt.Errorf("event: worker: get user: %w", err)
-				continue main
+				errCh <- fmt.Errorf("event usecase: event worker: get user: %w", err)
+				continue
 			}
-			subUserInfoIdx[subs[i].SubscriptionUUID] = userInfo
+			subUsers[i] = userInfo
+		}
+
+		// Split into notify-only and auto-enroll paths.
+		enrollIdxs := make([]int, 0, len(subs))
+		for i := range subs {
+			if subUsers[i] == nil {
+				continue
+			}
+
 			if !subs[i].AutoEnroll {
 				err := uc.telegramSvc.NotifyEvent(ctx, telegram.NotifyEventReq{
-					UserID:        userInfo.TelegramID,
+					UserID:        subUsers[i].TelegramID,
 					LabName:       e.Data.Name,
 					LabType:       e.Data.Type,
 					LabTopic:      e.Data.Topic,
@@ -134,29 +206,36 @@ main:
 					PageURL:       e.Data.Link,
 				})
 				if err != nil {
-					errCh <- fmt.Errorf("event: worker: notify: %w", err)
-					continue main
+					errCh <- fmt.Errorf("event usecase: event worker: notify event: %w", err)
 				}
-			} else {
-				enrollmentSubscriptions = append(enrollmentSubscriptions, subs[i])
+				continue
 			}
-		}
 
-		keyMap := make(map[time.Time]int)
-		conflictingDates := make([]time.Time, 0)
-		for i := range enrollmentSubscriptions {
+			// First-pass schedule filter — used as MCMF input.
+			// User worker re-filters with fresh state before actual enrollment.
 			filteredSchedule, err := uc.bookingSvc.FilterSchedule(ctx, &booking.FilterScheduleReq{
 				UserUUID: subs[i].UserUUID,
 				Schedule: subs[i].Schedule,
 			})
 			if err != nil {
-				errCh <- fmt.Errorf("event: worker: filter schedule: %w", err)
-				continue main
+				errCh <- fmt.Errorf("event usecase: event worker: filter schedule: %w", err)
+				continue
 			}
 
 			subs[i].Schedule = filteredSchedule
+			enrollIdxs = append(enrollIdxs, i)
+		}
 
-			for d := range filteredSchedule {
+		if len(enrollIdxs) == 0 {
+			continue
+		}
+
+		// ── MCMF conflict resolution ─────────────────────────────────────────
+		// Find dates where 2+ users want to enroll, resolve fair assignment.
+		keyMap := make(map[time.Time]int)
+		conflictingDates := make([]time.Time, 0)
+		for _, i := range enrollIdxs {
+			for d := range subs[i].Schedule {
 				utcD := d.UTC()
 				keyMap[utcD]++
 				if keyMap[utcD] == 2 {
@@ -165,14 +244,14 @@ main:
 			}
 		}
 
-		subIndex := make(map[uuid.UUID]int, len(enrollmentSubscriptions))
-		for i := range enrollmentSubscriptions {
+		subIndex := make(map[uuid.UUID]int, len(enrollIdxs))
+		for _, i := range enrollIdxs {
 			subIndex[subs[i].SubscriptionUUID] = i
 		}
 
 		for _, date := range conflictingDates {
 			leftSide := make(map[uuid.UUID][]domain.Lesson)
-			for i := range subs {
+			for _, i := range enrollIdxs {
 				if l, ok := subs[i].Schedule[date]; ok {
 					lessons := make([]domain.Lesson, 0, len(l))
 					for k := range l {
@@ -191,13 +270,13 @@ main:
 
 			graph, uuidMap, lessonMap := buildGraph(leftSide, rightSide)
 			_ = mcmf(graph, 0, len(graph)-1)
+
 			uuidLessons := make(map[uuid.UUID][]domain.Lesson)
-			for v, e := range graph {
+			for v, edges := range graph {
 				if lesson, ok := lessonMap[v]; ok {
-					for _, edge := range e {
+					for _, edge := range edges {
 						if edge.Cap == 0 {
-							id, ok := uuidMap[edge.To]
-							if ok {
+							if id, ok := uuidMap[edge.To]; ok {
 								uuidLessons[id] = append(uuidLessons[id], lesson)
 							}
 						}
@@ -215,67 +294,137 @@ main:
 			}
 		}
 
-		for _, sub := range enrollmentSubscriptions {
-			userInfo := subUserInfoIdx[sub.SubscriptionUUID]
-			var selectedDate time.Time
-			rnd := rand.IntN(len(sub.Schedule))
-			for k, v := range sub.Schedule {
-				if len(v) == 0 {
-					continue
-				}
-				if rnd == 0 {
-					selectedDate = k
-					break
-				}
-				rnd--
+		// Fan-out — each sub becomes an independent task routed by userID.
+		for _, i := range enrollIdxs {
+			if len(subs[i].Schedule) == 0 {
+				continue
 			}
-
-			if selectedDate.IsZero() {
-				return
-			}
-
-			var selectedLesson domain.Lesson
-			rnd = rand.IntN(len(sub.Schedule[selectedDate]))
-			for k := range sub.Schedule[selectedDate] {
-				if rnd == 0 {
-					selectedLesson = k
-					break
-				}
-				rnd--
-			}
-
-			fmt.Println("User", userInfo.Name, "Estimated schedule", sub.Schedule, "Worker", workerUUID)
-
-			err = uc.subscriptionSvc.UpdateSubscription(ctx, &subscription.UpdateSubscriptionDataReq{
-				UserUUID:         sub.UserUUID,
-				SubscriptionUUID: sub.SubscriptionUUID,
-				LabType:          e.Data.Type,
-				LabTopic:         e.Data.Topic,
-				LabNumber:        e.Data.Number,
-				LabAuditorium:    &e.Data.Auditorium,
-				Status:           subscription.StatusClosed,
-				AutoEnroll:       false,
-				AnyDate:          false,
-			})
-
-			err = uc.telegramSvc.NotifyEnrollment(ctx, telegram.NotifyEnrollmentReq{
-				UserID:        userInfo.TelegramID,
-				LabName:       e.Data.Name,
-				LabType:       e.Data.Type,
-				LabTopic:      e.Data.Topic,
-				LabNumber:     e.Data.Number,
-				LabAuditorium: e.Data.Auditorium,
-				Spot:          e.Data.Spot,
-				Date:          selectedDate,
-				Lesson:        selectedLesson,
-			})
-			if err != nil {
-				errCh <- fmt.Errorf("event: worker: notify: %w", err)
-				continue main
+			enrollCh <- enrollTask{
+				eventRes: e,
+				sub:      subs[i],
+				userInfo: subUsers[i],
 			}
 		}
 	}
 }
+
+func (uc *ProcessEventsUsecase) userWorker(
+	ctx context.Context,
+	tasks <-chan enrollTask,
+	sem chan struct{},
+	errCh chan<- error,
+) {
+	for task := range tasks {
+		freshSchedule, err := uc.bookingSvc.FilterSchedule(ctx, &booking.FilterScheduleReq{
+			UserUUID: task.sub.UserUUID,
+			Schedule: task.sub.Schedule,
+		})
+		if err != nil {
+			errCh <- fmt.Errorf("event usecase: user worker: filter schedule: %w", err)
+			continue
+		}
+
+		if len(freshSchedule) == 0 {
+			continue
+		}
+
+		selectedDate, selectedLesson, ok := pickRandomSlot(freshSchedule)
+		if !ok {
+			continue
+		}
+
+		if err := acquireSem(ctx, sem); err != nil {
+			errCh <- fmt.Errorf("event usecase: user worker: enroll acquire sem: %w", err)
+			continue
+		}
+
+		releaseSem(sem)
+
+		if err = uc.subscriptionSvc.UpdateSubscription(ctx, &subscription.UpdateSubscriptionDataReq{
+			UserUUID:         task.sub.UserUUID,
+			SubscriptionUUID: task.sub.SubscriptionUUID,
+			LabType:          task.eventRes.Data.Type,
+			LabTopic:         task.eventRes.Data.Topic,
+			LabNumber:        task.eventRes.Data.Number,
+			LabAuditorium:    &task.eventRes.Data.Auditorium,
+			Status:           subscription.StatusClosed,
+			AutoEnroll:       false,
+			AnyDate:          false,
+		}); err != nil {
+			errCh <- fmt.Errorf("event usecase: user worker: update subscription: %w", err)
+		}
+
+		if err = uc.telegramSvc.NotifyEnrollment(ctx, telegram.NotifyEnrollmentReq{
+			UserID:        task.userInfo.TelegramID,
+			LabName:       task.eventRes.Data.Name,
+			LabType:       task.eventRes.Data.Type,
+			LabTopic:      task.eventRes.Data.Topic,
+			LabNumber:     task.eventRes.Data.Number,
+			LabAuditorium: task.eventRes.Data.Auditorium,
+			Spot:          task.eventRes.Data.Spot,
+			Date:          selectedDate,
+			Lesson:        selectedLesson,
+		}); err != nil {
+			errCh <- fmt.Errorf("event usecase: user worker: notify enrollment: %w", err)
+		}
+
+		if err := acquireSem(ctx, sem); err != nil {
+			errCh <- fmt.Errorf("event usecase: user worker: load bookings acquire sem: %w", err)
+			continue
+		}
+		err = uc.bookingSvc.LoadClientBookings(ctx, &booking.LoadClientBookingsReq{
+			UserUUID: task.sub.UserUUID,
+			Cookies:  "",
+		})
+		releaseSem(sem)
+		if err != nil {
+			errCh <- fmt.Errorf("event usecase: user worker: load client bookings: %w", err)
+		}
+	}
+}
+
+// acquireSem grabs one semaphore slot, respecting context cancellation.
+func acquireSem(ctx context.Context, sem chan struct{}) error {
+	select {
+	case sem <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// releaseSem releases one semaphore slot.
+func releaseSem(sem chan struct{}) {
+	<-sem
+}
+
+// pickRandomSlot selects a random date and lesson from a filtered schedule.
+// Returns false if the schedule is empty or all dates have no lessons.
+func pickRandomSlot(schedule map[time.Time]map[domain.Lesson][]string) (time.Time, domain.Lesson, bool) {
+	validDates := make([]time.Time, 0, len(schedule))
+	for d, lessons := range schedule {
+		if len(lessons) > 0 {
+			validDates = append(validDates, d)
+		}
+	}
+	if len(validDates) == 0 {
+		return time.Time{}, 0, false
+	}
+
+	selectedDate := validDates[rand.IntN(len(validDates))]
+
+	lessonKeys := make([]domain.Lesson, 0, len(schedule[selectedDate]))
+	for k := range schedule[selectedDate] {
+		lessonKeys = append(lessonKeys, k)
+	}
+	if len(lessonKeys) == 0 {
+		return time.Time{}, 0, false
+	}
+
+	return selectedDate, lessonKeys[rand.IntN(len(lessonKeys))], true
+}
+
+// ── MCMF ─────────────────────────────────────────────────────────────────────
 
 type Edge struct {
 	To   int
@@ -308,11 +457,8 @@ func spfa(graph [][]Edge, source int) ([]int, []int, []int) {
 
 	prevv := make([]int, len(graph))
 	preve := make([]int, len(graph))
-
-	queue := make([]int, 0)
+	queue := []int{source}
 	inQueue := make([]bool, len(graph))
-
-	queue = append(queue, source)
 	inQueue[source] = true
 
 	for len(queue) > 0 {
@@ -321,11 +467,10 @@ func spfa(graph [][]Edge, source int) ([]int, []int, []int) {
 		inQueue[u] = false
 
 		for i, edge := range graph[u] {
-			if (dist[u]+edge.Cost < dist[edge.To]) && (edge.Cap > 0) {
+			if edge.Cap > 0 && dist[u]+edge.Cost < dist[edge.To] {
 				dist[edge.To] = dist[u] + edge.Cost
 				prevv[edge.To] = u
 				preve[edge.To] = i
-
 				if !inQueue[edge.To] {
 					queue = append(queue, edge.To)
 					inQueue[edge.To] = true
@@ -341,17 +486,16 @@ func augment(graph [][]Edge, source, sink int, dist, prevv, preve []int) int {
 	v := sink
 	minCap := math.MaxInt32
 	for v != source {
-		edge := graph[prevv[v]][preve[v]]
-		if edge.Cap < minCap {
-			minCap = edge.Cap
+		if e := graph[prevv[v]][preve[v]]; e.Cap < minCap {
+			minCap = e.Cap
 		}
 		v = prevv[v]
 	}
 	v = sink
 	for v != source {
 		graph[prevv[v]][preve[v]].Cap -= minCap
-		edge := graph[prevv[v]][preve[v]]
-		graph[edge.To][edge.Rev].Cap += minCap
+		e := graph[prevv[v]][preve[v]]
+		graph[e.To][e.Rev].Cap += minCap
 		v = prevv[v]
 	}
 	return dist[sink] * minCap
@@ -395,7 +539,6 @@ func buildGraph(constraints map[uuid.UUID][]domain.Lesson, rightSide map[domain.
 		addEdge(graph, idx, len(graph)-1, 1, 0)
 		addEdge(graph, idx, len(graph)-1, maxLessons-1, 1)
 	}
-
 	for id, lessons := range constraints {
 		for _, lesson := range lessons {
 			addEdge(graph, reverseLessonMap[lesson], reverseUUIDMap[id], 1, 0)

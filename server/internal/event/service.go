@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"labgrab/internal/shared/api/dikidi"
-	"labgrab/internal/shared/errors"
 	"labgrab/internal/shared/mask"
 	"labgrab/pkg/config"
 	"strings"
@@ -31,17 +30,17 @@ type Service struct {
 func NewService(repo *Repo, client *dikidi.Client, cfg *config.EncryptionConfig) (*Service, error) {
 	key, err := hex.DecodeString(cfg.PasswordKEK)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("event service: new service: decode kek key: %w", err)
 	}
 
 	kekCipher, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("event service: new service: create aes cipher: %w", err)
 	}
 
 	kekGCM, err := cipher.NewGCMWithRandomNonce(kekCipher)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("event service: new service: create gcm: %w", err)
 	}
 
 	return &Service{
@@ -53,83 +52,67 @@ func NewService(repo *Repo, client *dikidi.Client, cfg *config.EncryptionConfig)
 }
 
 func (s *Service) CreateUserData(ctx context.Context, req *CreateUserDataReq) error {
-	ctx, span := tracer.Start(ctx, "lab_enrollment_service.create_user_data")
+	ctx, span := tracer.Start(ctx, "event_service.create_user_data")
 	defer span.End()
 
-	span.SetAttributes(
-		attribute.String("user.uuid", req.UserUUID.String()),
-	)
+	span.SetAttributes(attribute.String("user.uuid", req.UserUUID.String()))
 
 	pass, dek, err := s.EncryptPassword(req.DikidiPassword, req.UserUUID)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "CreateUserData",
-			Step:      "EncryptPassword",
-			Err:       err,
-		}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to encrypt password")
-		return err
+		return fmt.Errorf("event service: create user data: encrypt password: %w", err)
 	}
 
-	dbUserData := &DBUserData{
+	if err := s.repo.CreateUserData(ctx, &DBUserData{
 		UserUUID:          req.UserUUID,
 		DikidiPhoneNumber: req.DikidiPhoneNumber,
 		DikidiPassword:    pass,
 		DEK:               dek,
-	}
-
-	if err := s.repo.CreateUserData(ctx, dbUserData, req.Tx); err != nil {
-		err = &errors.ErrServiceProcedure{
-			Procedure: "CreateUserData",
-			Step:      "Repository call",
-			Err:       err,
-		}
+	}, req.Tx); err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to create user data in repository")
-		return err
+		span.SetStatus(codes.Error, "failed to create user data")
+		return fmt.Errorf("event service: create user data: repository call: %w", err)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return nil
 }
 
 func (s *Service) AuthUser(ctx context.Context, userUUID uuid.UUID) error {
-	ctx, span := tracer.Start(ctx, "lab_enrollment_service.auth_user")
+	ctx, span := tracer.Start(ctx, "event_service.auth_user")
 	defer span.End()
+
 	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
 
 	data, err := s.repo.GetUserData(ctx, userUUID)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "GetUserData", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to get user data")
-		return err
+		return fmt.Errorf("event service: auth user: get user data: %w", err)
 	}
 
 	rawDEK, err := s.DecryptDEK(data.DEK, data.UserUUID)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "DecryptDEK", Err: err}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to decrypt DEK")
-		return err
+		span.SetStatus(codes.Error, "failed to decrypt dek")
+		return fmt.Errorf("event service: auth user: decrypt dek: %w", err)
 	}
 
 	password, err := decryptWithDEK(data.DikidiPassword, rawDEK)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "DecryptPassword", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to decrypt password")
-		return err
+		return fmt.Errorf("event service: auth user: decrypt password: %w", err)
 	}
 
 	client := mask.CreateRandomHTTPClient()
 
 	telegramCSRF, err := s.client.AcquireTelegramCSRFToken(ctx, client)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "AcquireTelegramCSRFToken", Err: err}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to acquire telegram csrf")
-		return err
+		span.SetStatus(codes.Error, "failed to acquire telegram csrf token")
+		return fmt.Errorf("event service: auth user: acquire telegram csrf token: %w", err)
 	}
 
 	mask.Jitter(2000, 3000)
@@ -138,10 +121,9 @@ func (s *Service) AuthUser(ctx context.Context, userUUID uuid.UUID) error {
 		TelegramCSRFToken: telegramCSRF,
 	})
 	if err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "AcquireCSRFToken", Err: err}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to acquire CSRF token")
-		return err
+		span.SetStatus(codes.Error, "failed to acquire csrf token")
+		return fmt.Errorf("event service: auth user: acquire csrf token: %w", err)
 	}
 
 	mask.Jitter(5000, 8000)
@@ -151,22 +133,20 @@ func (s *Service) AuthUser(ctx context.Context, userUUID uuid.UUID) error {
 		CSRFToken:         csrf,
 		TelegramCSRFToken: telegramCSRF,
 	}); err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "SendAuthRequest", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to send auth request")
-		return err
+		return fmt.Errorf("event service: auth user: send auth request: %w", err)
 	}
 
 	cookies, err := s.client.AcquireClientCookies(client)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "AcquireClientCookies", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to acquire client cookies")
-		return err
+		return fmt.Errorf("event service: auth user: acquire client cookies: %w", err)
 	}
 
 	if cookies.CookieName == nil || cookies.Token == nil {
-		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "AcquireClientCookies", Err: fmt.Errorf("no cookie_name or token found")}
+		err = fmt.Errorf("event service: auth user: acquire client cookies: cookie_name or token is missing")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "bad client cookies")
 		return err
@@ -174,76 +154,70 @@ func (s *Service) AuthUser(ctx context.Context, userUUID uuid.UUID) error {
 
 	session, err := s.client.AcquireSessionID(*cookies.CookieName)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "AcquireSessionID", Err: err}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to acquire session ID")
-		return err
+		span.SetStatus(codes.Error, "failed to acquire session id")
+		return fmt.Errorf("event service: auth user: acquire session id: %w", err)
 	}
 
 	if err = s.EncryptAndSaveCookies(ctx, data.UserUUID, rawDEK, cookies, session); err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "AuthUser", Step: "encryptAndSaveCookies", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to encrypt and save cookies")
-		return err
+		return fmt.Errorf("event service: auth user: encrypt and save cookies: %w", err)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return nil
 }
 
 func (s *Service) RefreshUserCookies(ctx context.Context, userUUID uuid.UUID) error {
-	ctx, span := tracer.Start(ctx, "lab_enrollment_service.refresh_user_cookies")
+	ctx, span := tracer.Start(ctx, "event_service.refresh_user_cookies")
 	defer span.End()
+
 	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
 
 	eData, err := s.repo.GetUserData(ctx, userUUID)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "RefreshUserCookies", Step: "GetUserData", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to get user data")
-		return err
+		return fmt.Errorf("event service: refresh user cookies: get user data: %w", err)
 	}
 
 	rawDEK, err := s.DecryptDEK(eData.DEK, eData.UserUUID)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "RefreshUserCookies", Step: "DecryptDEK", Err: err}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to decrypt DEK")
-		return err
+		span.SetStatus(codes.Error, "failed to decrypt dek")
+		return fmt.Errorf("event service: refresh user cookies: decrypt dek: %w", err)
 	}
 
 	existingCookies, err := decryptPtrWithDEK(eData.Cookies, rawDEK)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "RefreshUserCookies", Step: "DecryptCookies", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to decrypt existing cookies")
-		return err
+		return fmt.Errorf("event service: refresh user cookies: decrypt cookies: %w", err)
 	}
 
 	client, err := mask.CreateClientWithCookies(existingCookies)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "RefreshUserCookies", Step: "CreateClientWithCookies", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to create http client with cookies")
-		return err
+		return fmt.Errorf("event service: refresh user cookies: create http client with cookies: %w", err)
 	}
 
 	if err = s.client.RenewCookies(ctx, client); err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "RefreshUserCookies", Step: "RenewCookies", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to renew cookies")
-		return err
+		return fmt.Errorf("event service: refresh user cookies: renew cookies: %w", err)
 	}
 
 	newCookies, err := s.client.AcquireClientCookies(client)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "RefreshUserCookies", Step: "AcquireClientCookies", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to acquire client cookies")
-		return err
+		return fmt.Errorf("event service: refresh user cookies: acquire client cookies: %w", err)
 	}
 
 	if newCookies.CookieName == nil || newCookies.Token == nil {
-		err = &errors.ErrServiceProcedure{Procedure: "RefreshUserCookies", Step: "AcquireClientCookies", Err: fmt.Errorf("no cookie_name or token found")}
+		err = fmt.Errorf("event service: refresh user cookies: acquire client cookies: cookie_name or token is missing")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "bad client cookies")
 		return err
@@ -251,49 +225,46 @@ func (s *Service) RefreshUserCookies(ctx context.Context, userUUID uuid.UUID) er
 
 	session, err := s.client.AcquireSessionID(*newCookies.CookieName)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "RefreshUserCookies", Step: "AcquireSessionID", Err: err}
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to acquire session ID")
-		return err
+		span.SetStatus(codes.Error, "failed to acquire session id")
+		return fmt.Errorf("event service: refresh user cookies: acquire session id: %w", err)
 	}
 
 	if err = s.EncryptAndSaveCookies(ctx, eData.UserUUID, rawDEK, newCookies, session); err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "RefreshUserCookies", Step: "encryptAndSaveCookies", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to encrypt and save cookies")
-		return err
+		return fmt.Errorf("event service: refresh user cookies: encrypt and save cookies: %w", err)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return nil
 }
 
 func (s *Service) Enroll(ctx context.Context, req *EnrollmentReq) (int, error) {
-	ctx, span := tracer.Start(ctx, "lab_enrollment_service.Enroll")
+	ctx, span := tracer.Start(ctx, "event_service.enroll")
 	defer span.End()
+
 	span.SetAttributes(attribute.String("user.uuid", req.UserUUID.String()))
 
 	eData, err := s.repo.GetUserData(ctx, req.UserUUID)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "GetUserData", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to get user data")
-		return 0, err
+		return 0, fmt.Errorf("event service: enroll: get user data: %w", err)
 	}
 
 	data, err := s.DecryptUserData(eData)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "DecryptUserData", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to decrypt user data")
-		return 0, err
+		return 0, fmt.Errorf("event service: enroll: decrypt user data: %w", err)
 	}
 
 	client, err := mask.CreateClientWithCookies(data.Cookies)
 	if err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "CreateClientWithCookies", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to create http client with cookies")
-		return 0, err
+		return 0, fmt.Errorf("event service: enroll: create http client with cookies: %w", err)
 	}
 
 	timeStr := req.Time.Format("2006-01-02 15:04:05")
@@ -304,10 +275,9 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollmentReq) (int, error) {
 		Session:    *data.Session,
 	})
 	if err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "AcquireTimeReservation", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to acquire time reservation")
-		return 0, err
+		return 0, fmt.Errorf("event service: enroll: acquire time reservation: %w", err)
 	}
 
 	refererTime := req.Time.Format("200601021504")
@@ -324,13 +294,12 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollmentReq) (int, error) {
 		LastName:   req.Surname,
 		Comments:   req.Group,
 	}); err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "CheckEnrollment", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to check enrollment")
-		return 0, err
+		return 0, fmt.Errorf("event service: enroll: check enrollment: %w", err)
 	}
 
-	mask.Jitter(500, 1500)
+	mask.Jitter(500, 1000)
 
 	if err = s.client.GetReservationInfo(ctx, client, &dikidi.ReservationInfoRequest{
 		BookingID:  reservation.BookingID,
@@ -339,10 +308,9 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollmentReq) (int, error) {
 		Time:       refererTime,
 		Session:    *data.Session,
 	}); err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "GetReservationInfo", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to get reservation info")
-		return 0, err
+		return 0, fmt.Errorf("event service: enroll: get reservation info: %w", err)
 	}
 
 	mask.Jitter(1000, 2000)
@@ -359,31 +327,29 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollmentReq) (int, error) {
 		Comments:  req.Group,
 	})
 	if err != nil {
-		err = &errors.ErrServiceProcedure{Procedure: "Enroll", Step: "CreateRecord", Err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to create booking")
-		return 0, err
+		return 0, fmt.Errorf("event service: enroll: create booking: %w", err)
 	}
 
-	fmt.Println("Succesfully enrolled")
-
+	span.SetStatus(codes.Ok, "")
 	return recordID, nil
 }
 
 func (s *Service) GetCurrentEvents(ctx context.Context, clientCookies *string) (chan *GetEventsRes, error) {
-	ctx, span := tracer.Start(ctx, "event_service.GetCurrentEvents")
+	ctx, span := tracer.Start(ctx, "event_service.get_current_events")
 
-	ch := make(chan *GetEventsRes)
 	client, err := mask.CreateClientWithCookies(clientCookies)
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to get current events")
-		return nil, fmt.Errorf("event service: get current events: create hhtp client: %w", err)
+		span.SetStatus(codes.Error, "failed to create http client with cookies")
+		return nil, fmt.Errorf("event service: get current events: create http client: %w", err)
 	}
 
+	ch := make(chan *GetEventsRes)
 	go func() {
-		events := s.client.GetEventStream(ctx, client)
-		for event := range events {
+		defer span.End()
+		for event := range s.client.GetEventStream(ctx, client) {
 			ch <- &GetEventsRes{
 				Data: event.Event,
 				Err:  event.Error,
@@ -392,26 +358,78 @@ func (s *Service) GetCurrentEvents(ctx context.Context, clientCookies *string) (
 		close(ch)
 	}()
 
+	span.SetStatus(codes.Ok, "")
 	return ch, nil
 }
 
 func (s *Service) UpdateServiceIDs(ctx context.Context, clientCookies *string) error {
-	ctx, span := tracer.Start(ctx, "event_service.UpdateServiceIDs")
+	ctx, span := tracer.Start(ctx, "event_service.update_service_ids")
+	defer span.End()
 
 	client, err := mask.CreateClientWithCookies(clientCookies)
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to get current events")
-		return fmt.Errorf("event service: update service ids: create hhtp client: %w", err)
+		span.SetStatus(codes.Error, "failed to create http client with cookies")
+		return fmt.Errorf("event service: update service ids: create http client: %w", err)
 	}
 
 	if err := s.client.UpdateServiceIDs(ctx, client); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to update service ids")
-		return fmt.Errorf("event service: update service ids: failed to update service ids: %w", err)
+		return fmt.Errorf("event service: update service ids: client call: %w", err)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return nil
+}
+
+func (s *Service) GetUserCredentials(ctx context.Context, userUUID uuid.UUID) (*GetUserCredentialsRes, error) {
+	ctx, span := tracer.Start(ctx, "event_service.get_user_credentials")
+	defer span.End()
+
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
+
+	data, err := s.repo.GetUserData(ctx, userUUID)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to get user data")
+		return nil, fmt.Errorf("event service: get user credentials: get user data: %w", err)
+	}
+
+	rawDEK, err := s.DecryptDEK(data.DEK, data.UserUUID)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to decrypt dek")
+		return nil, fmt.Errorf("event service: get user credentials: decrypt dek: %w", err)
+	}
+
+	session, err := decryptPtrWithDEK(data.Session, rawDEK)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to decrypt session")
+		return nil, fmt.Errorf("event service: get user credentials: decrypt session: %w", err)
+	}
+
+	token, err := decryptPtrWithDEK(data.Token, rawDEK)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to decrypt token")
+		return nil, fmt.Errorf("event service: get user credentials: decrypt token: %w", err)
+	}
+
+	cookies, err := decryptPtrWithDEK(data.Cookies, rawDEK)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to decrypt cookies")
+		return nil, fmt.Errorf("event service: get user credentials: decrypt cookies: %w", err)
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return &GetUserCredentialsRes{
+		Session: session,
+		Token:   token,
+		Cookies: cookies,
+	}, nil
 }
 
 func sanitizePhoneNumber(phoneNumber string) string {

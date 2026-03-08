@@ -59,7 +59,6 @@ type DBSubscriptionSearch struct {
 	LabNumber      int
 	LabAuditorium  int
 	AvailableSlots domain.Schedule
-	WorkerUUID     uuid.UUID
 }
 
 type DBSubscriptionMatchResult struct {
@@ -70,11 +69,6 @@ type DBSubscriptionMatchResult struct {
 	SuccessfulSubscriptions    int
 	LastSuccessfulSubscription *time.Time
 	MatchingTimeslots          domain.Schedule
-}
-
-type DBUnlockSubscriptionFilter struct {
-	SubscriptionUUID uuid.UUID
-	WorkerUUID       uuid.UUID
 }
 
 type CreateSubscriptionReq struct {
@@ -108,7 +102,6 @@ type GetMatchingSubscriptionsReq struct {
 	Number     int
 	Auditorium int
 	Schedule   domain.Schedule
-	WorkerUUID uuid.UUID
 }
 
 type GetSubscriptionRes struct {
@@ -163,12 +156,6 @@ type GetMatchingSubscriptionsRes struct {
 	LastSuccessfulSubscription *time.Time
 	Schedule                   domain.Schedule
 }
-
-type UnlockSubscriptionReq struct {
-	SubscriptionUUID uuid.UUID
-	WorkerUUID       uuid.UUID
-}
-
 type keyGenerationParams struct {
 	subscriptionUUID uuid.UUID
 	labType          domain.LabType

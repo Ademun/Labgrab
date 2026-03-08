@@ -21,8 +21,6 @@ create table if not exists subscription_service.subscriptions
     created_at        timestamptz         not null,
     closed_at         timestamptz,
     user_uuid         uuid                not null,
-    locked_until      timestamp,
-    locked_by         uuid,
     constraint subscriptions_pk primary key (
                                              lab_type,
                                              lab_topic,

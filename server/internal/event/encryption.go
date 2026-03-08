@@ -6,8 +6,8 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	"labgrab/internal/shared/api/dikidi"
-	"labgrab/internal/shared/errors"
 
 	"github.com/google/uuid"
 )
@@ -15,47 +15,27 @@ import (
 func (s *Service) DecryptUserData(data *DBUserData) (*DecryptedUserData, error) {
 	rawDEK, err := s.DecryptDEK(data.DEK, data.UserUUID)
 	if err != nil {
-		return nil, &errors.ErrServiceProcedure{
-			Procedure: "DecryptUserData",
-			Step:      "DecryptDEK",
-			Err:       err,
-		}
+		return nil, fmt.Errorf("event service: decrypt user data: decrypt dek: %w", err)
 	}
 
 	password, err := decryptWithDEK(data.DikidiPassword, rawDEK)
 	if err != nil {
-		return nil, &errors.ErrServiceProcedure{
-			Procedure: "DecryptUserData",
-			Step:      "DecryptPassword",
-			Err:       err,
-		}
+		return nil, fmt.Errorf("event service: decrypt user data: decrypt password: %w", err)
 	}
 
 	session, err := decryptPtrWithDEK(data.Session, rawDEK)
 	if err != nil {
-		return nil, &errors.ErrServiceProcedure{
-			Procedure: "DecryptUserData",
-			Step:      "DecryptSession",
-			Err:       err,
-		}
+		return nil, fmt.Errorf("event service: decrypt user data: decrypt session: %w", err)
 	}
 
 	token, err := decryptPtrWithDEK(data.Token, rawDEK)
 	if err != nil {
-		return nil, &errors.ErrServiceProcedure{
-			Procedure: "DecryptUserData",
-			Step:      "DecryptToken",
-			Err:       err,
-		}
+		return nil, fmt.Errorf("event service: decrypt user data: decrypt token: %w", err)
 	}
 
 	cookies, err := decryptPtrWithDEK(data.Cookies, rawDEK)
 	if err != nil {
-		return nil, &errors.ErrServiceProcedure{
-			Procedure: "DecryptUserData",
-			Step:      "DecryptCookies",
-			Err:       err,
-		}
+		return nil, fmt.Errorf("event service: decrypt user data: decrypt cookies: %w", err)
 	}
 
 	return &DecryptedUserData{
@@ -71,12 +51,12 @@ func (s *Service) DecryptUserData(data *DBUserData) (*DecryptedUserData, error) 
 func (s *Service) EncryptPassword(password string, userUUID uuid.UUID) (string, string, error) {
 	key := make([]byte, 32)
 	if _, err := rand.Read(key); err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("event service: encrypt password: generate dek: %w", err)
 	}
 
 	encPass, err := encryptWithDEK(password, key)
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("event service: encrypt password: encrypt with dek: %w", err)
 	}
 
 	eDEK := s.kekGCM.Seal(nil, nil, key, []byte(userUUID.String()))
@@ -87,43 +67,55 @@ func (s *Service) EncryptPassword(password string, userUUID uuid.UUID) (string, 
 func (s *Service) DecryptDEK(encDEK string, userUUID uuid.UUID) ([]byte, error) {
 	eDEK, err := base64.StdEncoding.DecodeString(encDEK)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("event service: decrypt dek: base64 decode: %w", err)
 	}
-	return s.kekGCM.Open(nil, nil, eDEK, []byte(userUUID.String()))
+
+	raw, err := s.kekGCM.Open(nil, nil, eDEK, []byte(userUUID.String()))
+	if err != nil {
+		return nil, fmt.Errorf("event service: decrypt dek: gcm open: %w", err)
+	}
+
+	return raw, nil
 }
 
 func (s *Service) EncryptAndSaveCookies(ctx context.Context, userUUID uuid.UUID, rawDEK []byte, cookies *dikidi.ClientCookies, session string) error {
 	encSession, err := encryptWithDEK(session, rawDEK)
 	if err != nil {
-		return &errors.ErrServiceProcedure{Procedure: "encryptAndSaveCookies", Step: "EncryptSession", Err: err}
+		return fmt.Errorf("event service: encrypt and save cookies: encrypt session: %w", err)
 	}
 
 	encToken, err := encryptWithDEK(*cookies.Token, rawDEK)
 	if err != nil {
-		return &errors.ErrServiceProcedure{Procedure: "encryptAndSaveCookies", Step: "EncryptToken", Err: err}
+		return fmt.Errorf("event service: encrypt and save cookies: encrypt token: %w", err)
 	}
 
 	encCookies, err := encryptWithDEK(cookies.All, rawDEK)
 	if err != nil {
-		return &errors.ErrServiceProcedure{Procedure: "encryptAndSaveCookies", Step: "EncryptCookies", Err: err}
+		return fmt.Errorf("event service: encrypt and save cookies: encrypt cookies: %w", err)
 	}
 
-	return s.repo.SetUserCookies(ctx, userUUID, &DBUserCookies{
+	if err = s.repo.SetUserCookies(ctx, userUUID, &DBUserCookies{
 		Session: &encSession,
 		Token:   &encToken,
 		Cookies: &encCookies,
-	})
+	}); err != nil {
+		return fmt.Errorf("event service: encrypt and save cookies: repository call: %w", err)
+	}
+
+	return nil
 }
 
 func encryptWithDEK(plaintext string, rawDEK []byte) (string, error) {
 	dekCipher, err := aes.NewCipher(rawDEK)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("encrypt with dek: create cipher: %w", err)
 	}
+
 	dekGCM, err := cipher.NewGCMWithRandomNonce(dekCipher)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("encrypt with dek: create gcm: %w", err)
 	}
+
 	encrypted := dekGCM.Seal(nil, nil, []byte(plaintext), nil)
 	return base64.StdEncoding.EncodeToString(encrypted), nil
 }
@@ -131,20 +123,24 @@ func encryptWithDEK(plaintext string, rawDEK []byte) (string, error) {
 func decryptWithDEK(ciphertext string, rawDEK []byte) (string, error) {
 	eCipher, err := base64.StdEncoding.DecodeString(ciphertext)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("decrypt with dek: base64 decode: %w", err)
 	}
+
 	dekCipher, err := aes.NewCipher(rawDEK)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("decrypt with dek: create cipher: %w", err)
 	}
+
 	dekGCM, err := cipher.NewGCMWithRandomNonce(dekCipher)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("decrypt with dek: create gcm: %w", err)
 	}
+
 	raw, err := dekGCM.Open(nil, nil, eCipher, nil)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("decrypt with dek: gcm open: %w", err)
 	}
+
 	return string(raw), nil
 }
 
@@ -152,9 +148,11 @@ func decryptPtrWithDEK(ciphertext *string, rawDEK []byte) (*string, error) {
 	if ciphertext == nil {
 		return nil, nil
 	}
+
 	plain, err := decryptWithDEK(*ciphertext, rawDEK)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decrypt ptr with dek: %w", err)
 	}
+
 	return &plain, nil
 }

@@ -308,7 +308,6 @@ func (s *Service) GetMatchingSubscriptions(ctx context.Context, req *GetMatching
 		LabNumber:      req.Number,
 		LabAuditorium:  req.Auditorium,
 		AvailableSlots: relevantSlots,
-		WorkerUUID:     req.WorkerUUID,
 	})
 	if err != nil {
 		span.RecordError(err)
@@ -344,22 +343,16 @@ func (s *Service) GetMatchingSubscriptions(ctx context.Context, req *GetMatching
 	return result, nil
 }
 
-func (s *Service) UnlockSubscription(ctx context.Context, req *UnlockSubscriptionReq) error {
-	ctx, span := tracer.Start(ctx, "subscription_service.unlock_subscription")
+func (s *Service) CloseSubscription(ctx context.Context, subscriptionUUID uuid.UUID) error {
+	ctx, span := tracer.Start(ctx, "subscription_service.close_subscription")
 	defer span.End()
 
-	span.SetAttributes(
-		attribute.String("subscription.uuid", req.SubscriptionUUID.String()),
-		attribute.String("worker.uuid", req.WorkerUUID.String()),
-	)
+	span.SetAttributes(attribute.String("subscription.uuid", subscriptionUUID.String()))
 
-	if err := s.repo.UnlockSubscription(ctx, &DBUnlockSubscriptionFilter{
-		SubscriptionUUID: req.SubscriptionUUID,
-		WorkerUUID:       req.WorkerUUID,
-	}); err != nil {
+	if err := s.repo.CloseSubscription(ctx, subscriptionUUID); err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to unlock subscription")
-		return fmt.Errorf("subscription service: unlock subscription: repository call: %w", err)
+		span.SetStatus(codes.Error, "failed to close subscription")
+		return fmt.Errorf("subscription service: close subscription: repository call: %w", err)
 	}
 
 	span.SetStatus(codes.Ok, "")

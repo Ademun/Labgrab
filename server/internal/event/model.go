@@ -55,3 +55,9 @@ type GetEventsRes struct {
 	Data *domain.Event
 	Err  error
 }
+
+type GetUserCredentialsRes struct {
+	Session *string
+	Token   *string
+	Cookies *string
+}

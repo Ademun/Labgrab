@@ -304,8 +304,7 @@ func (r *Repo) GetMatchingSubscriptionsBySlot(ctx context.Context, search *DBSub
 		return nil, fmt.Errorf("subscription repo: get matching subscriptions by slot: marshal available slots: %w", err)
 	}
 
-	query := `
-WITH available_slots_expanded AS (
+	query := `WITH available_slots_expanded AS (
     SELECT 
         times.key AS time,
         TO_CHAR(times.key::timestamptz, 'DY') AS weekday,
@@ -351,7 +350,6 @@ matching_subscriptions AS (
       AND (pref.has_any IS NULL OR pref.is_match IS TRUE OR s.any_date IS TRUE)
       AND (teachp.user_uuid IS NULL OR NOT (ase.teachers ?| teachp.blacklisted_teachers))
 ),
-
 grouped_by_time AS (
     SELECT 
         user_uuid,
@@ -364,38 +362,20 @@ grouped_by_time AS (
         jsonb_object_agg(lesson::text, teachers ORDER BY lesson) as lessons_map
     FROM matching_subscriptions
     GROUP BY user_uuid, subscription_uuid, auto_enroll, any_date, successful_subscriptions, last_successful_subscription, time
-),
-
-candidates AS (
-    SELECT 
-        user_uuid,
-        subscription_uuid,
-        auto_enroll,
-        any_date,
-        successful_subscriptions,
-        last_successful_subscription,
-        jsonb_object_agg(time, lessons_map) as matching_timeslots
-    FROM grouped_by_time
-    GROUP BY user_uuid, subscription_uuid, auto_enroll, any_date, successful_subscriptions, last_successful_subscription
-    ORDER BY auto_enroll DESC,
-        successful_subscriptions ASC,
-        last_successful_subscription ASC NULLS FIRST
-),
-
-locked AS (
-    UPDATE subscription_service.subscriptions s
-    SET 
-        locked_until = NOW() + INTERVAL '10 minutes',
-        locked_by = $6
-    FROM candidates c
-    WHERE s.subscription_uuid = c.subscription_uuid
-      AND (s.locked_until IS NULL OR s.locked_until < NOW())
-    RETURNING s.subscription_uuid
 )
-
-SELECT c.*
-FROM candidates c
-INNER JOIN locked l ON c.subscription_uuid = l.subscription_uuid
+SELECT 
+    user_uuid,
+    subscription_uuid,
+    auto_enroll,
+    any_date,
+    successful_subscriptions,
+    last_successful_subscription,
+    jsonb_object_agg(time, lessons_map) as matching_timeslots
+FROM grouped_by_time
+GROUP BY user_uuid, subscription_uuid, auto_enroll, any_date, successful_subscriptions, last_successful_subscription
+ORDER BY auto_enroll DESC,
+    successful_subscriptions ASC,
+    last_successful_subscription ASC NULLS FIRST
 `
 
 	rows, err := r.pool.Query(ctx, query,
@@ -404,7 +384,6 @@ INNER JOIN locked l ON c.subscription_uuid = l.subscription_uuid
 		search.LabNumber,
 		search.LabAuditorium,
 		availableSlotsJSON,
-		search.WorkerUUID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("subscription repo: get matching subscriptions by slot: exec query: %w", err)
@@ -458,22 +437,18 @@ INNER JOIN locked l ON c.subscription_uuid = l.subscription_uuid
 	return results, nil
 }
 
-func (r *Repo) UnlockSubscription(ctx context.Context, filter *DBUnlockSubscriptionFilter) error {
+func (r *Repo) CloseSubscription(ctx context.Context, subscriptionUUID uuid.UUID) error {
 	query, args, err := r.sq.Update("subscription_service.subscriptions").
-		Set("locked_until", nil).
-		Set("locked_by", nil).
-		Where(squirrel.Eq{
-			"subscription_uuid": filter.SubscriptionUUID,
-			"locked_by":         filter.WorkerUUID,
-		}).
+		Set("status", StatusClosed).
+		Where(squirrel.Eq{"subscription_uuid": subscriptionUUID}).
 		ToSql()
 	if err != nil {
-		return fmt.Errorf("subscription repo: unlock subscription: build query: %w", err)
+		return fmt.Errorf("subscription repo: close subscription: build query: %w", err)
 	}
 
 	_, err = r.pool.Exec(ctx, query, args...)
 	if err != nil {
-		return fmt.Errorf("subscription repo: unlock subscription: exec query: %w", err)
+		return fmt.Errorf("subscription repo: close subscription: exec query: %w", err)
 	}
 
 	return nil
