@@ -157,11 +157,7 @@ func initServices(
 	dikidiClient *dikidi.Client,
 	logger *zap.SugaredLogger,
 ) (*Services, error) {
-	eventRepo := event.NewRepo(pool)
-	eventService, err := event.NewService(eventRepo, dikidiClient, &cfg.EncryptionConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create event service: %w", err)
-	}
+	eventService := event.NewService(dikidiClient)
 
 	subscriptionRepo := subscription.NewRepo(pool)
 	deduplicator := subscription.NewDeduplicator(cache, cfg.SubscriptionServiceConfig.DeduplicatorConfig)
@@ -170,7 +166,11 @@ func initServices(
 	userRepo := user.NewRepo(pool)
 	userService := user.NewService(userRepo)
 
-	authService := auth.NewService(cache, &cfg.AuthServiceConfig)
+	authRepo := auth.NewRepo(pool)
+	authService, err := auth.NewService(authRepo, cache, dikidiClient, &cfg.AuthServiceConfig, &cfg.EncryptionConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to setup auth service: %w", err)
+	}
 
 	telegramService, err := telegram.NewService(&cfg.TelegramConfig)
 	if err != nil {
@@ -186,6 +186,7 @@ func initServices(
 		eventService,
 		subscriptionService,
 		userService,
+		authService,
 		bookingService,
 		telegramService,
 		logger,

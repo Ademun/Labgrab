@@ -20,13 +20,13 @@ func NewRepo(pool *pgxpool.Pool) *Repo {
 	return &Repo{pool: pool, sq: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)}
 }
 
-func (r *Repo) LoadBookings(ctx context.Context, data []DBBooking) error {
+func (r *Repo) LoadBookings(ctx context.Context, userUUID uuid.UUID, data []DBBooking) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("booking repo: load bookings: begin tx: %w", err)
 	}
 
-	query, args, err := r.sq.Delete("booking_service.bookings").ToSql()
+	query, args, err := r.sq.Delete("booking_service.bookings").Where(squirrel.Eq{"user_uuid": userUUID}).ToSql()
 	if err != nil {
 		tx.Rollback(ctx)
 		return fmt.Errorf("booking repo: load bookings: build query: %w", err)
@@ -42,7 +42,7 @@ func (r *Repo) LoadBookings(ctx context.Context, data []DBBooking) error {
 		Columns("booking_id", "type", "topic", "auditorium", "spot", "lesson", "start_time", "end_time", "status", "user_uuid")
 
 	for _, b := range data {
-		builder.Values(b.BookingID, b.Type, b.Topic, b.Auditorium, b.Spot, b.Lesson, b.Start, b.End, b.Status, b.UserUUID)
+		builder = builder.Values(b.BookingID, b.Type, b.Topic, b.Auditorium, b.Spot, b.Lesson, b.Start, b.End, b.Status, b.UserUUID)
 	}
 
 	query, args, err = builder.ToSql()
@@ -51,7 +51,7 @@ func (r *Repo) LoadBookings(ctx context.Context, data []DBBooking) error {
 		return fmt.Errorf("booking repo: load bookings: build query: %w", err)
 	}
 
-	_, err = r.pool.Exec(ctx, query, args...)
+	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
 		tx.Rollback(ctx)
 		return fmt.Errorf("booking repo: load bookings: exec query: %w", err)

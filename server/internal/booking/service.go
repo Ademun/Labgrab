@@ -110,7 +110,7 @@ func (s *Service) LoadClientBookings(ctx context.Context, req *LoadClientBooking
 		})
 	}
 
-	if err = s.repo.LoadBookings(ctx, dbBookings); err != nil {
+	if err = s.repo.LoadBookings(ctx, req.UserUUID, dbBookings); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to load client bookings")
 		return fmt.Errorf("booking service: load client bookings: load bookings: %w", err)

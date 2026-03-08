@@ -81,6 +81,7 @@ func (c *Client) AcquireCSRFToken(ctx context.Context, client *req.Client, req C
 }
 
 func (c *Client) SendAuthRequest(ctx context.Context, client *req.Client, req AuthRequest) error {
+	fmt.Println(req)
 	_, err := client.R().
 		SetContext(ctx).
 		SetHeaders(map[string]string{

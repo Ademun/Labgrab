@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"labgrab/internal/auth"
 	"labgrab/internal/booking"
 	"labgrab/internal/event"
 	"labgrab/internal/shared/domain"
@@ -27,6 +28,7 @@ const maxConcurrentRequests = 5
 type ProcessEventsUsecase struct {
 	eventSvc        *event.Service
 	userSvc         *user.Service
+	authSvc         *auth.Service
 	bookingSvc      *booking.Service
 	subscriptionSvc *subscription.Service
 	telegramSvc     *telegram.Service
@@ -36,6 +38,7 @@ type ProcessEventsUsecase struct {
 func NewProcessEventsUsecase(
 	eventSvc *event.Service,
 	userSvc *user.Service,
+	authSvc *auth.Service,
 	bookingSvc *booking.Service,
 	subscriptionSvc *subscription.Service,
 	telegramSvc *telegram.Service,
@@ -43,6 +46,7 @@ func NewProcessEventsUsecase(
 	return &ProcessEventsUsecase{
 		eventSvc:        eventSvc,
 		userSvc:         userSvc,
+		authSvc:         authSvc,
 		bookingSvc:      bookingSvc,
 		subscriptionSvc: subscriptionSvc,
 		telegramSvc:     telegramSvc,
@@ -132,6 +136,7 @@ func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
 	// Collect all errors. Fixed: errors.Join result must be assigned.
 	var collected error
 	for err := range errCh {
+		fmt.Println(err)
 		collected = errors.Join(collected, err)
 	}
 
@@ -333,6 +338,9 @@ func (uc *ProcessEventsUsecase) userWorker(
 			continue
 		}
 
+		lessonTime := domain.LessonLookup[int(selectedLesson)]
+		targetTime := time.Date(selectedDate.Year(), selectedDate.Month(), selectedDate.Day(), lessonTime.Start.Hour(), lessonTime.Start.Minute(), 0, 0, time.UTC)
+
 		if err := acquireSem(ctx, sem); err != nil {
 			errCh <- fmt.Errorf("event usecase: user worker: enroll acquire sem: %w", err)
 			continue
@@ -340,17 +348,43 @@ func (uc *ProcessEventsUsecase) userWorker(
 
 		releaseSem(sem)
 
-		if err = uc.subscriptionSvc.UpdateSubscription(ctx, &subscription.UpdateSubscriptionDataReq{
-			UserUUID:         task.sub.UserUUID,
-			SubscriptionUUID: task.sub.SubscriptionUUID,
-			LabType:          task.eventRes.Data.Type,
-			LabTopic:         task.eventRes.Data.Topic,
-			LabNumber:        task.eventRes.Data.Number,
-			LabAuditorium:    &task.eventRes.Data.Auditorium,
-			Status:           subscription.StatusClosed,
-			AutoEnroll:       false,
-			AnyDate:          false,
-		}); err != nil {
+		creds, err := uc.authSvc.GetUserCredentials(ctx, task.sub.UserUUID)
+		if err != nil {
+			errCh <- fmt.Errorf("event usecase: user worker: get user credentials: %w", err)
+			continue
+		}
+
+		if creds.Session == nil || creds.Cookies == nil {
+			errCh <- fmt.Errorf("event usecase: user worker: get user credentials: %w", err)
+			continue
+		}
+
+		if err := acquireSem(ctx, sem); err != nil {
+			errCh <- fmt.Errorf("event usecase: user worker: load bookings acquire sem: %w", err)
+			continue
+		}
+		bId, err := uc.eventSvc.Enroll(ctx, &event.EnrollmentReq{
+			UserUUID:    task.sub.UserUUID,
+			EventID:     task.eventRes.Data.ID,
+			ServiceID:   task.eventRes.Data.ServiceID,
+			Time:        targetTime,
+			Name:        *task.userInfo.Name,
+			Surname:     *task.userInfo.Surname,
+			Patronymic:  *task.userInfo.Patronymic,
+			Group:       *task.userInfo.GroupCode,
+			PhoneNumber: creds.DikidiPhoneNumber,
+			Session:     *creds.Session,
+			Cookies:     *creds.Cookies,
+		})
+		if err != nil {
+			errCh <- fmt.Errorf("event usecase: user worker: enroll acquire sem: %w", err)
+			return
+		}
+		releaseSem(sem)
+
+		fmt.Println(bId)
+
+		if err = uc.subscriptionSvc.CloseSubscription(ctx, task.sub.SubscriptionUUID); err != nil {
 			errCh <- fmt.Errorf("event usecase: user worker: update subscription: %w", err)
 		}
 
@@ -374,7 +408,8 @@ func (uc *ProcessEventsUsecase) userWorker(
 		}
 		err = uc.bookingSvc.LoadClientBookings(ctx, &booking.LoadClientBookingsReq{
 			UserUUID: task.sub.UserUUID,
-			Cookies:  "",
+			Session:  *creds.Session,
+			Cookies:  *creds.Cookies,
 		})
 		releaseSem(sem)
 		if err != nil {
@@ -383,7 +418,6 @@ func (uc *ProcessEventsUsecase) userWorker(
 	}
 }
 
-// acquireSem grabs one semaphore slot, respecting context cancellation.
 func acquireSem(ctx context.Context, sem chan struct{}) error {
 	select {
 	case sem <- struct{}{}:
@@ -393,7 +427,6 @@ func acquireSem(ctx context.Context, sem chan struct{}) error {
 	}
 }
 
-// releaseSem releases one semaphore slot.
 func releaseSem(sem chan struct{}) {
 	<-sem
 }

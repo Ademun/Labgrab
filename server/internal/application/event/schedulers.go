@@ -3,6 +3,7 @@ package event
 import (
 	"context"
 	"labgrab/internal/application/event/usecase"
+	"labgrab/internal/auth"
 	"labgrab/internal/booking"
 	"labgrab/internal/event"
 	"labgrab/internal/shared/api/dikidi"
@@ -32,6 +33,7 @@ func NewScheduler(
 	eventSvc *event.Service,
 	subscriptionSvc *subscription.Service,
 	userSvc *user.Service,
+	authSvc *auth.Service,
 	bookingSvc *booking.Service,
 	telegramSvc *telegram.Service,
 	logger *zap.SugaredLogger,
@@ -42,6 +44,7 @@ func NewScheduler(
 		processNewSlots: usecase.NewProcessEventsUsecase(
 			eventSvc,
 			userSvc,
+			authSvc,
 			bookingSvc,
 			subscriptionSvc,
 			telegramSvc,

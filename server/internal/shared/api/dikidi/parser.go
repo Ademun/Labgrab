@@ -137,6 +137,7 @@ func (p *Parser) ParseRecords(data []APIRecord) ([]domain.Booking, error) {
 			pErrors = append(pErrors, err)
 			continue
 		}
+
 		endTime, _, err := p.parseTimeString(record.TimeTo)
 		if err != nil {
 			pErrors = append(pErrors, err)
@@ -158,7 +159,7 @@ func (p *Parser) ParseRecords(data []APIRecord) ([]domain.Booking, error) {
 	}
 
 	if len(pErrors) > 0 {
-		return nil, &errors.ErrParsing{Errors: pErrors}
+		fmt.Println(pErrors)
 	}
 
 	return bookings, nil
