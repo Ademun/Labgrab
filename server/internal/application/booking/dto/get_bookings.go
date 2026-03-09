@@ -1,19 +1,15 @@
 package dto
 
-import (
-	"labgrab/internal/booking"
-	"labgrab/internal/shared/domain"
-	"time"
-)
+import "time"
 
-type GetBookingsRespDTO struct {
-	Type       domain.LabType  `json:"type"`
-	Topic      domain.LabTopic `json:"topic"`
-	Number     int             `json:"number"`
-	Auditorium int             `json:"auditorium"`
-	Spot       *int            `json:"spot"`
-	Lesson     domain.Lesson   `json:"lesson"`
-	Start      time.Time       `json:"start_time"`
-	End        time.Time       `json:"end_time"`
-	Status     booking.Status  `json:"status"`
+type GetBookingsResDTO struct {
+	Type       string    `json:"type"`
+	Topic      string    `json:"topic"`
+	Number     int       `json:"number"`
+	Auditorium int       `json:"auditorium"`
+	Spot       *int      `json:"spot"`
+	Lesson     int       `json:"lesson"`
+	Start      time.Time `json:"start_time"`
+	End        time.Time `json:"end_time"`
+	Status     string    `json:"status"`
 }

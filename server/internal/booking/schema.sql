@@ -16,4 +16,4 @@ create table if not exists booking_service.bookings
     status     booking_service.booking_status not null default 'Open',
     user_uuid  uuid                           not null,
     constraint bookings_pk primary key (booking_id)
-)
+);
