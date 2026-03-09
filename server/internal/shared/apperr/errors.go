@@ -3,14 +3,13 @@ package apperr
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
 var ErrUnauthorized = errors.New("unauthorized")
 
 var ErrNotFound = errors.New("not found")
-
-var ErrInternal = errors.New("internal server error")
 
 var ErrForbidden = errors.New("forbidden")
 
@@ -38,4 +37,20 @@ func (e ValidationError) AddErr(field string, err error) {
 
 func (e ValidationError) IsEmpty() bool {
 	return len(e.Details) == 0
+}
+
+func HTTPErrorCode(err error) int {
+	if errors.Is(err, ErrUnauthorized) {
+		return http.StatusUnauthorized
+	}
+	if errors.Is(err, ErrNotFound) {
+		return http.StatusNotFound
+	}
+	if errors.Is(err, ErrForbidden) {
+		return http.StatusForbidden
+	}
+	if _, ok := errors.AsType[*ValidationError](err); ok {
+		return http.StatusBadRequest
+	}
+	return http.StatusInternalServerError
 }
