@@ -21,7 +21,7 @@ func NewRepo(pool *pgxpool.Pool) *Repo {
 	return &Repo{pool: pool, sq: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)}
 }
 
-func (r *Repo) CreateUser(ctx context.Context, user *DBUser, tx pgx.Tx) (uuid.UUID, error) {
+func (r *Repo) CreateUser(ctx context.Context, user *DBUser) (uuid.UUID, error) {
 	userUUID := uuid.New()
 
 	query, args, err := r.sq.Insert("user_service.users").
@@ -32,7 +32,7 @@ func (r *Repo) CreateUser(ctx context.Context, user *DBUser, tx pgx.Tx) (uuid.UU
 		return uuid.Nil, fmt.Errorf("user repo: create user: build query: %w", err)
 	}
 
-	_, err = tx.Exec(ctx, query, args...)
+	_, err = r.pool.Exec(ctx, query, args...)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("user repo: create user: exec query: %w", err)
 	}
@@ -96,6 +96,22 @@ func (r *Repo) UpdateUser(ctx context.Context, user *DBUser) error {
 	_, err = r.pool.Exec(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("user repo: update user: exec query: %w", err)
+	}
+
+	return nil
+}
+
+func (r *Repo) DeleteUser(ctx context.Context, userUUID uuid.UUID, tx pgx.Tx) error {
+	query, args, err := r.sq.Delete("user_service.users").
+		Where(squirrel.Eq{"user_uuid": userUUID}).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("user repo: delete user: build query: %w", err)
+	}
+
+	_, err = tx.Exec(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("user repo: delete user: exec query: %w", err)
 	}
 
 	return nil

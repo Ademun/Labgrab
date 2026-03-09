@@ -2,7 +2,6 @@ package user
 
 import (
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 )
 
 // DBUser user_service.users
@@ -25,12 +24,6 @@ type CreateUserReq struct {
 	Surname    *string
 	Username   string
 	PhotoUrl   *string
-	Tx         pgx.Tx
-}
-
-type CreateUserRes struct {
-	UUID uuid.UUID
-	Tx   pgx.Tx
 }
 
 type GetUserRes struct {

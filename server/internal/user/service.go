@@ -23,7 +23,7 @@ func (s *Service) CreateUser(ctx context.Context, req *CreateUserReq) (uuid.UUID
 		TelegramID:       req.TelegramID,
 		TelegramUsername: req.Username,
 		TelegramPhotoUrl: req.PhotoUrl,
-	}, req.Tx)
+	})
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("user service: create user: repository call: %w", err)
 	}
@@ -62,6 +62,13 @@ func (s *Service) UpdateUser(ctx context.Context, req *UpdateUserReq) error {
 		PhoneNumber: req.PhoneNumber,
 	}); err != nil {
 		return fmt.Errorf("user service: update user: repository call: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) DeleteUser(ctx context.Context, userUUID uuid.UUID) error {
+	if err := s.repo.DeleteUser(ctx, userUUID); err != nil {
+		return fmt.Errorf("user service: delete user: repository call: %w", err)
 	}
 	return nil
 }

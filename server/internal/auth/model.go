@@ -5,33 +5,24 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 )
 
-type TelegramAuthData struct {
-	Id        int
-	FirstName string
-	LastName  string
-	Username  string
-	PhotoURL  string
-	AuthDate  int
-	Hash      string
-}
-
 type DBUserData struct {
-	UserUUID          uuid.UUID `db:"user_uuid"`
-	DikidiPhoneNumber string    `db:"dikidi_phone_number"`
-	DikidiPassword    string    `db:"dikidi_password"`
-	DEK               string    `db:"dek"`
-	Session           *string   `db:"session"`
-	Token             *string   `db:"token"`
-	Cookies           *string   `db:"cookies"`
+	UserUUID          uuid.UUID  `db:"user_uuid"`
+	DikidiPassword    string     `db:"dikidi_password"`
+	DikidiPhoneNumber string     `db:"dikidi_phone_number"`
+	DEK               string     `db:"dek"`
+	Session           *string    `db:"session"`
+	Token             *string    `db:"token"`
+	Cookies           *string    `db:"cookies"`
+	ApiAuthed         bool       `db:"api_authed"`
+	LastAuth          *time.Time `db:"last_auth"`
 }
 
 type DBUserCookies struct {
-	Session *string `db:"session"`
-	Token   *string `db:"token"`
-	Cookies *string `db:"cookies"`
+	Session string `db:"session"`
+	Token   string `db:"token"`
+	Cookies string `db:"cookies"`
 }
 
 type DecryptedUserData struct {
@@ -43,11 +34,19 @@ type DecryptedUserData struct {
 	Cookies           *string
 }
 
+type ValidateTelegramAuthDataReq struct {
+	Id        int
+	FirstName string
+	LastName  string
+	Username  string
+	PhotoURL  string
+	AuthDate  int
+	Hash      string
+}
+
 type CreateUserDataReq struct {
-	UserUUID          uuid.UUID
-	DikidiPhoneNumber string
-	DikidiPassword    string
-	Tx                pgx.Tx
+	UserUUID       uuid.UUID
+	DikidiPassword string
 }
 
 type GetUserCredentialsRes struct {

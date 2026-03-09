@@ -95,9 +95,9 @@ func (s *Service) EncryptAndSaveCookies(ctx context.Context, userUUID uuid.UUID,
 	}
 
 	if err = s.repo.SetUserCookies(ctx, userUUID, &DBUserCookies{
-		Session: &encSession,
-		Token:   &encToken,
-		Cookies: &encCookies,
+		Session: encSession,
+		Token:   encToken,
+		Cookies: encCookies,
 	}); err != nil {
 		return fmt.Errorf("auth service: encrypt and save cookies: repository call: %w", err)
 	}

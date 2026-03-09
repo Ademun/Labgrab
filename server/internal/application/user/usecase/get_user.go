@@ -12,14 +12,7 @@ type GetUserUseCase struct {
 	userSvc *user.Service
 }
 
-func NewGetUserUseCase(authSvc *auth.Service, userSvc *user.Service) *GetUserUseCase {
-	return &GetUserUseCase{
-		authSvc: authSvc,
-		userSvc: userSvc,
-	}
-}
-
-func (uc *GetUserUseCase) Exec(ctx context.Context, session string) (*dto.GetUserRespDTO, error) {
+func (uc *GetUserUseCase) Exec(ctx context.Context, session string) (*dto.GetUserResDTO, error) {
 	if err := uc.authSvc.ValidateSession(ctx, session); err != nil {
 		return nil, err
 	}
@@ -34,7 +27,7 @@ func (uc *GetUserUseCase) Exec(ctx context.Context, session string) (*dto.GetUse
 		return nil, err
 	}
 
-	return &dto.GetUserRespDTO{
+	return &dto.GetUserResDTO{
 		Username:    userData.Username,
 		Name:        userData.Name,
 		Surname:     userData.Surname,
