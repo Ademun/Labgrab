@@ -9,6 +9,7 @@ import (
 	"labgrab/internal/booking"
 	"net/http"
 
+	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
 
@@ -53,4 +54,8 @@ func (h *Handler) GetBookings(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error(err)
 		return
 	}
+}
+
+func (h *Handler) RegisterRoutes(r *mux.Router) {
+	r.HandleFunc("/api/bookings", h.GetBookings).Methods(http.MethodGet)
 }
