@@ -95,7 +95,7 @@ type APIReservationInfoError struct {
 }
 
 type APICreateRecord struct {
-	Bookings []APIBookingRecord `json:"bookings"`
+	Bookings []APIBookingRecord `json:"booking"`
 }
 
 type APIBookingRecord struct {

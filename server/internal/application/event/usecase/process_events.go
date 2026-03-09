@@ -67,7 +67,7 @@ type enrollTask struct {
 //	Phase 1 — 3 event workers: match subscriptions, filter schedule, resolve
 //	          inter-user conflicts via MCMF, fan-out enrollTasks.
 //	Phase 2 — per-user goroutines: re-filter (fresh DB), enroll (semaphore),
-//	          update state, notify, fetch updated bookings (semaphore).
+//	          update state, notify, fetch updated booking (semaphore).
 //
 // One global semaphore caps all outbound HTTP at maxConcurrentRequests.
 // Per-user serialization guarantees the 2-day gap invariant without any mutex.
@@ -351,7 +351,7 @@ func (uc *ProcessEventsUsecase) userWorker(
 		// Step 3: sync local booking cache from the site before filtering.
 		// FilterSchedule reads from this cache - stale data means stale filter.
 		if err := acquireSem(ctx, sem); err != nil {
-			errCh <- fmt.Errorf("event usecase: user worker: load bookings acquire sem: %w", err)
+			errCh <- fmt.Errorf("event usecase: user worker: load booking acquire sem: %w", err)
 			continue
 		}
 		err = uc.bookingSvc.LoadClientBookings(ctx, &booking.LoadClientBookingsReq{
@@ -361,11 +361,11 @@ func (uc *ProcessEventsUsecase) userWorker(
 		})
 		releaseSem(sem)
 		if err != nil {
-			errCh <- fmt.Errorf("event usecase: user worker: load client bookings: %w", err)
+			errCh <- fmt.Errorf("event usecase: user worker: load client booking: %w", err)
 			continue
 		}
 
-		// Step 4: filter against freshly loaded bookings.
+		// Step 4: filter against freshly loaded booking.
 		// already_booked CTE short-circuits on duplicate lab; date-gap check
 		// no longer requires matching lesson number.
 		freshSchedule, err := uc.bookingSvc.FilterSchedule(ctx, &booking.FilterScheduleReq{

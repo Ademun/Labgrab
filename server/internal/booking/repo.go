@@ -23,22 +23,22 @@ func NewRepo(pool *pgxpool.Pool) *Repo {
 func (r *Repo) LoadBookings(ctx context.Context, userUUID uuid.UUID, data []DBBooking) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("booking repo: load bookings: begin tx: %w", err)
+		return fmt.Errorf("booking repo: load booking: begin tx: %w", err)
 	}
 
-	query, args, err := r.sq.Delete("booking_service.bookings").Where(squirrel.Eq{"user_uuid": userUUID}).ToSql()
+	query, args, err := r.sq.Delete("booking_service.booking").Where(squirrel.Eq{"user_uuid": userUUID}).ToSql()
 	if err != nil {
 		tx.Rollback(ctx)
-		return fmt.Errorf("booking repo: load bookings: build query: %w", err)
+		return fmt.Errorf("booking repo: load booking: build query: %w", err)
 	}
 
 	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
 		tx.Rollback(ctx)
-		return fmt.Errorf("booking repo: load bookings: exec query: %w", err)
+		return fmt.Errorf("booking repo: load booking: exec query: %w", err)
 	}
 
-	builder := r.sq.Insert("booking_service.bookings").
+	builder := r.sq.Insert("booking_service.booking").
 		Columns("booking_id", "type", "topic", "number", "auditorium", "spot", "lesson", "start_time", "end_time", "status", "user_uuid")
 
 	for _, b := range data {
@@ -48,17 +48,17 @@ func (r *Repo) LoadBookings(ctx context.Context, userUUID uuid.UUID, data []DBBo
 	query, args, err = builder.ToSql()
 	if err != nil {
 		tx.Rollback(ctx)
-		return fmt.Errorf("booking repo: load bookings: build query: %w", err)
+		return fmt.Errorf("booking repo: load booking: build query: %w", err)
 	}
 
 	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
 		tx.Rollback(ctx)
-		return fmt.Errorf("booking repo: load bookings: exec query: %w", err)
+		return fmt.Errorf("booking repo: load booking: exec query: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("booking repo: load bookings: commit tx: %w", err)
+		return fmt.Errorf("booking repo: load booking: commit tx: %w", err)
 	}
 
 	return nil
@@ -78,16 +78,16 @@ func (r *Repo) GetBookings(ctx context.Context, userUUID uuid.UUID) ([]DBBooking
 		"status",
 		"user_uuid",
 	).
-		From("booking_service.bookings").
+		From("booking_service.booking").
 		Where(squirrel.Eq{"user_uuid": userUUID}).
 		ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("booking repo: get bookings: build query: %w", err)
+		return nil, fmt.Errorf("booking repo: get booking: build query: %w", err)
 	}
 
 	rows, err := r.pool.Query(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("booking repo: get bookings: exec query: %w", err)
+		return nil, fmt.Errorf("booking repo: get booking: exec query: %w", err)
 	}
 	defer rows.Close()
 
@@ -108,13 +108,13 @@ func (r *Repo) GetBookings(ctx context.Context, userUUID uuid.UUID) ([]DBBooking
 			&data.UserUUID,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("booking repo: get bookings: scan rows: %w", err)
+			return nil, fmt.Errorf("booking repo: get booking: scan rows: %w", err)
 		}
 		bookings = append(bookings, data)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("booking repo: get bookings: rows error: %w", err)
+		return nil, fmt.Errorf("booking repo: get booking: rows error: %w", err)
 	}
 
 	return bookings, nil
@@ -143,7 +143,7 @@ const filterScheduleQuery = `
 WITH already_booked AS (
     SELECT EXISTS(
         SELECT 1
-        FROM booking_service.bookings
+        FROM booking_service.booking
         WHERE user_uuid = $1
           AND status    = 'Open'
           AND type      = $3::lab_type
@@ -164,7 +164,7 @@ user_lessons AS (
     SELECT
         lesson,
         start_time::date AS lesson_date
-    FROM booking_service.bookings
+    FROM booking_service.booking
     WHERE user_uuid = $1
       AND status    = 'Open'
 ),

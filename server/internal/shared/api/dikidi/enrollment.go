@@ -211,8 +211,8 @@ func (c *Client) CreateBooking(ctx context.Context, client *req.Client, req *Cre
 	if len(createResp.Bookings) == 0 {
 		return 0, &errors.ExternalAPIError{
 			Procedure: "CreateRecord",
-			Step:      "Check bookings",
-			Err:       fmt.Errorf("empty bookings in response"),
+			Step:      "Check booking",
+			Err:       fmt.Errorf("empty booking in response"),
 		}
 	}
 

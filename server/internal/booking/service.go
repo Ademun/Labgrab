@@ -31,8 +31,8 @@ func (s *Service) GetBookings(ctx context.Context, userUUID uuid.UUID) ([]GetBoo
 	bookings, err := s.repo.GetBookings(ctx, userUUID)
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to get bookings")
-		return nil, fmt.Errorf("booking service: get bookings: repository call: %w", err)
+		span.SetStatus(codes.Error, "failed to get booking")
+		return nil, fmt.Errorf("booking service: get booking: repository call: %w", err)
 	}
 
 	result := make([]GetBookingsRes, len(bookings))
@@ -64,8 +64,8 @@ func (s *Service) LoadClientBookings(ctx context.Context, req *LoadClientBooking
 	client, err := mask.CreateClientWithCookies(&req.Cookies)
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to load client bookings")
-		return fmt.Errorf("booking service: load client bookings: client initialization: %w", err)
+		span.SetStatus(codes.Error, "failed to load client booking")
+		return fmt.Errorf("booking service: load client booking: client initialization: %w", err)
 	}
 
 	bookings, err := s.client.GetBookings(ctx, client, &dikidi.GetBookingsRequest{
@@ -73,8 +73,8 @@ func (s *Service) LoadClientBookings(ctx context.Context, req *LoadClientBooking
 	})
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to load client bookings")
-		return fmt.Errorf("booking service: load client bookings: get bookings: %w", err)
+		span.SetStatus(codes.Error, "failed to load client booking")
+		return fmt.Errorf("booking service: load client booking: get booking: %w", err)
 	}
 
 	dbBookings := make([]DBBooking, 0)
@@ -112,8 +112,8 @@ func (s *Service) LoadClientBookings(ctx context.Context, req *LoadClientBooking
 
 	if err = s.repo.LoadBookings(ctx, req.UserUUID, dbBookings); err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to load client bookings")
-		return fmt.Errorf("booking service: load client bookings: load bookings: %w", err)
+		span.SetStatus(codes.Error, "failed to load client booking")
+		return fmt.Errorf("booking service: load client booking: load booking: %w", err)
 	}
 
 	span.SetStatus(codes.Ok, "")
@@ -148,7 +148,7 @@ func (s *Service) CancelClientBooking(ctx context.Context, req *CancelClientBook
 	}); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to cancel client booking")
-		return fmt.Errorf("booking service: cancel client booking: load client bookings: %w", err)
+		return fmt.Errorf("booking service: cancel client booking: load client booking: %w", err)
 	}
 
 	return nil
