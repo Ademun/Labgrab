@@ -167,7 +167,7 @@ func initServices(
 	userService := user.NewService(userRepo)
 
 	authRepo := auth.NewRepo(pool)
-	authService, err := auth.NewService(authRepo, cache, dikidiClient, &cfg.AuthServiceConfig, &cfg.EncryptionConfig)
+	authService, err := auth.NewService(authRepo, cache, dikidiClient, &cfg.AuthServiceConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup auth service: %w", err)
 	}
@@ -209,7 +209,7 @@ func initHTTPServer(cfg *config.Config, pool *pgxpool.Pool, services *Services, 
 	r := mux.NewRouter()
 
 	log.Info("Setting up user domain routes")
-	userHandler := api_user.NewHandler(services.Auth, services.User, pool, log)
+	userHandler := api_user.NewHandler(services.Auth, services.User, log)
 	userHandler.RegisterRoutes(r)
 	log.Info("Finished setting up user domain routes")
 
