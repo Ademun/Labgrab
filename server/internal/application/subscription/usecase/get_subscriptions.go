@@ -3,95 +3,73 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"labgrab/internal/auth"
-
 	"labgrab/internal/application/subscription/dto"
+	"labgrab/internal/auth"
 	"labgrab/internal/subscription"
 
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.uber.org/zap"
 )
 
-type GetSubscriptionsUseCase struct {
-	authSvc         *auth.Service
-	subscriptionSvc *subscription.Service
-	logger          *zap.SugaredLogger
+type GetSubscriptionsUsecase struct {
+	AuthSvc         *auth.Service
+	SubscriptionSvc *subscription.Service
 }
 
-func NewGetSubscriptionsUseCase(authSvc *auth.Service, subscriptionSvc *subscription.Service, logger *zap.SugaredLogger) *GetSubscriptionsUseCase {
-	return &GetSubscriptionsUseCase{
-		authSvc:         authSvc,
-		subscriptionSvc: subscriptionSvc,
-		logger:          logger,
+func (uc *GetSubscriptionsUsecase) Exec(ctx context.Context, session string, req *dto.GetSubscriptionsReqDTO) ([]dto.GetSubscriptionsResDTO, error) {
+	if err := uc.AuthSvc.ValidateSession(ctx, session); err != nil {
+		return nil, fmt.Errorf("subscription usecase: get subscriptions: validate session: %w", err)
 	}
+
+	userUUID, err := uc.AuthSvc.GetSessionData(ctx, session)
+	if err != nil {
+		return nil, fmt.Errorf("subscription usecase: get subscriptions: get session data: %w", err)
+	}
+
+	var result []dto.GetSubscriptionsResDTO
+	if req.SubscriptionUUID != nil {
+		result, err = uc.HandleSingle(ctx, *req.SubscriptionUUID)
+	} else {
+		result, err = uc.HandleAll(ctx, userUUID)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
-func (uc *GetSubscriptionsUseCase) Exec(ctx context.Context, session string, data *dto.GetSubscriptionsReqDTO) ([]dto.GetSubscriptionsResDTO, error) {
-	ctx, span := tracer.Start(ctx, "subscription_usecase.get_subscriptions")
-	defer span.End()
-
-	if err := uc.authSvc.ValidateSession(ctx, session); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "session validation failed")
-		return nil, err
-	}
-
-	userUUID, err := uc.authSvc.GetSessionData(ctx, session)
+func (uc *GetSubscriptionsUsecase) HandleSingle(ctx context.Context, rawUUID string) ([]dto.GetSubscriptionsResDTO, error) {
+	subscriptionUUID, err := uuid.Parse(rawUUID)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to retrieve session data")
-		return nil, err
+		return nil, fmt.Errorf("subscription usecase: get subscriptions: parse subscription uuid: %w", err)
 	}
 
-	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
-
-	if data.SubscriptionUUID != nil {
-		subscriptionUUID, err := uuid.Parse(*data.SubscriptionUUID)
-		if err != nil {
-			err = fmt.Errorf("invalid subscription uuid: %w", err)
-			span.RecordError(err)
-			span.SetStatus(codes.Error, "invalid subscription uuid format")
-			return nil, err
-		}
-
-		span.SetAttributes(
-			attribute.String("subscription.uuid", subscriptionUUID.String()),
-			attribute.String("query.type", "single"),
-		)
-
-		sub, err := uc.subscriptionSvc.GetSubscription(ctx, subscriptionUUID)
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, "failed to retrieve subscription")
-			return nil, err
-		}
-
-		result := []dto.GetSubscriptionsResDTO{
-			{
-				UUID:          sub.SubscriptionUUID.String(),
-				LabType:       string(sub.LabType),
-				LabTopic:      string(sub.LabTopic),
-				LabNumber:     sub.LabNumber,
-				LabAuditorium: sub.LabAuditorium,
-				Status:        string(sub.Status),
-				CreatedAt:     sub.CreatedAt,
-				ClosedAt:      sub.ClosedAt,
-			},
-		}
-
-		span.SetStatus(codes.Ok, "")
-		return result, nil
-	}
-
-	span.SetAttributes(attribute.String("query.type", "all"))
-
-	subs, err := uc.subscriptionSvc.GetSubscriptions(ctx, userUUID)
+	sub, err := uc.SubscriptionSvc.GetSubscription(ctx, subscriptionUUID)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to retrieve subscriptions")
-		return nil, err
+		return nil, fmt.Errorf("subscription usecase: get subscriptions: get subscription: %w", err)
+	}
+
+	return []dto.GetSubscriptionsResDTO{
+		{
+			UUID:          sub.SubscriptionUUID.String(),
+			LabType:       string(sub.LabType),
+			LabTopic:      string(sub.LabTopic),
+			LabNumber:     sub.LabNumber,
+			LabAuditorium: sub.LabAuditorium,
+			Status:        string(sub.Status),
+			AutoEnroll:    sub.AutoEnroll,
+			AnyDate:       sub.AnyDate,
+			CreatedAt:     sub.CreatedAt,
+			ClosedAt:      sub.ClosedAt,
+		},
+	}, nil
+}
+
+func (uc *GetSubscriptionsUsecase) HandleAll(ctx context.Context, userUUID uuid.UUID) ([]dto.GetSubscriptionsResDTO, error) {
+	subs, err := uc.SubscriptionSvc.GetSubscriptions(ctx, userUUID)
+	if err != nil {
+		return nil, fmt.Errorf("subscription usecase: get subscriptions: get subscriptions: %w", err)
 	}
 
 	result := make([]dto.GetSubscriptionsResDTO, len(subs))
@@ -103,13 +81,12 @@ func (uc *GetSubscriptionsUseCase) Exec(ctx context.Context, session string, dat
 			LabNumber:     sub.LabNumber,
 			LabAuditorium: sub.LabAuditorium,
 			Status:        string(sub.Status),
+			AutoEnroll:    sub.AutoEnroll,
+			AnyDate:       sub.AnyDate,
 			CreatedAt:     sub.CreatedAt,
 			ClosedAt:      sub.ClosedAt,
 		}
 	}
-
-	span.SetAttributes(attribute.Int("result.count", len(result)))
-	span.SetStatus(codes.Ok, "")
 
 	return result, nil
 }

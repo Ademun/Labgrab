@@ -10,120 +10,81 @@ import (
 	"labgrab/internal/subscription"
 
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.uber.org/zap"
 )
 
-type EditSubscriptionUseCase struct {
-	authSvc         *auth.Service
-	subscriptionSvc *subscription.Service
-	logger          *zap.SugaredLogger
+type EditSubscriptionUsecase struct {
+	AuthSvc         *auth.Service
+	SubscriptionSvc *subscription.Service
 }
 
-func NewEditSubscriptionUseCase(authSvc *auth.Service, subscriptionSvc *subscription.Service, logger *zap.SugaredLogger) *EditSubscriptionUseCase {
-	return &EditSubscriptionUseCase{
-		authSvc:         authSvc,
-		subscriptionSvc: subscriptionSvc,
-		logger:          logger,
+func (uc *EditSubscriptionUsecase) Exec(ctx context.Context, session string, req *dto.EditSubscriptionReqDTO) (*dto.EditSubscriptionResDTO, error) {
+	if err := uc.AuthSvc.ValidateSession(ctx, session); err != nil {
+		return nil, fmt.Errorf("subscription usecase: edit subscription: validate session: %w", err)
 	}
+
+	userUUID, err := uc.AuthSvc.GetSessionData(ctx, session)
+	if err != nil {
+		return nil, fmt.Errorf("subscription usecase: edit subscription: get session data: %w", err)
+	}
+
+	subscriptionUUID, err := uuid.Parse(req.SubscriptionUUID)
+	if err != nil {
+		return nil, fmt.Errorf("subscription usecase: edit subscription: parse subscription uuid: %w", err)
+	}
+
+	existingSub, err := uc.SubscriptionSvc.GetSubscription(ctx, subscriptionUUID)
+	if err != nil {
+		return nil, fmt.Errorf("subscription usecase: edit subscription: get subscription: %w", err)
+	}
+
+	updateReq := BuildUpdateReq(userUUID, subscriptionUUID, existingSub, req)
+
+	if err := uc.SubscriptionSvc.UpdateSubscription(ctx, updateReq); err != nil {
+		return nil, fmt.Errorf("subscription usecase: edit subscription: update subscription: %w", err)
+	}
+
+	return &dto.EditSubscriptionResDTO{UUID: subscriptionUUID.String()}, nil
 }
 
-func (uc *EditSubscriptionUseCase) Exec(ctx context.Context, session string, data *dto.EditSubscriptionReqDTO) (*dto.EditSubscriptionResDTO, error) {
-	ctx, span := tracer.Start(ctx, "subscription_usecase.edit_subscription")
-	defer span.End()
-
-	if err := uc.authSvc.ValidateSession(ctx, session); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "session validation failed")
-		return nil, err
-	}
-
-	userUUID, err := uc.authSvc.GetSessionData(ctx, session)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to retrieve session data")
-		return nil, err
-	}
-
-	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
-
-	subscriptionUUID, err := uuid.Parse(data.SubscriptionUUID)
-	if err != nil {
-		err = fmt.Errorf("invalid subscription uuid: %w", err)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "invalid subscription uuid format")
-		return nil, err
-	}
-
-	span.SetAttributes(
-		attribute.String("user.uuid", userUUID.String()),
-		attribute.String("subscription.uuid", subscriptionUUID.String()),
-	)
-
-	existingSub, err := uc.subscriptionSvc.GetSubscription(ctx, subscriptionUUID)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to retrieve existing subscription")
-		return nil, err
-	}
-
-	labType := existingSub.LabType
-	if data.LabType != nil {
-		labType = domain.LabType(*data.LabType)
-	}
-
-	labTopic := existingSub.LabTopic
-	if data.LabTopic != nil {
-		labTopic = domain.LabTopic(*data.LabTopic)
-	}
-
-	labNumber := existingSub.LabNumber
-	if data.LabNumber != nil {
-		labNumber = *data.LabNumber
-	}
-
-	labAuditorium := existingSub.LabAuditorium
-	if data.LabAuditorium != nil {
-		labAuditorium = data.LabAuditorium
-	}
-
-	status := existingSub.Status
-	if data.Status != nil {
-		status = subscription.Status(*data.Status)
-	}
-
-	autoEnroll := existingSub.AutoEnroll
-	if data.AutoEnroll != nil {
-		autoEnroll = *data.AutoEnroll
-	}
-
-	anyDate := existingSub.AnyDate
-	if data.AnyDate != nil {
-		anyDate = *data.AnyDate
-	}
-
+func BuildUpdateReq(
+	userUUID uuid.UUID,
+	subscriptionUUID uuid.UUID,
+	existing *subscription.GetSubscriptionRes,
+	patch *dto.EditSubscriptionReqDTO,
+) *subscription.UpdateSubscriptionDataReq {
 	req := &subscription.UpdateSubscriptionDataReq{
 		UserUUID:         userUUID,
 		SubscriptionUUID: subscriptionUUID,
-		LabType:          labType,
-		LabTopic:         labTopic,
-		LabNumber:        labNumber,
-		LabAuditorium:    labAuditorium,
-		Status:           status,
-		AutoEnroll:       autoEnroll,
-		AnyDate:          anyDate,
+		LabType:          existing.LabType,
+		LabTopic:         existing.LabTopic,
+		LabNumber:        existing.LabNumber,
+		LabAuditorium:    existing.LabAuditorium,
+		Status:           existing.Status,
+		AutoEnroll:       existing.AutoEnroll,
+		AnyDate:          existing.AnyDate,
 	}
 
-	if err := uc.subscriptionSvc.UpdateSubscription(ctx, req); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to update subscription")
-		return nil, err
+	if patch.LabType != nil {
+		req.LabType = domain.LabType(*patch.LabType)
+	}
+	if patch.LabTopic != nil {
+		req.LabTopic = domain.LabTopic(*patch.LabTopic)
+	}
+	if patch.LabNumber != nil {
+		req.LabNumber = *patch.LabNumber
+	}
+	if patch.LabAuditorium != nil {
+		req.LabAuditorium = patch.LabAuditorium
+	}
+	if patch.Status != nil {
+		req.Status = subscription.Status(*patch.Status)
+	}
+	if patch.AutoEnroll != nil {
+		req.AutoEnroll = *patch.AutoEnroll
+	}
+	if patch.AnyDate != nil {
+		req.AnyDate = *patch.AnyDate
 	}
 
-	span.SetStatus(codes.Ok, "")
-
-	return &dto.EditSubscriptionResDTO{
-		UUID: subscriptionUUID.String(),
-	}, nil
+	return req
 }
