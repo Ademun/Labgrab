@@ -13,7 +13,7 @@ type GetTimePreferencesUsecase struct {
 	SubscriptionSvc *subscription.Service
 }
 
-func (uc *GetTimePreferencesUsecase) Exec(ctx context.Context, session string) (*dto.GetTimePreferncesResDTO, error) {
+func (uc *GetTimePreferencesUsecase) Exec(ctx context.Context, session string) (*dto.GetTimePreferencesResDTO, error) {
 	if err := uc.AuthSvc.ValidateSession(ctx, session); err != nil {
 		return nil, fmt.Errorf("subscription usecase: get time preferences: validate session: %w", err)
 	}
@@ -28,7 +28,7 @@ func (uc *GetTimePreferencesUsecase) Exec(ctx context.Context, session string) (
 		return nil, fmt.Errorf("subscription usecase: get time preferences: get time preferences: %w", err)
 	}
 
-	return &dto.GetTimePreferncesResDTO{Preferences: preferences}, nil
+	return &dto.GetTimePreferencesResDTO{Preferences: preferences}, nil
 }
 
 type SetTimePreferencesUsecase struct {
@@ -36,7 +36,7 @@ type SetTimePreferencesUsecase struct {
 	SubscriptionSvc *subscription.Service
 }
 
-func (uc *SetTimePreferencesUsecase) Exec(ctx context.Context, session string, req *dto.SetTimePreferncesReqDTO) error {
+func (uc *SetTimePreferencesUsecase) Exec(ctx context.Context, session string, req *dto.SetTimePreferencesReqDTO) error {
 	if err := uc.AuthSvc.ValidateSession(ctx, session); err != nil {
 		return fmt.Errorf("subscription usecase: set time preferences: validate session: %w", err)
 	}

@@ -8,7 +8,3 @@ type NewSubscriptionReqDTO struct {
 	AutoEnroll    bool   `json:"auto_enroll"`
 	AnyDate       bool   `json:"any_date"`
 }
-
-type NewSubscriptionResDTO struct {
-	UUID string `json:"uuid"`
-}

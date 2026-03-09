@@ -15,14 +15,14 @@ type NewSubscriptionUsecase struct {
 	SubscriptionSvc *subscription.Service
 }
 
-func (uc *NewSubscriptionUsecase) Exec(ctx context.Context, session string, req *dto.NewSubscriptionReqDTO) (*dto.NewSubscriptionResDTO, error) {
+func (uc *NewSubscriptionUsecase) Exec(ctx context.Context, session string, req *dto.NewSubscriptionReqDTO) (string, error) {
 	if err := uc.AuthSvc.ValidateSession(ctx, session); err != nil {
-		return nil, fmt.Errorf("subscription usecase: new subscription: validate session: %w", err)
+		return "", fmt.Errorf("subscription usecase: new subscription: validate session: %w", err)
 	}
 
 	userUUID, err := uc.AuthSvc.GetSessionData(ctx, session)
 	if err != nil {
-		return nil, fmt.Errorf("subscription usecase: new subscription: get session data: %w", err)
+		return "", fmt.Errorf("subscription usecase: new subscription: get session data: %w", err)
 	}
 
 	subscriptionUUID, err := uc.SubscriptionSvc.CreateSubscription(ctx, &subscription.CreateSubscriptionReq{
@@ -36,8 +36,8 @@ func (uc *NewSubscriptionUsecase) Exec(ctx context.Context, session string, req 
 		CreatedAt:     time.Now(),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("subscription usecase: new subscription: create subscription: %w", err)
+		return "", fmt.Errorf("subscription usecase: new subscription: create subscription: %w", err)
 	}
 
-	return &dto.NewSubscriptionResDTO{UUID: subscriptionUUID.String()}, nil
+	return subscriptionUUID.String(), nil
 }

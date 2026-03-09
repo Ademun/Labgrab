@@ -15,7 +15,7 @@ type GetSubscriptionsUsecase struct {
 	SubscriptionSvc *subscription.Service
 }
 
-func (uc *GetSubscriptionsUsecase) Exec(ctx context.Context, session string, req *dto.GetSubscriptionsReqDTO) ([]dto.GetSubscriptionsResDTO, error) {
+func (uc *GetSubscriptionsUsecase) Exec(ctx context.Context, session string, subscriptionUUIDStr *string) ([]dto.GetSubscriptionsResDTO, error) {
 	if err := uc.AuthSvc.ValidateSession(ctx, session); err != nil {
 		return nil, fmt.Errorf("subscription usecase: get subscriptions: validate session: %w", err)
 	}
@@ -26,8 +26,8 @@ func (uc *GetSubscriptionsUsecase) Exec(ctx context.Context, session string, req
 	}
 
 	var result []dto.GetSubscriptionsResDTO
-	if req.SubscriptionUUID != nil {
-		result, err = uc.HandleSingle(ctx, *req.SubscriptionUUID)
+	if subscriptionUUIDStr != nil {
+		result, err = uc.HandleSingle(ctx, *subscriptionUUIDStr)
 	} else {
 		result, err = uc.HandleAll(ctx, userUUID)
 	}

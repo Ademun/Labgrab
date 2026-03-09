@@ -2,10 +2,6 @@ package dto
 
 import "time"
 
-type GetSubscriptionsReqDTO struct {
-	SubscriptionUUID *string `json:"subscription_uuid"`
-}
-
 type GetSubscriptionsResDTO struct {
 	UUID          string     `json:"uuid"`
 	LabType       string     `json:"lab_type"`

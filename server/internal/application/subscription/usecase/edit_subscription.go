@@ -17,33 +17,33 @@ type EditSubscriptionUsecase struct {
 	SubscriptionSvc *subscription.Service
 }
 
-func (uc *EditSubscriptionUsecase) Exec(ctx context.Context, session string, req *dto.EditSubscriptionReqDTO) (*dto.EditSubscriptionResDTO, error) {
+func (uc *EditSubscriptionUsecase) Exec(ctx context.Context, session string, subscriptionUUIDStr string, req *dto.EditSubscriptionReqDTO) (string, error) {
 	if err := uc.AuthSvc.ValidateSession(ctx, session); err != nil {
-		return nil, fmt.Errorf("subscription usecase: edit subscription: validate session: %w", err)
+		return "", fmt.Errorf("subscription usecase: edit subscription: validate session: %w", err)
 	}
 
 	userUUID, err := uc.AuthSvc.GetSessionData(ctx, session)
 	if err != nil {
-		return nil, fmt.Errorf("subscription usecase: edit subscription: get session data: %w", err)
+		return "", fmt.Errorf("subscription usecase: edit subscription: get session data: %w", err)
 	}
 
-	subscriptionUUID, err := uuid.Parse(req.SubscriptionUUID)
+	subscriptionUUID, err := uuid.Parse(subscriptionUUIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("subscription usecase: edit subscription: parse subscription uuid: %w", err)
+		return "", fmt.Errorf("subscription usecase: edit subscription: parse subscription uuid: %w", err)
 	}
 
 	existingSub, err := uc.SubscriptionSvc.GetSubscription(ctx, subscriptionUUID)
 	if err != nil {
-		return nil, fmt.Errorf("subscription usecase: edit subscription: get subscription: %w", err)
+		return "", fmt.Errorf("subscription usecase: edit subscription: get subscription: %w", err)
 	}
 
 	updateReq := BuildUpdateReq(userUUID, subscriptionUUID, existingSub, req)
 
 	if err := uc.SubscriptionSvc.UpdateSubscription(ctx, updateReq); err != nil {
-		return nil, fmt.Errorf("subscription usecase: edit subscription: update subscription: %w", err)
+		return "", fmt.Errorf("subscription usecase: edit subscription: update subscription: %w", err)
 	}
 
-	return &dto.EditSubscriptionResDTO{UUID: subscriptionUUID.String()}, nil
+	return subscriptionUUID.String(), nil
 }
 
 func BuildUpdateReq(

@@ -17,13 +17,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
 )
-
-// maxConcurrentRequests matches the site's concurrency limit.
-const maxConcurrentRequests = 5
 
 type ProcessEventsUsecase struct {
 	eventSvc        *event.Service
@@ -32,65 +26,23 @@ type ProcessEventsUsecase struct {
 	bookingSvc      *booking.Service
 	subscriptionSvc *subscription.Service
 	telegramSvc     *telegram.Service
-	tracer          trace.Tracer
 }
-
-func NewProcessEventsUsecase(
-	eventSvc *event.Service,
-	userSvc *user.Service,
-	authSvc *auth.Service,
-	bookingSvc *booking.Service,
-	subscriptionSvc *subscription.Service,
-	telegramSvc *telegram.Service,
-) *ProcessEventsUsecase {
-	return &ProcessEventsUsecase{
-		eventSvc:        eventSvc,
-		userSvc:         userSvc,
-		authSvc:         authSvc,
-		bookingSvc:      bookingSvc,
-		subscriptionSvc: subscriptionSvc,
-		telegramSvc:     telegramSvc,
-		tracer:          otel.Tracer("process_events_usecase"),
-	}
-}
-
-// enrollTask is produced by event workers after MCMF conflict resolution
-// and consumed by per-user workers for the actual enrollment.
 type enrollTask struct {
 	eventRes *event.GetEventsRes
 	sub      subscription.GetMatchingSubscriptionsRes
 	userInfo *user.GetUserRes
 }
 
-// Exec orchestrates two-phase parallel processing:
-//
-//	Phase 1 — 3 event workers: match subscriptions, filter schedule, resolve
-//	          inter-user conflicts via MCMF, fan-out enrollTasks.
-//	Phase 2 — per-user goroutines: re-filter (fresh DB), enroll (semaphore),
-//	          update state, notify, fetch updated booking (semaphore).
-//
-// One global semaphore caps all outbound HTTP at maxConcurrentRequests.
-// Per-user serialization guarantees the 2-day gap invariant without any mutex.
 func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
-	ctx, span := uc.tracer.Start(ctx, "process_events_usecase.Exec")
-	defer span.End()
-
 	var clientCookies string
 	events, err := uc.eventSvc.GetCurrentEvents(ctx, &clientCookies)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to get current events")
 		return fmt.Errorf("event usecase: exec: get current events: %w", err)
 	}
 
-	// Shared HTTP semaphore — every outbound request to the site acquires one slot.
-	sem := make(chan struct{}, maxConcurrentRequests)
-
-	// enrollCh is buffered so event workers never block on slow user workers.
 	enrollCh := make(chan enrollTask, 100)
 	errCh := make(chan error, 100)
 
-	// ── Phase 1: event workers ───────────────────────────────────────────────
 	var eventWg sync.WaitGroup
 	for range 3 {
 		eventWg.Add(1)
@@ -100,14 +52,11 @@ func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
 		}()
 	}
 
-	// Close enrollCh once all event workers exit — signals fan-out to stop.
 	go func() {
 		eventWg.Wait()
 		close(enrollCh)
 	}()
 
-	// ── Phase 2: fan-out + per-user goroutines ───────────────────────────────
-	// Single goroutine owns userChannels — no mutex needed.
 	userChannels := make(map[uuid.UUID]chan enrollTask)
 	var userWg sync.WaitGroup
 
@@ -119,13 +68,12 @@ func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
 			userWg.Add(1)
 			go func(userCh <-chan enrollTask) {
 				defer userWg.Done()
-				uc.userWorker(ctx, userCh, sem, errCh)
+				uc.userWorker(ctx, userCh, errCh)
 			}(ch)
 		}
 		userChannels[userID] <- task
 	}
 
-	// enrollCh drained → all tasks routed → close per-user channels so workers exit.
 	for _, ch := range userChannels {
 		close(ch)
 	}
@@ -133,7 +81,6 @@ func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
 	userWg.Wait()
 	close(errCh)
 
-	// Collect all apperr. Fixed: apperr.Join result must be assigned.
 	var collected error
 	for err := range errCh {
 		fmt.Println(err)
@@ -141,17 +88,12 @@ func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
 	}
 
 	if collected != nil {
-		span.RecordError(collected)
-		span.SetStatus(codes.Error, "failed to process events")
 		return fmt.Errorf("event usecase: exec: %w", collected)
 	}
 
-	span.SetStatus(codes.Ok, "")
 	return nil
 }
 
-// eventWorker reads events, matches subscriptions, runs MCMF conflict resolution,
-// and fans out enrollTasks. Pure computation + DB reads — no HTTP, no semaphore.
 func (uc *ProcessEventsUsecase) eventWorker(
 	ctx context.Context,
 	events <-chan *event.GetEventsRes,
@@ -180,7 +122,6 @@ func (uc *ProcessEventsUsecase) eventWorker(
 			continue
 		}
 
-		// Pre-fetch all users so we have them for both notify and enroll paths.
 		subUsers := make([]*user.GetUserRes, len(subs))
 		for i := range subs {
 			userInfo, err := uc.userSvc.GetUser(ctx, subs[i].UserUUID)
@@ -191,7 +132,6 @@ func (uc *ProcessEventsUsecase) eventWorker(
 			subUsers[i] = userInfo
 		}
 
-		// Split into notify-only and auto-enroll paths.
 		enrollIdxs := make([]int, 0, len(subs))
 		for i := range subs {
 			if subUsers[i] == nil {
@@ -216,8 +156,6 @@ func (uc *ProcessEventsUsecase) eventWorker(
 				continue
 			}
 
-			// First-pass schedule filter — used as MCMF input.
-			// User worker re-filters with fresh state before actual enrollment.
 			filteredSchedule, err := uc.bookingSvc.FilterSchedule(ctx, &booking.FilterScheduleReq{
 				UserUUID: subs[i].UserUUID,
 				Schedule: subs[i].Schedule,
@@ -238,8 +176,6 @@ func (uc *ProcessEventsUsecase) eventWorker(
 			continue
 		}
 
-		// ── MCMF conflict resolution ─────────────────────────────────────────
-		// Find dates where 2+ users want to enroll, resolve fair assignment.
 		keyMap := make(map[time.Time]int)
 		conflictingDates := make([]time.Time, 0)
 		for _, i := range enrollIdxs {
@@ -302,7 +238,6 @@ func (uc *ProcessEventsUsecase) eventWorker(
 			}
 		}
 
-		// Fan-out — each sub becomes an independent task routed by userID.
 		for _, i := range enrollIdxs {
 			if len(subs[i].Schedule) == 0 {
 				continue
@@ -319,14 +254,9 @@ func (uc *ProcessEventsUsecase) eventWorker(
 func (uc *ProcessEventsUsecase) userWorker(
 	ctx context.Context,
 	tasks <-chan enrollTask,
-	sem chan struct{},
 	errCh chan<- error,
 ) {
 	for task := range tasks {
-		// Step 1: re-check subscription status before doing any work.
-		// Event workers fan-out tasks in parallel - by the time this worker
-		// picks up a task, a sibling task for the same subscription may have
-		// already enrolled and closed it.
 		sub, err := uc.subscriptionSvc.GetSubscription(ctx, task.sub.SubscriptionUUID)
 		if err != nil {
 			errCh <- fmt.Errorf("event usecase: user worker: get subscription: %w", err)
@@ -336,8 +266,6 @@ func (uc *ProcessEventsUsecase) userWorker(
 			continue
 		}
 
-		// Step 2: credentials needed for both LoadClientBookings and Enroll.
-		// Fetch once here; nil session/cookies is a hard stop.
 		creds, err := uc.authSvc.GetUserCredentials(ctx, task.sub.UserUUID)
 		if err != nil {
 			errCh <- fmt.Errorf("event usecase: user worker: get user credentials: %w", err)
@@ -348,26 +276,16 @@ func (uc *ProcessEventsUsecase) userWorker(
 			continue
 		}
 
-		// Step 3: sync local booking cache from the site before filtering.
-		// FilterSchedule reads from this cache - stale data means stale filter.
-		if err := acquireSem(ctx, sem); err != nil {
-			errCh <- fmt.Errorf("event usecase: user worker: load booking acquire sem: %w", err)
-			continue
-		}
 		err = uc.bookingSvc.LoadClientBookings(ctx, &booking.LoadClientBookingsReq{
 			UserUUID: task.sub.UserUUID,
 			Session:  *creds.Session,
 			Cookies:  *creds.Cookies,
 		})
-		releaseSem(sem)
 		if err != nil {
 			errCh <- fmt.Errorf("event usecase: user worker: load client booking: %w", err)
 			continue
 		}
 
-		// Step 4: filter against freshly loaded booking.
-		// already_booked CTE short-circuits on duplicate lab; date-gap check
-		// no longer requires matching lesson number.
 		freshSchedule, err := uc.bookingSvc.FilterSchedule(ctx, &booking.FilterScheduleReq{
 			UserUUID: task.sub.UserUUID,
 			Schedule: task.sub.Schedule,
@@ -391,10 +309,6 @@ func (uc *ProcessEventsUsecase) userWorker(
 		lessonTime := domain.LessonLookup[int(selectedLesson)]
 		targetTime := time.Date(selectedDate.Year(), selectedDate.Month(), selectedDate.Day(), lessonTime.Start.Hour(), lessonTime.Start.Minute(), 0, 0, time.UTC)
 
-		if err := acquireSem(ctx, sem); err != nil {
-			errCh <- fmt.Errorf("event usecase: user worker: enroll acquire sem: %w", err)
-			continue
-		}
 		bId, err := uc.eventSvc.Enroll(ctx, &event.EnrollmentReq{
 			UserUUID:    task.sub.UserUUID,
 			EventID:     task.eventRes.Data.ID,
@@ -409,11 +323,9 @@ func (uc *ProcessEventsUsecase) userWorker(
 			Cookies:     *creds.Cookies,
 		})
 		if err != nil {
-			releaseSem(sem)
 			errCh <- fmt.Errorf("event usecase: user worker: enroll: %w", err)
 			continue
 		}
-		releaseSem(sem)
 
 		fmt.Println(bId)
 
@@ -437,21 +349,6 @@ func (uc *ProcessEventsUsecase) userWorker(
 	}
 }
 
-func acquireSem(ctx context.Context, sem chan struct{}) error {
-	select {
-	case sem <- struct{}{}:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
-func releaseSem(sem chan struct{}) {
-	<-sem
-}
-
-// pickRandomSlot selects a random date and lesson from a filtered schedule.
-// Returns false if the schedule is empty or all dates have no lessons.
 func pickRandomSlot(schedule map[time.Time]map[domain.Lesson][]string) (time.Time, domain.Lesson, bool) {
 	validDates := make([]time.Time, 0, len(schedule))
 	for d, lessons := range schedule {
@@ -475,8 +372,6 @@ func pickRandomSlot(schedule map[time.Time]map[domain.Lesson][]string) (time.Tim
 
 	return selectedDate, lessonKeys[rand.IntN(len(lessonKeys))], true
 }
-
-// ── MCMF ─────────────────────────────────────────────────────────────────────
 
 type Edge struct {
 	To   int
