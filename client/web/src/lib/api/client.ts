@@ -23,6 +23,7 @@ import { type AppConfig, appConfigSchema, apiErrorSchema } from '$lib/api/schema
 import { z, ZodError } from 'zod';
 import { createApiError, NetworkError, ValidationError } from '$lib/api/errors.js';
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
+import {type BookingArray, bookingArraySchema} from "$lib/api/schema/booking.js";
 
 interface ApiClientConfig {
 	baseUrl: string;
@@ -211,6 +212,10 @@ class ApiClient {
 			body: JSON.stringify(data)
 		});
 	}
+
+    async getBookings(fetchFn?: typeof fetch): Promise<BookingArray> {
+        return this.request<BookingArray>('/bookings', bookingArraySchema, fetchFn);
+    }
 
 	async getConfig(fetchFn?: typeof fetch): Promise<AppConfig> {
 		return this.request<AppConfig>('/web/config', appConfigSchema, fetchFn);

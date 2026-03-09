@@ -58,13 +58,12 @@ func NewScheduler(
 
 func (s *Scheduler) Start(ctx context.Context) error {
 	s.UpdateServiceIDs(ctx)
-	s.processNewSlots.Exec(ctx)
 	scheduler, err := gocron.NewScheduler()
 	if err != nil {
 		return err
 	}
 	_, err = scheduler.NewJob(
-		gocron.DurationRandomJob(time.Hour*5, time.Hour*20),
+		gocron.DurationRandomJob(time.Minute*10, time.Minute*30),
 		gocron.NewTask(s.ProcessNewEvents, ctx),
 	)
 	if err != nil {
