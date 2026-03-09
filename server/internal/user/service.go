@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"fmt"
+	"labgrab/internal/shared/apperr"
 
 	"github.com/google/uuid"
 )
@@ -48,6 +49,10 @@ func (s *Service) GetUser(ctx context.Context, userUUID uuid.UUID) (*GetUserRes,
 }
 
 func (s *Service) UpdateUser(ctx context.Context, req *UpdateUserReq) error {
+	if err := s.validateUpdateRequest(req); err != nil {
+		return fmt.Errorf("user service: update user: validate request: %w", err)
+	}
+
 	if err := s.repo.UpdateUser(ctx, &DBUser{
 		UUID:        req.UserUUID,
 		Name:        req.Name,
@@ -75,4 +80,43 @@ func (s *Service) GetUserUUIDByTelegramID(ctx context.Context, telegramID int) (
 		return uuid.Nil, fmt.Errorf("user service: get user uuid by telegram id: repository call: %w", err)
 	}
 	return userUUID, nil
+}
+
+func (s *Service) validateUpdateRequest(req *UpdateUserReq) error {
+	vErr := apperr.NewValidationError()
+	if req.Name != nil {
+		if err := validateUserName(*req.Name, "name"); err != nil {
+			vErr.AddErr("name", err)
+		}
+	}
+
+	if req.Surname != nil {
+		if err := validateUserName(*req.Surname, "surname"); err != nil {
+			vErr.AddErr("surname", err)
+		}
+	}
+
+	if req.Patronymic != nil {
+		if err := validateUserName(*req.Patronymic, "patronymic"); err != nil {
+			vErr.AddErr("patronymic", err)
+		}
+	}
+
+	if req.GroupCode != nil {
+		if err := validateGroupCode(*req.GroupCode); err != nil {
+			vErr.AddErr("group_code", err)
+		}
+	}
+
+	if req.PhoneNumber != nil {
+		if err := validatePhoneNumber(*req.PhoneNumber); err != nil {
+			vErr.AddErr("phone_number", err)
+		}
+	}
+
+	if !vErr.IsEmpty() {
+		return vErr
+	}
+
+	return nil
 }
