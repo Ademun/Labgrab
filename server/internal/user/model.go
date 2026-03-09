@@ -13,7 +13,7 @@ type DBUser struct {
 	Patronymic       *string   `db:"patronymic"`
 	GroupCode        *string   `db:"group_code"`
 	PhoneNumber      *string   `db:"phone_number"`
-	TelegramID       int       `db:"telegram_id"`
+	TelegramID       int64     `db:"telegram_id"`
 	TelegramUsername string    `db:"telegram_username"`
 	TelegramPhotoUrl *string   `db:"telegram_photo_url"`
 	ApiReady         bool      `db:"api_ready"`

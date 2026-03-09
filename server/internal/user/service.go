@@ -20,7 +20,7 @@ func (s *Service) CreateUser(ctx context.Context, req *CreateUserReq) (uuid.UUID
 	userUUID, err := s.repo.CreateUser(ctx, &DBUser{
 		Name:             req.Name,
 		Surname:          req.Surname,
-		TelegramID:       req.TelegramID,
+		TelegramID:       int64(req.TelegramID),
 		TelegramUsername: req.Username,
 		TelegramPhotoUrl: req.PhotoUrl,
 	})
@@ -41,7 +41,7 @@ func (s *Service) GetUser(ctx context.Context, userUUID uuid.UUID) (*GetUserRes,
 		Patronymic:       user.Patronymic,
 		GroupCode:        user.GroupCode,
 		PhoneNumber:      user.PhoneNumber,
-		TelegramID:       user.TelegramID,
+		TelegramID:       int(user.TelegramID),
 		TelegramUsername: user.TelegramUsername,
 		TelegramPhotoUrl: user.TelegramPhotoUrl,
 		ApiReady:         user.ApiReady,

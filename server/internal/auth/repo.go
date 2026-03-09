@@ -127,6 +127,7 @@ func (r *Repo) GetStaleUsers(ctx context.Context) ([]DBUserData, error) {
 		); err != nil {
 			return nil, fmt.Errorf("auth repo: get stale users: scan row: %w", err)
 		}
+		users = append(users, user)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -141,11 +142,11 @@ func (r *Repo) DeleteUserData(ctx context.Context, userUUID uuid.UUID, tx pgx.Tx
 		Where(squirrel.Eq{"user_uuid": userUUID}).
 		ToSql()
 	if err != nil {
-		return fmt.Errorf("auth repo: create user data: build query: %w", err)
+		return fmt.Errorf("auth repo: delete user data: build query: %w", err)
 	}
 
 	if _, err = tx.Exec(ctx, query, args...); err != nil {
-		return fmt.Errorf("auth repo: create user data: exec query: %w", err)
+		return fmt.Errorf("auth repo: delete user data: exec query: %w", err)
 	}
 
 	return nil

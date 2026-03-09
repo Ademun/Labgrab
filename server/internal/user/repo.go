@@ -103,7 +103,7 @@ func (r *Repo) UpdateUser(ctx context.Context, user *DBUser) error {
 
 func (r *Repo) DeleteUser(ctx context.Context, userUUID uuid.UUID, tx pgx.Tx) error {
 	query, args, err := r.sq.Delete("user_service.users").
-		Where(squirrel.Eq{"user_uuid": userUUID}).
+		Where(squirrel.Eq{"uuid": userUUID}).
 		ToSql()
 	if err != nil {
 		return fmt.Errorf("user repo: delete user: build query: %w", err)

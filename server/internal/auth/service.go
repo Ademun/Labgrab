@@ -23,10 +23,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
-	"go.opentelemetry.io/otel"
 )
-
-var tracer = otel.Tracer("auth-service")
 
 type Service struct {
 	repo   *Repo
