@@ -1,8 +1,8 @@
 package dikidi
 
 import (
+	"errors"
 	"fmt"
-	"labgrab/internal/shared/apperr"
 	"labgrab/internal/shared/domain"
 	"labgrab/pkg/config"
 	"regexp"
@@ -103,7 +103,7 @@ func (p *Parser) ParseServiceData(data *APIServiceData) ([]domain.Event, error) 
 	}
 
 	if len(pErrors) > 0 {
-		return nil, &apperr.ErrParsing{Errors: pErrors}
+		return nil, errors.Join(pErrors...)
 	}
 
 	return events, nil

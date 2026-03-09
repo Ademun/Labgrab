@@ -2,7 +2,7 @@ package dikidi
 
 import (
 	"context"
-	"labgrab/internal/shared/mask"
+	"fmt"
 	"strconv"
 	"sync"
 
@@ -10,9 +10,9 @@ import (
 )
 
 func (c *Client) UpdateServiceIDs(ctx context.Context, client *req.Client) error {
-	services, err := c.ScrapeServices(ctx, client, c.cfg.SourcesConfig.SourcesIDsProviderURL)
+	services, err := c.ScrapeServices(ctx, client, c.cfg.ServiceProviderURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("api client: update service ids: scraping: %w", err)
 	}
 	c.serviceIDs = services
 	return nil
@@ -76,7 +76,7 @@ func (c *Client) GetEventStream(ctx context.Context, client *req.Client) chan *G
 func (c *Client) ProcessService(ctx context.Context, client *req.Client, serviceID int) (*APIService, error) {
 	initialData, err := c.FetchService(ctx, client, serviceID, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("api client: process service: initial fetch: %w", err)
 	}
 	initialData.Data.ServiceID = serviceID
 
@@ -95,7 +95,7 @@ func (c *Client) ProcessService(ctx context.Context, client *req.Client, service
 
 		newData, err := c.FetchService(ctx, client, serviceID, &date)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("api client: process service: consecutive fetch: %w", err)
 		}
 
 		for k, v := range newData.Data.Masters {
@@ -123,24 +123,24 @@ func (c *Client) FetchService(ctx context.Context, client *req.Client, serviceID
 		params["date"] = *date
 		params["with_first"] = "false"
 	}
-
-	mask.Jitter(500, 1000)
 	var data APIService
-	_, err := client.R().
-		SetContext(ctx).
-		SetQueryParams(params).
-		SetHeaders(map[string]string{
-			"Sec-Fetch-Dest": "empty",
-			"Sec-Fetch-Mode": "cors",
-			"Sec-Fetch-Site": "same-site",
-			"Origin":         "https://dikidi.net",
-			"Referer":        "https://dikidi.net/550001?p=0.pi-ssm",
-		}).
-		SetSuccessResult(&data).
-		Get(c.cfg.SourcesConfig.SlotsSourceURL)
+	var err error
+	c.limitCall(func() {
+		_, err = client.R().
+			SetContext(ctx).
+			SetQueryParams(params).
+			SetHeaders(map[string]string{
+				"Sec-Fetch-Dest": "empty",
+				"Sec-Fetch-Mode": "cors",
+				"Sec-Fetch-Site": "same-site",
+				"Origin":         "https://dikidi.net",
+				"Referer":        "https://dikidi.net/550001?p=0.pi-ssm",
+			}).
+			SetSuccessResult(&data).
+			Get(c.cfg.EventProviderURL)
+	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("api cliennt: fetch service: request failed: %w", err)
 	}
-
 	return &data, nil
 }

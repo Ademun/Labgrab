@@ -66,8 +66,8 @@ func (s *Service) UpdateUser(ctx context.Context, req *UpdateUserReq) error {
 	return nil
 }
 
-func (s *Service) DeleteUser(ctx context.Context, userUUID uuid.UUID) error {
-	if err := s.repo.DeleteUser(ctx, userUUID); err != nil {
+func (s *Service) DeleteUser(ctx context.Context, req *DeleteUserReq) error {
+	if err := s.repo.DeleteUser(ctx, req.UserUUID, req.Tx); err != nil {
 		return fmt.Errorf("user service: delete user: repository call: %w", err)
 	}
 	return nil

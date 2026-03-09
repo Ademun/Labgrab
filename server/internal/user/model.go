@@ -2,6 +2,7 @@ package user
 
 import (
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 // DBUser user_service.users
@@ -45,4 +46,9 @@ type UpdateUserReq struct {
 	Patronymic  *string
 	GroupCode   *string
 	PhoneNumber *string
+}
+
+type DeleteUserReq struct {
+	UserUUID uuid.UUID
+	Tx       pgx.Tx
 }
