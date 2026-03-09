@@ -2,33 +2,30 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"labgrab/internal/application/user/dto"
 	"labgrab/internal/auth"
 	"labgrab/internal/user"
 )
 
 type UpdateUserUseCase struct {
-	authSvc *auth.Service
-	userSvc *user.Service
-}
-
-func NewUpdateUserUseCase(authSvc *auth.Service, userSvc *user.Service) *UpdateUserUseCase {
-	return &UpdateUserUseCase{authSvc: authSvc, userSvc: userSvc}
+	AuthSvc *auth.Service
+	UserSvc *user.Service
 }
 
 func (uc *UpdateUserUseCase) Exec(ctx context.Context, session string, req *dto.UpdateUserReqDTO) error {
-	if err := uc.authSvc.ValidateSession(ctx, session); err != nil {
-		return err
+	if err := uc.AuthSvc.ValidateSession(ctx, session); err != nil {
+		return fmt.Errorf("user usecase: update user: validate session: %w", err)
 	}
 
-	userUUID, err := uc.authSvc.GetSessionData(ctx, session)
+	userUUID, err := uc.AuthSvc.GetSessionData(ctx, session)
 	if err != nil {
-		return err
+		return fmt.Errorf("user usecase: get user: get session data: %w", err)
 	}
 
-	data, err := uc.userSvc.GetUser(ctx, userUUID)
+	data, err := uc.UserSvc.GetUser(ctx, userUUID)
 	if err != nil {
-		return err
+		return fmt.Errorf("user usecase: get user: get user: %w", err)
 	}
 
 	updateReq := &user.UpdateUserReq{
@@ -38,7 +35,6 @@ func (uc *UpdateUserUseCase) Exec(ctx context.Context, session string, req *dto.
 		Patronymic:  data.Patronymic,
 		GroupCode:   data.GroupCode,
 		PhoneNumber: data.PhoneNumber,
-		PhotoUrl:    data.PhotoUrl,
 	}
 
 	if req.Name != nil {
@@ -61,12 +57,8 @@ func (uc *UpdateUserUseCase) Exec(ctx context.Context, session string, req *dto.
 		updateReq.PhoneNumber = req.PhoneNumber
 	}
 
-	if req.PhotoUrl != nil {
-		updateReq.PhotoUrl = req.PhotoUrl
-	}
-
-	if err := uc.userSvc.UpdateUser(ctx, updateReq); err != nil {
-		return err
+	if err := uc.UserSvc.UpdateUser(ctx, updateReq); err != nil {
+		return fmt.Errorf("user usecase: update user: update user: %w", err)
 	}
 
 	return nil
