@@ -13,19 +13,15 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
 type Scheduler struct {
 	dikidiClient     *dikidi.Client
-	logger           *zap.SugaredLogger
 	scheduler        gocron.Scheduler
-	processNewSlots  *usecase.ProcessEventsUsecase
+	processNewEvents *usecase.ProcessEventsUsecase
 	updateServiceIDs *usecase.UpdateServiceIDsUsecase
-	tracer           trace.Tracer
+	logger           *zap.SugaredLogger
 }
 
 func NewScheduler(
@@ -41,18 +37,17 @@ func NewScheduler(
 	return &Scheduler{
 		dikidiClient: dikidiClient,
 		logger:       logger,
-		processNewSlots: usecase.NewProcessEventsUsecase(
-			eventSvc,
-			userSvc,
-			authSvc,
-			bookingSvc,
-			subscriptionSvc,
-			telegramSvc,
-		),
-		updateServiceIDs: usecase.NewUpdateServiceIDsUsecase(
-			eventSvc,
-		),
-		tracer: otel.Tracer("event_scheduler"),
+		processNewEvents: &usecase.ProcessEventsUsecase{
+			EventSvc:        eventSvc,
+			UserSvc:         userSvc,
+			AuthSvc:         authSvc,
+			BookingSvc:      bookingSvc,
+			SubscriptionSvc: subscriptionSvc,
+			TelegramSvc:     telegramSvc,
+		},
+		updateServiceIDs: &usecase.UpdateServiceIDsUsecase{
+			EventSvc: eventSvc,
+		},
 	}
 }
 
@@ -62,6 +57,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	_, err = scheduler.NewJob(
 		gocron.DurationRandomJob(time.Minute*10, time.Minute*30),
 		gocron.NewTask(s.ProcessNewEvents, ctx),
@@ -69,6 +65,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	_, err = scheduler.NewJob(
 		gocron.DurationRandomJob(time.Hour, time.Hour*24),
 		gocron.NewTask(s.UpdateServiceIDs, ctx),
@@ -87,36 +84,15 @@ func (s *Scheduler) Stop() error {
 }
 
 func (s *Scheduler) ProcessNewEvents(ctx context.Context) {
-	ctx, span := s.tracer.Start(ctx, "event_scheduler.ProcessNewEvents")
-	defer span.End()
-
-	err := s.processNewSlots.Exec(ctx)
-	if err != nil {
-		s.logger.Errorw("Failed to process new events",
-			"trace_id", span.SpanContext().TraceID(),
-			"span_id", span.SpanContext().SpanID(),
-			"error", err)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "Failed to process new events")
+	if err := s.processNewEvents.Exec(ctx); err != nil {
+		s.logger.Errorf("event scheduler: process new events: %v", err)
 		return
 	}
-
-	span.SetStatus(codes.Ok, "")
 }
 
 func (s *Scheduler) UpdateServiceIDs(ctx context.Context) {
-	ctx, span := s.tracer.Start(ctx, "event_scheduler.UpdateServiceIDs")
-	defer span.End()
-
 	if err := s.updateServiceIDs.Exec(ctx); err != nil {
-		s.logger.Errorw("Failed to update service IDs",
-			"trace_id", span.SpanContext().TraceID(),
-			"span_id", span.SpanContext().SpanID(),
-			"error", err)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "Failed to update service IDs")
+		s.logger.Errorf("event scheduler: update service ids: %v", err)
 		return
 	}
-
-	span.SetStatus(codes.Ok, "")
 }

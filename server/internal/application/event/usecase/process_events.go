@@ -20,12 +20,12 @@ import (
 )
 
 type ProcessEventsUsecase struct {
-	eventSvc        *event.Service
-	userSvc         *user.Service
-	authSvc         *auth.Service
-	bookingSvc      *booking.Service
-	subscriptionSvc *subscription.Service
-	telegramSvc     *telegram.Service
+	EventSvc        *event.Service
+	UserSvc         *user.Service
+	AuthSvc         *auth.Service
+	BookingSvc      *booking.Service
+	SubscriptionSvc *subscription.Service
+	TelegramSvc     *telegram.Service
 }
 type enrollTask struct {
 	eventRes *event.GetEventsRes
@@ -35,7 +35,7 @@ type enrollTask struct {
 
 func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
 	var clientCookies string
-	events, err := uc.eventSvc.GetCurrentEvents(ctx, &clientCookies)
+	events, err := uc.EventSvc.GetCurrentEvents(ctx, &clientCookies)
 	if err != nil {
 		return fmt.Errorf("event usecase: exec: get current events: %w", err)
 	}
@@ -106,7 +106,7 @@ func (uc *ProcessEventsUsecase) eventWorker(
 			continue
 		}
 
-		subs, err := uc.subscriptionSvc.GetMatchingSubscriptions(ctx, &subscription.GetMatchingSubscriptionsReq{
+		subs, err := uc.SubscriptionSvc.GetMatchingSubscriptions(ctx, &subscription.GetMatchingSubscriptionsReq{
 			Type:       e.Data.Type,
 			Topic:      e.Data.Topic,
 			Number:     e.Data.Number,
@@ -124,7 +124,7 @@ func (uc *ProcessEventsUsecase) eventWorker(
 
 		subUsers := make([]*user.GetUserRes, len(subs))
 		for i := range subs {
-			userInfo, err := uc.userSvc.GetUser(ctx, subs[i].UserUUID)
+			userInfo, err := uc.UserSvc.GetUser(ctx, subs[i].UserUUID)
 			if err != nil {
 				errCh <- fmt.Errorf("event usecase: event worker: get user: %w", err)
 				continue
@@ -139,7 +139,7 @@ func (uc *ProcessEventsUsecase) eventWorker(
 			}
 
 			if !subs[i].AutoEnroll {
-				err := uc.telegramSvc.NotifyEvent(ctx, telegram.NotifyEventReq{
+				err := uc.TelegramSvc.NotifyEvent(ctx, telegram.NotifyEventReq{
 					UserID:        subUsers[i].TelegramID,
 					LabName:       e.Data.Name,
 					LabType:       e.Data.Type,
@@ -156,7 +156,7 @@ func (uc *ProcessEventsUsecase) eventWorker(
 				continue
 			}
 
-			filteredSchedule, err := uc.bookingSvc.FilterSchedule(ctx, &booking.FilterScheduleReq{
+			filteredSchedule, err := uc.BookingSvc.FilterSchedule(ctx, &booking.FilterScheduleReq{
 				UserUUID: subs[i].UserUUID,
 				Schedule: subs[i].Schedule,
 				Type:     e.Data.Type,
@@ -257,7 +257,7 @@ func (uc *ProcessEventsUsecase) userWorker(
 	errCh chan<- error,
 ) {
 	for task := range tasks {
-		sub, err := uc.subscriptionSvc.GetSubscription(ctx, task.sub.SubscriptionUUID)
+		sub, err := uc.SubscriptionSvc.GetSubscription(ctx, task.sub.SubscriptionUUID)
 		if err != nil {
 			errCh <- fmt.Errorf("event usecase: user worker: get subscription: %w", err)
 			continue
@@ -266,7 +266,7 @@ func (uc *ProcessEventsUsecase) userWorker(
 			continue
 		}
 
-		creds, err := uc.authSvc.GetUserCredentials(ctx, task.sub.UserUUID)
+		creds, err := uc.AuthSvc.GetUserCredentials(ctx, task.sub.UserUUID)
 		if err != nil {
 			errCh <- fmt.Errorf("event usecase: user worker: get user credentials: %w", err)
 			continue
@@ -276,7 +276,7 @@ func (uc *ProcessEventsUsecase) userWorker(
 			continue
 		}
 
-		err = uc.bookingSvc.LoadClientBookings(ctx, &booking.LoadClientBookingsReq{
+		err = uc.BookingSvc.LoadClientBookings(ctx, &booking.LoadClientBookingsReq{
 			UserUUID: task.sub.UserUUID,
 			Session:  *creds.Session,
 			Cookies:  *creds.Cookies,
@@ -286,7 +286,7 @@ func (uc *ProcessEventsUsecase) userWorker(
 			continue
 		}
 
-		freshSchedule, err := uc.bookingSvc.FilterSchedule(ctx, &booking.FilterScheduleReq{
+		freshSchedule, err := uc.BookingSvc.FilterSchedule(ctx, &booking.FilterScheduleReq{
 			UserUUID: task.sub.UserUUID,
 			Schedule: task.sub.Schedule,
 			Type:     task.eventRes.Data.Type,
@@ -309,7 +309,7 @@ func (uc *ProcessEventsUsecase) userWorker(
 		lessonTime := domain.LessonLookup[int(selectedLesson)]
 		targetTime := time.Date(selectedDate.Year(), selectedDate.Month(), selectedDate.Day(), lessonTime.Start.Hour(), lessonTime.Start.Minute(), 0, 0, time.UTC)
 
-		bId, err := uc.eventSvc.Enroll(ctx, &event.EnrollmentReq{
+		bId, err := uc.EventSvc.Enroll(ctx, &event.EnrollmentReq{
 			UserUUID:    task.sub.UserUUID,
 			EventID:     task.eventRes.Data.ID,
 			ServiceID:   task.eventRes.Data.ServiceID,
@@ -329,11 +329,11 @@ func (uc *ProcessEventsUsecase) userWorker(
 
 		fmt.Println(bId)
 
-		if err = uc.subscriptionSvc.CloseSubscription(ctx, task.sub.SubscriptionUUID); err != nil {
+		if err = uc.SubscriptionSvc.CloseSubscription(ctx, task.sub.SubscriptionUUID); err != nil {
 			errCh <- fmt.Errorf("event usecase: user worker: update subscription: %w", err)
 		}
 
-		if err = uc.telegramSvc.NotifyEnrollment(ctx, telegram.NotifyEnrollmentReq{
+		if err = uc.TelegramSvc.NotifyEnrollment(ctx, telegram.NotifyEnrollmentReq{
 			UserID:        task.userInfo.TelegramID,
 			LabName:       task.eventRes.Data.Name,
 			LabType:       task.eventRes.Data.Type,
