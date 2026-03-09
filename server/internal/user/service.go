@@ -17,11 +17,11 @@ func NewService(repo *Repo) *Service {
 
 func (s *Service) CreateUser(ctx context.Context, req *CreateUserReq) (uuid.UUID, error) {
 	userUUID, err := s.repo.CreateUser(ctx, &DBUser{
-		Name:       req.Name,
-		Surname:    req.Surname,
-		TelegramID: req.TelegramID,
-		Username:   req.Username,
-		PhotoUrl:   req.PhotoUrl,
+		Name:             req.Name,
+		Surname:          req.Surname,
+		TelegramID:       req.TelegramID,
+		TelegramUsername: req.Username,
+		TelegramPhotoUrl: req.PhotoUrl,
 	}, req.Tx)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("user service: create user: repository call: %w", err)
@@ -35,15 +35,15 @@ func (s *Service) GetUser(ctx context.Context, userUUID uuid.UUID) (*GetUserRes,
 		return nil, fmt.Errorf("user service: get user: repository call: %w", err)
 	}
 	return &GetUserRes{
-		Username:    user.Username,
-		Name:        user.Name,
-		Surname:     user.Surname,
-		Patronymic:  user.Patronymic,
-		GroupCode:   user.GroupCode,
-		PhoneNumber: user.PhoneNumber,
-		TelegramID:  user.TelegramID,
-		PhotoUrl:    user.PhotoUrl,
-		ApiReady:    user.ApiReady,
+		Name:             user.Name,
+		Surname:          user.Surname,
+		Patronymic:       user.Patronymic,
+		GroupCode:        user.GroupCode,
+		PhoneNumber:      user.PhoneNumber,
+		TelegramID:       user.TelegramID,
+		TelegramUsername: user.TelegramUsername,
+		TelegramPhotoUrl: user.TelegramPhotoUrl,
+		ApiReady:         user.ApiReady,
 	}, nil
 }
 
@@ -55,7 +55,6 @@ func (s *Service) UpdateUser(ctx context.Context, req *UpdateUserReq) error {
 		Patronymic:  req.Patronymic,
 		GroupCode:   req.GroupCode,
 		PhoneNumber: req.PhoneNumber,
-		PhotoUrl:    req.PhotoUrl,
 	}); err != nil {
 		return fmt.Errorf("user service: update user: repository call: %w", err)
 	}

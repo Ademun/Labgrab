@@ -11,7 +11,7 @@ import {
 
 /**
  * Maps a thrown error to a user-facing Russian string suitable for toast.error().
- * Covers all typed API errors + fallback for unknown throws.
+ * Covers all typed API apperr + fallback for unknown throws.
  */
 export function getErrorMessage(error: unknown): string {
 	if (error instanceof NetworkError) return 'Сервер недоступен. Проверьте подключение к сети.';

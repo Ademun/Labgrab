@@ -1,8 +1,8 @@
 package subscription
 
 import (
+	"labgrab/internal/shared/apperr"
 	"labgrab/internal/shared/domain"
-	"labgrab/internal/shared/errors"
 	"labgrab/internal/shared/types"
 	"time"
 
@@ -83,7 +83,7 @@ type CreateSubscriptionReq struct {
 }
 
 func (r CreateSubscriptionReq) Validate() error {
-	err := errors.NewValidationError()
+	err := apperr.NewValidationError()
 	if r.LabType == domain.LabTypePerformance && r.LabAuditorium == nil {
 		err.Add("lab_type & lab_auditorium", "If lab type is equal to 'Performance' lab auditorium should be provided")
 	}
@@ -130,7 +130,7 @@ type UpdateSubscriptionDataReq struct {
 }
 
 func (r UpdateSubscriptionDataReq) Validate() error {
-	err := errors.NewValidationError()
+	err := apperr.NewValidationError()
 	if r.LabType == domain.LabTypePerformance && r.LabAuditorium == nil {
 		err.Add("lab_type & lab_auditorium", "If lab type is equal to 'Performance' lab auditorium should be provided")
 	}

@@ -7,16 +7,16 @@ import (
 
 // DBUser user_service.users
 type DBUser struct {
-	UUID        uuid.UUID `db:"uuid"`
-	Name        *string   `db:"name"`
-	Surname     *string   `db:"surname"`
-	Patronymic  *string   `db:"patronymic"`
-	GroupCode   *string   `db:"group_code"`
-	PhoneNumber *int      `db:"phone_number"`
-	TelegramID  int       `db:"telegram_id"`
-	Username    string    `db:"username"`
-	PhotoUrl    *string   `db:"photo_url"`
-	ApiReady    bool      `db:"api_ready"`
+	UUID             uuid.UUID `db:"uuid"`
+	Name             *string   `db:"name"`
+	Surname          *string   `db:"surname"`
+	Patronymic       *string   `db:"patronymic"`
+	GroupCode        *string   `db:"group_code"`
+	PhoneNumber      *int      `db:"phone_number"`
+	TelegramID       int       `db:"telegram_id"`
+	TelegramUsername string    `db:"telegram_username"`
+	TelegramPhotoUrl *string   `db:"telegram_photo_url"`
+	ApiReady         bool      `db:"api_ready"`
 }
 
 type CreateUserReq struct {
@@ -34,15 +34,15 @@ type CreateUserRes struct {
 }
 
 type GetUserRes struct {
-	Username    string
-	Name        *string
-	Surname     *string
-	Patronymic  *string
-	GroupCode   *string
-	PhoneNumber *int
-	TelegramID  int
-	PhotoUrl    *string
-	ApiReady    bool
+	Name             *string
+	Surname          *string
+	Patronymic       *string
+	GroupCode        *string
+	PhoneNumber      *int
+	TelegramID       int
+	TelegramUsername string
+	TelegramPhotoUrl *string
+	ApiReady         bool
 }
 
 type UpdateUserReq struct {
@@ -52,5 +52,4 @@ type UpdateUserReq struct {
 	Patronymic  *string
 	GroupCode   *string
 	PhoneNumber *int
-	PhotoUrl    *string
 }

@@ -3,7 +3,7 @@ package dikidi
 import (
 	"context"
 	"fmt"
-	"labgrab/internal/shared/errors"
+	"labgrab/internal/shared/apperr"
 	"regexp"
 	"strings"
 
@@ -21,7 +21,7 @@ func (c *Client) AcquireTelegramCSRFToken(ctx context.Context, client *req.Clien
 		}).
 		Get("https://dikidi.net/550001?p=0.pi-ssm")
 	if err != nil {
-		return "", &errors.ExternalAPIError{
+		return "", &apperr.ExternalAPIError{
 			Procedure: "AcquireTelegramCSRFToken",
 			Step:      "Fetch main page",
 			Err:       err,
@@ -31,7 +31,7 @@ func (c *Client) AcquireTelegramCSRFToken(ctx context.Context, client *req.Clien
 	regex := regexp.MustCompile(`name="telegram_csrf" value="([^"]+)"`)
 	matches := regex.FindStringSubmatch(resp.String())
 	if matches == nil {
-		return "", &errors.ExternalAPIError{
+		return "", &apperr.ExternalAPIError{
 			Procedure: "AcquireTelegramCSRFToken",
 			Step:      "Parse telegram CSRF token",
 			Err:       fmt.Errorf("no telegram CSRF token found"),
@@ -59,7 +59,7 @@ func (c *Client) AcquireCSRFToken(ctx context.Context, client *req.Client, req C
 		SetSuccessResult(&authData).
 		Post("https://auth.dikidi.net/ajax/check/auth/")
 	if err != nil {
-		return "", &errors.ExternalAPIError{
+		return "", &apperr.ExternalAPIError{
 			Procedure: "AcquireCSRFToken",
 			Step:      "Fetch form CSRF token",
 			Err:       err,
@@ -70,7 +70,7 @@ func (c *Client) AcquireCSRFToken(ctx context.Context, client *req.Client, req C
 	regex := regexp.MustCompile(`name="csrf" value="([^"]+)"`)
 	matches := regex.FindStringSubmatch(authData.HTML)
 	if matches == nil {
-		return "", &errors.ExternalAPIError{
+		return "", &apperr.ExternalAPIError{
 			Procedure: "AcquireCSRFToken",
 			Step:      "Parse CSRF token",
 			Err:       fmt.Errorf("no CSRF token found"),
@@ -100,7 +100,7 @@ func (c *Client) SendAuthRequest(ctx context.Context, client *req.Client, req Au
 		}).
 		Post("https://auth.dikidi.net/ajax/user/auth/")
 	if err != nil {
-		return &errors.ExternalAPIError{
+		return &apperr.ExternalAPIError{
 			Procedure: "SendAuthRequest",
 			Step:      "Post auth request",
 			Err:       err,
@@ -113,7 +113,7 @@ func (c *Client) SendAuthRequest(ctx context.Context, client *req.Client, req Au
 func (c *Client) AcquireSessionID(cookieName string) (string, error) {
 	parts := strings.Split(cookieName, "~")
 	if len(parts) != 2 {
-		return "", &errors.ExternalAPIError{
+		return "", &apperr.ExternalAPIError{
 			Procedure: "AcquireSessionID",
 			Step:      "Parse cookie_name",
 			Err:       fmt.Errorf("invalid cookie_name"),
@@ -133,7 +133,7 @@ func (c *Client) RenewCookies(ctx context.Context, client *req.Client) error {
 		}).
 		Get("https://dikidi.net/550001?p=0.pi-ssm")
 	if err != nil {
-		return &errors.ExternalAPIError{
+		return &apperr.ExternalAPIError{
 			Procedure: "RenewCookies",
 			Step:      "Fetch main page",
 			Err:       err,
@@ -148,7 +148,7 @@ func (c *Client) AcquireClientCookies(client *req.Client) (*ClientCookies, error
 
 	rootCookies, err := client.GetCookies("https://dikidi.net")
 	if err != nil {
-		return nil, &errors.ExternalAPIError{
+		return nil, &apperr.ExternalAPIError{
 			Procedure: "AcquireClientCookies",
 			Step:      "Get root cookies",
 			Err:       err,
@@ -157,7 +157,7 @@ func (c *Client) AcquireClientCookies(client *req.Client) (*ClientCookies, error
 
 	authCookies, err := client.GetCookies("https://auth.dikidi.net")
 	if err != nil {
-		return nil, &errors.ExternalAPIError{
+		return nil, &apperr.ExternalAPIError{
 			Procedure: "AcquireClientCookies",
 			Step:      "Get auth cookies",
 			Err:       err,

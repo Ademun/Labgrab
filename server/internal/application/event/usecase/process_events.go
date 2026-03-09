@@ -133,7 +133,7 @@ func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
 	userWg.Wait()
 	close(errCh)
 
-	// Collect all errors. Fixed: errors.Join result must be assigned.
+	// Collect all apperr. Fixed: apperr.Join result must be assigned.
 	var collected error
 	for err := range errCh {
 		fmt.Println(err)

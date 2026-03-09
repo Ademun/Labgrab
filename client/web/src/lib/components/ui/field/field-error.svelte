@@ -18,7 +18,7 @@
 		// has slotted error
 		if (children) return true;
 
-		// no errors
+		// no apperr
 		if (!errors || errors.length === 0) return false;
 
 		// has an error but no message

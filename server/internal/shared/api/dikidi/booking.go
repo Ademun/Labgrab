@@ -3,7 +3,7 @@ package dikidi
 import (
 	"context"
 	"fmt"
-	"labgrab/internal/shared/errors"
+	"labgrab/internal/shared/apperr"
 
 	"github.com/imroc/req/v3"
 )
@@ -28,7 +28,7 @@ func (c *Client) GetBookings(ctx context.Context, client *req.Client, req *GetBo
 		SetSuccessResult(&apiResp).
 		Get("https://dikidi.net/ru/mobile/ajax/newrecord/get_records/")
 	if err != nil {
-		return nil, &errors.ExternalAPIError{
+		return nil, &apperr.ExternalAPIError{
 			Procedure: "GetRecords",
 			Step:      "Request",
 			Err:       err,
@@ -40,7 +40,7 @@ func (c *Client) GetBookings(ctx context.Context, client *req.Client, req *GetBo
 		if apiResp.Error.Message != nil {
 			msg = *apiResp.Error.Message
 		}
-		return nil, &errors.ExternalAPIError{
+		return nil, &apperr.ExternalAPIError{
 			Procedure: "GetRecords",
 			Step:      "Check error field",
 			Err:       fmt.Errorf("api returned error code: %d, message: %s", apiResp.Error.Code, msg),
@@ -49,7 +49,7 @@ func (c *Client) GetBookings(ctx context.Context, client *req.Client, req *GetBo
 
 	active, err := c.parser.ParseRecords(apiResp.Data.New.List)
 	if err != nil {
-		return nil, &errors.ExternalAPIError{
+		return nil, &apperr.ExternalAPIError{
 			Procedure: "GetRecords",
 			Step:      "Map records",
 			Err:       err,
@@ -58,7 +58,7 @@ func (c *Client) GetBookings(ctx context.Context, client *req.Client, req *GetBo
 
 	closed, err := c.parser.ParseRecords(apiResp.Data.Old.List)
 	if err != nil {
-		return nil, &errors.ExternalAPIError{
+		return nil, &apperr.ExternalAPIError{
 			Procedure: "GetRecords",
 			Step:      "Map records",
 			Err:       err,
@@ -90,7 +90,7 @@ func (c *Client) RemoveBooking(ctx context.Context, client *req.Client, req *Rem
 		SetSuccessResult(&removeResp).
 		Get("https://dikidi.net/ru/mobile/newrecord/remove_record/")
 	if err != nil {
-		return &errors.ExternalAPIError{
+		return &apperr.ExternalAPIError{
 			Procedure: "RemoveRecord",
 			Step:      "Request",
 			Err:       err,
@@ -99,7 +99,7 @@ func (c *Client) RemoveBooking(ctx context.Context, client *req.Client, req *Rem
 	fmt.Printf("[RemoveRecord] response body: %s\n", resp.String())
 
 	if removeResp.Error != 0 {
-		return &errors.ExternalAPIError{
+		return &apperr.ExternalAPIError{
 			Procedure: "RemoveRecord",
 			Step:      "Check error field",
 			Err:       fmt.Errorf("api returned error code: %d", removeResp.Error),

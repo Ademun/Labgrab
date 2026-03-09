@@ -3,7 +3,7 @@ package dikidi
 import (
 	"context"
 	"fmt"
-	"labgrab/internal/shared/errors"
+	"labgrab/internal/shared/apperr"
 	"strconv"
 
 	"github.com/imroc/req/v3"
@@ -31,7 +31,7 @@ func (c *Client) AcquireTimeReservation(ctx context.Context, client *req.Client,
 		SetSuccessResult(&reservationData).
 		Get("https://dikidi.net/ru/ajax/newrecord/time_reservation/")
 	if err != nil {
-		return nil, &errors.ExternalAPIError{
+		return nil, &apperr.ExternalAPIError{
 			Procedure: "AcquireTimeReservation",
 			Step:      "Request",
 			Err:       err,
@@ -40,7 +40,7 @@ func (c *Client) AcquireTimeReservation(ctx context.Context, client *req.Client,
 
 	eventID, err := strconv.Atoi(reservationData.MasterID)
 	if err != nil {
-		return nil, &errors.ExternalAPIError{
+		return nil, &apperr.ExternalAPIError{
 			Procedure: "AcquireTimeReservation",
 			Step:      "ID parsing",
 			Err:       err,
@@ -91,7 +91,7 @@ func (c *Client) CheckEnrollment(ctx context.Context, client *req.Client, req *E
 		SetSuccessResult(&checkResp).
 		Post("https://dikidi.net/ru/mobile/newrecord/check/")
 	if err != nil {
-		return &errors.ExternalAPIError{
+		return &apperr.ExternalAPIError{
 			Procedure: "CheckEnrollment",
 			Step:      "Request",
 			Err:       err,
@@ -100,7 +100,7 @@ func (c *Client) CheckEnrollment(ctx context.Context, client *req.Client, req *E
 	fmt.Printf("[CheckEnrollment] response body: %s\n", resp.String())
 
 	if checkResp.Error != 0 {
-		return &errors.ExternalAPIError{
+		return &apperr.ExternalAPIError{
 			Procedure: "CheckEnrollment",
 			Step:      "Check error field",
 			Err:       fmt.Errorf("api returned error code: %d", checkResp.Error),
@@ -134,7 +134,7 @@ func (c *Client) GetReservationInfo(ctx context.Context, client *req.Client, req
 		SetSuccessResult(&infoResp).
 		Get("https://dikidi.net/ru/mobile/ajax/newrecord/records_info/")
 	if err != nil {
-		return &errors.ExternalAPIError{
+		return &apperr.ExternalAPIError{
 			Procedure: "GetReservationInfo",
 			Step:      "Request",
 			Err:       err,
@@ -147,7 +147,7 @@ func (c *Client) GetReservationInfo(ctx context.Context, client *req.Client, req
 		if infoResp.Error.Message != nil {
 			msg = *infoResp.Error.Message
 		}
-		return &errors.ExternalAPIError{
+		return &apperr.ExternalAPIError{
 			Procedure: "GetReservationInfo",
 			Step:      "Check error field",
 			Err:       fmt.Errorf("api returned error code: %d, message: %s", infoResp.Error.Code, msg),
@@ -200,7 +200,7 @@ func (c *Client) CreateBooking(ctx context.Context, client *req.Client, req *Cre
 		SetSuccessResult(&createResp).
 		Post("https://dikidi.net/ru/ajax/newrecord/record/")
 	if err != nil {
-		return 0, &errors.ExternalAPIError{
+		return 0, &apperr.ExternalAPIError{
 			Procedure: "CreateRecord",
 			Step:      "Request",
 			Err:       err,
@@ -209,7 +209,7 @@ func (c *Client) CreateBooking(ctx context.Context, client *req.Client, req *Cre
 	fmt.Printf("[CreateRecord] response body: %s\n", resp.String())
 
 	if len(createResp.Bookings) == 0 {
-		return 0, &errors.ExternalAPIError{
+		return 0, &apperr.ExternalAPIError{
 			Procedure: "CreateRecord",
 			Step:      "Check booking",
 			Err:       fmt.Errorf("empty booking in response"),
@@ -217,7 +217,7 @@ func (c *Client) CreateBooking(ctx context.Context, client *req.Client, req *Cre
 	}
 
 	if createResp.Bookings[0].Status != "1" {
-		return 0, &errors.ExternalAPIError{
+		return 0, &apperr.ExternalAPIError{
 			Procedure: "CreateRecord",
 			Step:      "Check status",
 			Err:       fmt.Errorf("unexpected booking status: %s", createResp.Bookings[0].Status),
@@ -226,7 +226,7 @@ func (c *Client) CreateBooking(ctx context.Context, client *req.Client, req *Cre
 
 	id, err := strconv.Atoi(createResp.Bookings[0].ID)
 	if err != nil {
-		return 0, &errors.ExternalAPIError{
+		return 0, &apperr.ExternalAPIError{
 			Procedure: "CreateRecord",
 			Step:      "Convert id",
 			Err:       err,

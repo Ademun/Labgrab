@@ -2,7 +2,9 @@ package user
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"labgrab/internal/shared/apperr"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
@@ -23,8 +25,8 @@ func (r *Repo) CreateUser(ctx context.Context, user *DBUser, tx pgx.Tx) (uuid.UU
 	userUUID := uuid.New()
 
 	query, args, err := r.sq.Insert("user_service.users").
-		Columns("uuid", "name", "surname", "telegram_id", "username", "photo_url").
-		Values(userUUID, user.Name, user.Surname, user.TelegramID, user.Username, user.PhotoUrl).
+		Columns("uuid", "name", "surname", "telegram_id", "telegram_username", "telegram_photo_url").
+		Values(userUUID, user.Name, user.Surname, user.TelegramID, user.TelegramUsername, user.TelegramPhotoUrl).
 		ToSql()
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("user repo: create user: build query: %w", err)
@@ -40,14 +42,14 @@ func (r *Repo) CreateUser(ctx context.Context, user *DBUser, tx pgx.Tx) (uuid.UU
 
 func (r *Repo) GetUser(ctx context.Context, userUUID uuid.UUID) (*DBUser, error) {
 	query, args, err := r.sq.Select(
-		"username",
 		"name",
 		"surname",
 		"patronymic",
 		"group_code",
 		"phone_number",
 		"telegram_id",
-		"photo_url",
+		"telegram_username",
+		"telegram_photo_url",
 		"api_ready",
 	).
 		From("user_service.users").
@@ -59,16 +61,19 @@ func (r *Repo) GetUser(ctx context.Context, userUUID uuid.UUID) (*DBUser, error)
 
 	var user DBUser
 	if err = r.pool.QueryRow(ctx, query, args...).Scan(
-		&user.Username,
 		&user.Name,
 		&user.Surname,
 		&user.Patronymic,
 		&user.GroupCode,
 		&user.PhoneNumber,
 		&user.TelegramID,
-		&user.PhotoUrl,
+		&user.TelegramUsername,
+		&user.TelegramPhotoUrl,
 		&user.ApiReady,
 	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, apperr.ErrNotFound
+		}
 		return nil, fmt.Errorf("user repo: get user: scan row: %w", err)
 	}
 
@@ -82,7 +87,6 @@ func (r *Repo) UpdateUser(ctx context.Context, user *DBUser) error {
 		Set("patronymic", user.Patronymic).
 		Set("group_code", user.GroupCode).
 		Set("phone_number", user.PhoneNumber).
-		Set("photo_url", user.PhotoUrl).
 		Where(squirrel.Eq{"uuid": user.UUID}).
 		ToSql()
 	if err != nil {
@@ -129,6 +133,9 @@ func (r *Repo) GetUserUUIDByTelegramID(ctx context.Context, telegramID int) (uui
 
 	var userUUID uuid.UUID
 	if err = r.pool.QueryRow(ctx, query, args...).Scan(&userUUID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return uuid.Nil, apperr.ErrNotFound
+		}
 		return uuid.Nil, fmt.Errorf("user repo: get user uuid by telegram id: scan row: %w", err)
 	}
 
