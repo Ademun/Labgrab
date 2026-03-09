@@ -13,6 +13,8 @@ var ErrNotFound = errors.New("not found")
 
 var ErrForbidden = errors.New("forbidden")
 
+var ErrConflict = errors.New("conflict")
+
 type ValidationError struct {
 	Details map[string]error
 }
@@ -23,7 +25,7 @@ func NewValidationError() *ValidationError {
 	}
 }
 
-func (e ValidationError) Error() string {
+func (e *ValidationError) Error() string {
 	var sb strings.Builder
 	for k, v := range e.Details {
 		sb.WriteString(fmt.Sprintf("%s: %s\n", k, v))
@@ -31,11 +33,11 @@ func (e ValidationError) Error() string {
 	return sb.String()
 }
 
-func (e ValidationError) AddErr(field string, err error) {
+func (e *ValidationError) AddErr(field string, err error) {
 	e.Details[field] = err
 }
 
-func (e ValidationError) IsEmpty() bool {
+func (e *ValidationError) IsEmpty() bool {
 	return len(e.Details) == 0
 }
 
@@ -48,6 +50,9 @@ func HTTPErrorCode(err error) int {
 	}
 	if errors.Is(err, ErrForbidden) {
 		return http.StatusForbidden
+	}
+	if errors.Is(err, ErrConflict) {
+		return http.StatusConflict
 	}
 	if _, ok := errors.AsType[*ValidationError](err); ok {
 		return http.StatusBadRequest
