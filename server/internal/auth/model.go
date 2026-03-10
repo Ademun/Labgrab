@@ -57,6 +57,13 @@ type GetUserCredentialsRes struct {
 	Cookies           *string
 }
 
+type GetUserInfoRes struct {
+	DikidiPhoneNumber string
+	DikidiPassword    string
+	ApiAuthed         bool
+	LastAuth          *time.Time
+}
+
 type ErrHashIntegrity struct {
 	ExpectedHash string
 	ActualHash   string

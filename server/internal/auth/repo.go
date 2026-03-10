@@ -103,7 +103,7 @@ func (r *Repo) GetStaleUsers(ctx context.Context) ([]DBUserData, error) {
     cookies, 
     api_authed, 
     last_auth FROM auth_service.user_data
-	WHERE abs(timezone('UTC', now())::timestamp::date - last_auth::timestamp::date) > 20
+	WHERE abs(timezone('UTC', now())::timestamp::date - last_auth::timestamp::date) > 20 OR api_authed IS NULL
 `
 	rows, err := r.pool.Query(ctx, query)
 	if err != nil {

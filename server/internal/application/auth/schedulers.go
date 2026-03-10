@@ -35,7 +35,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	}
 
 	_, err = scheduler.NewJob(
-		gocron.DurationJob(time.Hour*24),
+		gocron.DurationJob(time.Minute*10),
 		gocron.NewTask(s.AuthStaleUsers, ctx),
 	)
 	if err != nil {

@@ -1,4 +1,4 @@
-import { type AuthRequest, type CreateUserDataRequest } from '$lib/api/schema/auth.js';
+import { getUserInfoResponseSchema, type AuthRequest, type CreateUserDataRequest, type GetUserInfoResponse } from '$lib/api/schema/auth.js';
 import {
 	type UpdateUserRequest,
 	type UserResponse,
@@ -48,10 +48,11 @@ class ApiClient {
 		endpoint: string,
 		schema: z.ZodSchema<T>,
 		fetchFn?: typeof fetch,
-		options: RequestInit = {}
+		options: RequestInit = {},
+		timeout?: number
 	): Promise<T> {
 		const controller = new AbortController();
-		const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+		const timeoutId = setTimeout(() => controller.abort(), timeout ?? this.timeout);
 
 		try {
 			const fetcher = fetchFn ?? fetch;
@@ -125,14 +126,18 @@ class ApiClient {
 	}
 
 	async createUserData(data: CreateUserDataRequest, fetchFn?: typeof fetch): Promise<void> {
-	return this.request('/auth/user/data', z.void(), fetchFn, {
-		method: 'POST',
-		body: JSON.stringify(data)
-	});
-}
+		return this.request('/auth/data', z.void(), fetchFn, {
+			method: 'POST',
+			body: JSON.stringify(data)
+		});
+	}
 
 	async dikidiAuth(fetchFn?: typeof fetch): Promise<void> {
-		return this.request('/auth/dikidi', z.void(), fetchFn);
+		return this.request('/auth/dikidi', z.void(), fetchFn, {}, 30_000);
+	}
+
+	async getUserInfo(fetchFn?: typeof fetch): Promise<GetUserInfoResponse | void> {
+		return this.request('/auth/data', z.union([getUserInfoResponseSchema, z.void()]), fetchFn)
 	}
 
 	async getUser(fetchFn?: typeof fetch): Promise<UserResponse> {

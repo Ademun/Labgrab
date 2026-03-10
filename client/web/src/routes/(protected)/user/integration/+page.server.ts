@@ -6,10 +6,21 @@ import { api } from '$lib/api/client.js';
 import { AuthError, NetworkError, ValidationError } from '$lib/api/errors.js';
 import { redirect } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async ({ parent }) => {
+export const load: PageServerLoad = async ({ parent, fetch }) => {
 	const { user } = await parent();
 	const form = await superValidate(zod4(createUserDataRequestSchema));
-	return { form, user };
+	if (user.phone_number) {
+		form.data.dikidi_phone_number = user.phone_number
+	}
+	try {
+		const userInfo = await api.getUserInfo(fetch);
+		return { form, user, userInfo: userInfo ?? null };
+	} catch (e) {
+		if (e instanceof AuthError) {
+			throw redirect(303, '/auth');
+		}
+		throw e;
+	}
 };
 
 export const actions = {
@@ -41,6 +52,6 @@ export const actions = {
 			return fail(500, { form, error: 'Внутренняя ошибка сервера.' });
 		}
 
-		throw redirect(303, '/user');
+		throw redirect(303, '/user/integration');
 	}
 };

@@ -370,3 +370,30 @@ func (s *Service) GetUserCredentials(ctx context.Context, userUUID uuid.UUID) (*
 		Cookies:           cookies,
 	}, nil
 }
+
+func (s *Service) GetUserInfo(ctx context.Context, userUUID uuid.UUID) (*GetUserInfoRes, error) {
+	data, err := s.repo.GetUserData(ctx, userUUID)
+	if err != nil {
+		if errors.Is(err, apperr.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("auth service: get user info: get user data: %w", err)
+	}
+
+	rawDEK, err := s.DecryptDEK(data.DEK, data.UserUUID)
+	if err != nil {
+		return nil, fmt.Errorf("auth service: get user info: decrypt dek: %w", err)
+	}
+
+	password, err := decryptWithDEK(data.DikidiPassword, rawDEK)
+	if err != nil {
+		return nil, fmt.Errorf("auth service: get user info: decrypt password: %w", err)
+	}
+
+	return &GetUserInfoRes{
+		DikidiPhoneNumber: data.DikidiPhoneNumber,
+		DikidiPassword:    password,
+		ApiAuthed:         data.ApiAuthed,
+		LastAuth:          data.LastAuth,
+	}, nil
+}
