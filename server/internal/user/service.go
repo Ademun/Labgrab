@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"labgrab/internal/shared/apperr"
+	"labgrab/internal/shared/sanitizing"
 
 	"github.com/google/uuid"
 )
@@ -35,12 +36,19 @@ func (s *Service) GetUser(ctx context.Context, userUUID uuid.UUID) (*GetUserRes,
 	if err != nil {
 		return nil, fmt.Errorf("user service: get user: repository call: %w", err)
 	}
+
+	var phoneNumber *string
+	if user.PhoneNumber != nil {
+		s := sanitizing.SanitizePhoneNumber(*user.PhoneNumber)
+		phoneNumber = &s
+	}
+
 	return &GetUserRes{
 		Name:             user.Name,
 		Surname:          user.Surname,
 		Patronymic:       user.Patronymic,
 		GroupCode:        user.GroupCode,
-		PhoneNumber:      user.PhoneNumber,
+		PhoneNumber:      phoneNumber,
 		TelegramID:       int(user.TelegramID),
 		TelegramUsername: user.TelegramUsername,
 		TelegramPhotoUrl: user.TelegramPhotoUrl,
@@ -53,13 +61,19 @@ func (s *Service) UpdateUser(ctx context.Context, req *UpdateUserReq) error {
 		return fmt.Errorf("user service: update user: validate request: %w", err)
 	}
 
+	var phoneNumber *string
+	if req.PhoneNumber != nil {
+		s := sanitizing.SanitizePhoneNumber(*req.PhoneNumber)
+		phoneNumber = &s
+	}
+
 	if err := s.repo.UpdateUser(ctx, &DBUser{
 		UUID:        req.UserUUID,
 		Name:        req.Name,
 		Surname:     req.Surname,
 		Patronymic:  req.Patronymic,
 		GroupCode:   req.GroupCode,
-		PhoneNumber: req.PhoneNumber,
+		PhoneNumber: phoneNumber,
 	}); err != nil {
 		return fmt.Errorf("user service: update user: repository call: %w", err)
 	}
@@ -116,7 +130,8 @@ func (s *Service) validateUpdateRequest(req *UpdateUserReq) error {
 	}
 
 	if req.PhoneNumber != nil {
-		if err := validatePhoneNumber(*req.PhoneNumber); err != nil {
+		s := sanitizing.SanitizePhoneNumber(*req.PhoneNumber)
+		if err := validatePhoneNumber(s); err != nil {
 			vErr.AddErr("phone_number", err)
 		}
 	}

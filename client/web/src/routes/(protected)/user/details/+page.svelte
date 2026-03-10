@@ -4,6 +4,7 @@
 	import { getErrorMessage } from '$lib/utils/toast-errors.js';
 	import { DetailsForm } from '$lib/components/user/index.js';
 	import { Header } from '$lib/components/navigation/index.js';
+	import { invalidateAll } from '$app/navigation';
 
 	let { data } = $props();
 
@@ -13,11 +14,12 @@
 		onSubmit: () => {
 			isSubmitting = true;
 		},
-		onResult: ({ result }) => {
+		onResult: async ({ result }) => {
 			if (result.type === 'failure' && result.data?.error) {
 				toast.error(result.data.error as string);
 			}
 			isSubmitting = false;
+			await invalidateAll()
 		}
 	});
 </script>

@@ -1,6 +1,7 @@
 package subscription
 
 import (
+	"errors"
 	"labgrab/internal/shared/apperr"
 	"labgrab/internal/shared/domain"
 	"labgrab/internal/shared/types"
@@ -85,12 +86,12 @@ type CreateSubscriptionReq struct {
 func (r CreateSubscriptionReq) Validate() error {
 	err := apperr.NewValidationError()
 	if r.LabType == domain.LabTypePerformance && r.LabAuditorium == nil {
-		err.Add("lab_type & lab_auditorium", "If lab type is equal to 'Performance' lab auditorium should be provided")
+		err.AddErr("lab_type & lab_auditorium", errors.New("if lab type is equal to 'Performance' lab auditorium should be provided"))
 	}
 	if r.LabType == domain.LabTypeDefence && r.LabAuditorium != nil {
-		err.Add("lab_type & lab_auditorium", "If lab type is equal to 'Defence' lab auditorium should not be provided")
+		err.AddErr("lab_type & lab_auditorium", errors.New("if lab type is equal to 'Defence' lab auditorium should not be provided"))
 	}
-	if err.HasErrors() {
+	if !err.IsEmpty() {
 		return err
 	}
 	return nil
@@ -132,12 +133,12 @@ type UpdateSubscriptionDataReq struct {
 func (r UpdateSubscriptionDataReq) Validate() error {
 	err := apperr.NewValidationError()
 	if r.LabType == domain.LabTypePerformance && r.LabAuditorium == nil {
-		err.Add("lab_type & lab_auditorium", "If lab type is equal to 'Performance' lab auditorium should be provided")
+		err.AddErr("lab_type & lab_auditorium", errors.New("if lab type is equal to 'Performance' lab auditorium should be provided"))
 	}
 	if r.LabType == domain.LabTypeDefence && r.LabAuditorium != nil {
-		err.Add("lab_type & lab_auditorium", "If lab type is equal to 'Defence' lab auditorium should not be provided")
+		err.AddErr("lab_type & lab_auditorium", errors.New("if lab type is equal to 'Defence' lab auditorium should not be provided"))
 	}
-	if err.HasErrors() {
+	if !err.IsEmpty() {
 		return err
 	}
 	return nil

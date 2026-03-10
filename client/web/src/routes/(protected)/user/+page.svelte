@@ -18,7 +18,7 @@
 				<!-- Аватар -->
 				<div in:fly={{ y: -16, duration: 300, delay: 0 }}>
 					<Root class="my-6 h-25 w-25 outline-3 outline-offset-2 outline-primary">
-						<Image src={user.photo_url} alt="Фото профиля" />
+						<Image src={user.telegram_photo_url} alt="Фото профиля" />
 						<Fallback>
 							<User />
 						</Fallback>

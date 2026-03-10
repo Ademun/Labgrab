@@ -34,11 +34,6 @@ func NewHandler(authSvc *auth.Service, userSvc *user.Service, logger *zap.Sugare
 	}
 }
 
-func (h *Handler) RegisterRoutes(r *mux.Router) {
-	r.HandleFunc("/api/user", h.GetUser).Methods(http.MethodGet)
-	r.HandleFunc("/api/user", h.UpdateUser).Methods(http.MethodPatch)
-}
-
 func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session_id")
 	if err != nil {
@@ -81,4 +76,9 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) RegisterRoutes(r *mux.Router) {
+	r.HandleFunc("/api/user", h.GetUser).Methods(http.MethodGet)
+	r.HandleFunc("/api/user", h.UpdateUser).Methods(http.MethodPatch)
 }

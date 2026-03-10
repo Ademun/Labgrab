@@ -14,12 +14,12 @@ import (
 	"labgrab/internal/shared/api/dikidi"
 	"labgrab/internal/shared/apperr"
 	"labgrab/internal/shared/mask"
+	"labgrab/internal/shared/sanitizing"
 	"labgrab/pkg/config"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
@@ -232,7 +232,7 @@ func (s *Service) AuthUser(ctx context.Context, userUUID uuid.UUID) error {
 	mask.Jitter(2000, 3000)
 
 	csrf, err := s.client.AcquireCSRFToken(ctx, client, dikidi.CSRFTokenRequest{
-		PhoneNumber:       sanitizePhoneNumber(data.DikidiPhoneNumber),
+		PhoneNumber:       sanitizing.SanitizePhoneNumber(data.DikidiPhoneNumber),
 		TelegramCSRFToken: telegramCSRF,
 	})
 	if err != nil {
@@ -242,7 +242,7 @@ func (s *Service) AuthUser(ctx context.Context, userUUID uuid.UUID) error {
 	mask.Jitter(5000, 8000)
 
 	if err = s.client.SendAuthRequest(ctx, client, dikidi.AuthRequest{
-		PhoneNumber:       sanitizePhoneNumber(data.DikidiPhoneNumber),
+		PhoneNumber:       sanitizing.SanitizePhoneNumber(data.DikidiPhoneNumber),
 		Password:          password,
 		CSRFToken:         csrf,
 		TelegramCSRFToken: telegramCSRF,
@@ -368,13 +368,4 @@ func (s *Service) GetUserCredentials(ctx context.Context, userUUID uuid.UUID) (*
 		Token:             token,
 		Cookies:           cookies,
 	}, nil
-}
-
-func sanitizePhoneNumber(phoneNumber string) string {
-	return strings.Map(func(r rune) rune {
-		if unicode.IsDigit(r) {
-			return r
-		}
-		return -1
-	}, phoneNumber)
 }

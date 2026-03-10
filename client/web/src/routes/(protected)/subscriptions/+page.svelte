@@ -19,13 +19,14 @@
 
     let { data } = $props();
     let subscriptions = $state<SubscriptionResponseArray>(data.subs);
-    let bookings = $state<BookingArray>(data.bookings);
+    let bookings = $state<BookingArray | undefined>(data.bookings);
     let isLoading = $state(false);
     let isEditDialogOpen = $state(false);
     let currentEditingUuid = $state<string | null>(null);
 
     const labTypes = $derived(data.config.lab_types);
     const labTopics = $derived(data.config.lab_topics);
+    const user = $derived(data.user);
 
     $effect(() => {
         subscriptions = data.subs;
@@ -35,8 +36,8 @@
         bookings = data.bookings;
     });
 
-    const activeBookings = $derived(bookings.filter((b) => b.status === 'Active'));
-    const closedBookings = $derived(bookings.filter((b) => b.status === 'Closed'));
+    const activeBookings = $derived((bookings ?? []).filter((b) => b.status === 'Active'));
+const closedBookings = $derived((bookings ?? []).filter((b) => b.status === 'Closed'));
     const sortedBookings = $derived([...activeBookings, ...closedBookings]);
 
     const {
@@ -217,35 +218,39 @@
 
             <!-- Bookings tab -->
             <Tabs.Content value="bookings">
-                <div class="mb-4 flex items-center" in:fly={{ y: -6, duration: 200 }}>
-					<span class="text-muted-foreground">
-						<span class="font-bold text-primary">{bookings.length}</span>
-						ЗАПИСЕЙ
-					</span>
-                </div>
+    <div class="mb-4 flex items-center" in:fly={{ y: -6, duration: 200 }}>
+        <span class="text-muted-foreground">
+            <span class="font-bold text-primary">{bookings?.length ?? 0}</span>
+            ЗАПИСЕЙ
+        </span>
+    </div>
 
-                <hr class="mb-6 w-full" />
+    <hr class="mb-6 w-full" />
 
-                <div class="flex flex-col items-center gap-12">
-                    {#if bookings.length === 0}
-                        <div class="py-12 text-center" in:fade={{ duration: 280, delay: 100 }}>
-                            <p class="mb-2 text-lg text-muted-foreground">Записей пока нет</p>
-                            <p class="text-sm text-muted-foreground">
-                                Здесь появятся ваши записи на лабораторные после автоматической регистрации
-                            </p>
-                        </div>
-                    {:else}
-                        {#each sortedBookings as booking, i}
-                            <div
-                                    class="w-full"
-                                    in:fly={{ y: 20, duration: 300, delay: i * 40 }}
-                            >
-                                <BookingCard {booking} {labTypes} {labTopics} />
-                            </div>
-                        {/each}
-                    {/if}
+    <div class="flex flex-col items-center gap-12">
+        {#if !user.api_ready}
+            <div class="py-12 text-center" in:fade={{ duration: 280, delay: 100 }}>
+                <p class="mb-2 text-lg text-muted-foreground">Для просмотра записей необходимо подключить ваш Dikidi аккаунт</p>
+                <a href="/user/details" class={buttonVariants({ variant: 'default' })}>
+                    ПОДКЛЮЧИТЬ
+                </a>
+            </div>
+        {:else if !bookings?.length}
+            <div class="py-12 text-center" in:fade={{ duration: 280, delay: 100 }}>
+                <p class="mb-2 text-lg text-muted-foreground">Записей пока нет</p>
+                <p class="text-sm text-muted-foreground">
+                    Здесь появятся ваши записи на лабораторные после автоматической регистрации
+                </p>
+            </div>
+        {:else}
+            {#each sortedBookings as booking, i}
+                <div class="w-full" in:fly={{ y: 20, duration: 300, delay: i * 40 }}>
+                    <BookingCard {booking} {labTypes} {labTopics} />
                 </div>
-            </Tabs.Content>
+            {/each}
+        {/if}
+    </div>
+</Tabs.Content>
         </Tabs.Root>
     </div>
 </div>

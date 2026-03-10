@@ -6,5 +6,4 @@ type UpdateUserReqDTO struct {
 	Patronymic  *string `json:"patronymic"`
 	GroupCode   *string `json:"group_code"`
 	PhoneNumber *string `json:"phone_number"`
-	PhotoUrl    *string `json:"photo_url"`
 }

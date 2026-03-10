@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	api_auth "labgrab/internal/application/auth"
+	api_booking "labgrab/internal/application/booking"
 	api_event "labgrab/internal/application/event"
 	api_subscription "labgrab/internal/application/subscription"
 	api_user "labgrab/internal/application/user"
@@ -222,6 +224,12 @@ func initHTTPServer(cfg *config.Config, pool *pgxpool.Pool, services *Services, 
 	webHandler := web.NewHandler(log)
 	webHandler.RegisterRoutes(r)
 	log.Info("Finished setting up web domain routes")
+
+	authHandler := api_auth.NewHandler(services.Auth, services.User, log)
+	authHandler.RegisterRoutes(r)
+
+	bookingHandler := api_booking.NewHandler(services.Booking, services.Auth, log)
+	bookingHandler.RegisterRoutes(r)
 
 	server := &http.Server{
 		Addr:    "127.0.0.1:8080",

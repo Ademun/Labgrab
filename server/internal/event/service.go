@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"labgrab/internal/shared/api/dikidi"
 	"labgrab/internal/shared/mask"
-	"strings"
-	"unicode"
+	"labgrab/internal/shared/sanitizing"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -52,7 +51,7 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollmentReq) (int, error) {
 	}
 
 	refererTime := req.Time.Format("200601021504")
-	phone := sanitizePhoneNumber(req.PhoneNumber)
+	phone := sanitizing.SanitizePhoneNumber(req.PhoneNumber)
 
 	mask.Jitter(1000, 2000)
 
@@ -154,13 +153,4 @@ func (s *Service) UpdateServiceIDs(ctx context.Context, clientCookies *string) e
 
 	span.SetStatus(codes.Ok, "")
 	return nil
-}
-
-func sanitizePhoneNumber(phoneNumber string) string {
-	return strings.Map(func(r rune) rune {
-		if unicode.IsDigit(r) {
-			return r
-		}
-		return -1
-	}, phoneNumber)
 }

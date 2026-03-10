@@ -23,7 +23,7 @@ import { type AppConfig, appConfigSchema, apiErrorSchema } from '$lib/api/schema
 import { z, ZodError } from 'zod';
 import { createApiError, NetworkError, ValidationError } from '$lib/api/errors.js';
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
-import {type BookingArray, bookingArraySchema} from "$lib/api/schema/booking.js";
+import { type BookingArray, bookingArraySchema } from '$lib/api/schema/booking.js';
 
 interface ApiClientConfig {
 	baseUrl: string;
@@ -117,19 +117,19 @@ class ApiClient {
 		}
 	}
 
-	async auth(data: AuthRequest, fetchFn?: typeof fetch): Promise<boolean> {
-		return this.request<boolean>('/users/auth', z.boolean(), fetchFn, {
+	async auth(data: AuthRequest, fetchFn?: typeof fetch): Promise<void> {
+		return this.request('/auth/user', z.void(), fetchFn, {
 			method: 'POST',
 			body: JSON.stringify(data)
 		});
 	}
 
 	async getUser(fetchFn?: typeof fetch): Promise<UserResponse> {
-		return this.request<UserResponse>('/users', userResponseSchema, fetchFn);
+		return this.request<UserResponse>('/user', userResponseSchema, fetchFn);
 	}
 
 	async updateUser(data: UpdateUserRequest, fetchFn?: typeof fetch): Promise<void> {
-		return this.request('/users', z.void(), fetchFn, {
+		return this.request('/user', z.void(), fetchFn, {
 			method: 'PATCH',
 			body: JSON.stringify(data)
 		});
@@ -213,9 +213,9 @@ class ApiClient {
 		});
 	}
 
-    async getBookings(fetchFn?: typeof fetch): Promise<BookingArray> {
-        return this.request<BookingArray>('/bookings', bookingArraySchema, fetchFn);
-    }
+	async getBookings(fetchFn?: typeof fetch): Promise<BookingArray> {
+		return this.request<BookingArray>('/bookings', bookingArraySchema, fetchFn);
+	}
 
 	async getConfig(fetchFn?: typeof fetch): Promise<AppConfig> {
 		return this.request<AppConfig>('/web/config', appConfigSchema, fetchFn);
