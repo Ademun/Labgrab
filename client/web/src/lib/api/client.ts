@@ -1,4 +1,4 @@
-import { getUserInfoResponseSchema, type AuthRequest, type CreateUserDataRequest, type GetUserInfoResponse } from '$lib/api/schema/auth.js';
+import { getUserInfoResponseSchema, type AuthRequest, type CreateUserDataRequest, type GetUserInfoResponse, type UpdateUserDataRequest } from '$lib/api/schema/auth.js';
 import {
 	type UpdateUserRequest,
 	type UserResponse,
@@ -138,6 +138,13 @@ class ApiClient {
 
 	async getUserInfo(fetchFn?: typeof fetch): Promise<GetUserInfoResponse | void> {
 		return this.request('/auth/data', z.union([getUserInfoResponseSchema, z.void()]), fetchFn)
+	}
+
+	async updateUserData(data: UpdateUserDataRequest, fetchFn?: typeof fetch): Promise<void> {
+		return this.request('/auth/data', z.void(), fetchFn, {
+			method: 'PUT',
+			body: JSON.stringify(data)
+		});
 	}
 
 	async getUser(fetchFn?: typeof fetch): Promise<UserResponse> {

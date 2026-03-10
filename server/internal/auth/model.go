@@ -64,6 +64,12 @@ type GetUserInfoRes struct {
 	LastAuth          *time.Time
 }
 
+type UpdateUserDataReq struct {
+	UserUUID          uuid.UUID
+	DikidiPhoneNumber string
+	DikidiPassword    string
+}
+
 type ErrHashIntegrity struct {
 	ExpectedHash string
 	ActualHash   string

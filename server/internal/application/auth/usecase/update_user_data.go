@@ -7,26 +7,26 @@ import (
 	"labgrab/internal/auth"
 )
 
-type CreateUserDataUsecase struct {
+type UpdateUserDataUsecase struct {
 	AuthSvc *auth.Service
 }
 
-func (uc *CreateUserDataUsecase) Exec(ctx context.Context, session string, req *dto.CreateUserDataReqDTO) error {
+func (uc *UpdateUserDataUsecase) Exec(ctx context.Context, session string, req *dto.CreateUserDataReqDTO) error {
 	if err := uc.AuthSvc.ValidateSession(ctx, session); err != nil {
 		return fmt.Errorf("auth usecase: create user data: validate session: %w", err)
 	}
 
 	userUUID, err := uc.AuthSvc.GetSessionData(ctx, session)
 	if err != nil {
-		return fmt.Errorf("auth usecase: create user data: get session data: %w", err)
+		return fmt.Errorf("auth usecase: update user data: get session data: %w", err)
 	}
 
-	if err := uc.AuthSvc.CreateUserData(ctx, &auth.CreateUserDataReq{
+	if err := uc.AuthSvc.UpdateUserData(ctx, &auth.UpdateUserDataReq{
 		UserUUID:          userUUID,
 		DikidiPassword:    req.DikidiPassword,
 		DikidiPhoneNumber: req.DikidiPhoneNumber,
 	}); err != nil {
-		return fmt.Errorf("auth usecase: create user data: create user data: %w", err)
+		return fmt.Errorf("auth usecase: update user data: create user data: %w", err)
 	}
 
 	return nil

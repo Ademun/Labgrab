@@ -27,3 +27,10 @@ export const getUserInfoResponseSchema = z.object({
 })
 
 export type GetUserInfoResponse = z.infer<typeof getUserInfoResponseSchema>
+
+export const updateUserDataRequestSchema = z.object({
+	dikidi_password: z.string(),
+	dikidi_phone_number: z.string()
+});
+
+export type UpdateUserDataRequest = z.infer<typeof updateUserDataRequestSchema>;

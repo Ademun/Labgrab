@@ -18,6 +18,7 @@ type Handler struct {
 	createUserData *usecase.CreateUserDataUsecase
 	dikidiAuth     *usecase.DikidiAuthUsecase
 	getUserInfo    *usecase.GetUserInfoUsecase
+	updateUserData *usecase.UpdateUserDataUsecase
 	logger         *zap.SugaredLogger
 }
 
@@ -34,6 +35,9 @@ func NewHandler(authSvc *auth.Service, userSvc *user.Service, logger *zap.Sugare
 			AuthSvc: authSvc,
 		},
 		getUserInfo: &usecase.GetUserInfoUsecase{
+			AuthSvc: authSvc,
+		},
+		updateUserData: &usecase.UpdateUserDataUsecase{
 			AuthSvc: authSvc,
 		},
 		logger: logger,
@@ -137,9 +141,34 @@ func (h *Handler) GetUserInfo(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) UpdateUserData(w http.ResponseWriter, r *http.Request) {
+	var req dto.CreateUserDataReqDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Warnf("auth handler: create user data: failed to decode body: %v", err)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if err := h.updateUserData.Exec(r.Context(), cookie.Value, &req); err != nil {
+		h.logger.Errorf("auth handler: update user data: failed to create user data: %v", err)
+		code := apperr.HTTPErrorCode(err)
+		http.Error(w, err.Error(), code)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/auth/user", h.AuthUser).Methods(http.MethodPost)
 	r.HandleFunc("/api/auth/data", h.CreateUserData).Methods(http.MethodPost)
 	r.HandleFunc("/api/auth/dikidi", h.DikidiAuth).Methods(http.MethodGet)
 	r.HandleFunc("/api/auth/data", h.GetUserInfo).Methods(http.MethodGet)
+	r.HandleFunc("/api/auth/data", h.UpdateUserData).Methods(http.MethodPut)
 }

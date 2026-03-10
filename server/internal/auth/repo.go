@@ -73,6 +73,39 @@ func (r *Repo) GetUserData(ctx context.Context, userUUID uuid.UUID) (*DBUserData
 	return &data, nil
 }
 
+func (r *Repo) UpdateUserData(ctx context.Context, data *DBUserData) error {
+	query, args, err := r.sq.Update("auth_service.user_data").
+		Set("dikidi_phone_number", data.DikidiPhoneNumber).
+		Set("dikidi_password", data.DikidiPassword).
+		Set("dek", data.DEK).
+		Where(squirrel.Eq{"user_uuid": data.UserUUID}).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("auth repo: update user data: build query: %w", err)
+	}
+
+	if _, err = r.pool.Exec(ctx, query, args...); err != nil {
+		return fmt.Errorf("auth repo: update user data: exec query: %w", err)
+	}
+
+	return nil
+}
+
+func (r *Repo) DeleteUserData(ctx context.Context, userUUID uuid.UUID, tx pgx.Tx) error {
+	query, args, err := r.sq.Delete("auth_service.user_data").
+		Where(squirrel.Eq{"user_uuid": userUUID}).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("auth repo: delete user data: build query: %w", err)
+	}
+
+	if _, err = tx.Exec(ctx, query, args...); err != nil {
+		return fmt.Errorf("auth repo: delete user data: exec query: %w", err)
+	}
+
+	return nil
+}
+
 func (r *Repo) SetUserCookies(ctx context.Context, userUUID uuid.UUID, cookies *DBUserCookies) error {
 	query, args, err := r.sq.Update("auth_service.user_data").
 		Set("session", cookies.Session).
@@ -135,19 +168,4 @@ func (r *Repo) GetStaleUsers(ctx context.Context) ([]DBUserData, error) {
 	}
 
 	return users, nil
-}
-
-func (r *Repo) DeleteUserData(ctx context.Context, userUUID uuid.UUID, tx pgx.Tx) error {
-	query, args, err := r.sq.Delete("auth_service.user_data").
-		Where(squirrel.Eq{"user_uuid": userUUID}).
-		ToSql()
-	if err != nil {
-		return fmt.Errorf("auth repo: delete user data: build query: %w", err)
-	}
-
-	if _, err = tx.Exec(ctx, query, args...); err != nil {
-		return fmt.Errorf("auth repo: delete user data: exec query: %w", err)
-	}
-
-	return nil
 }

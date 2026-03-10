@@ -207,6 +207,24 @@ func (s *Service) CreateUserData(ctx context.Context, req *CreateUserDataReq) er
 	return nil
 }
 
+func (s *Service) UpdateUserData(ctx context.Context, req *UpdateUserDataReq) error {
+	pass, dek, err := s.EncryptPassword(req.DikidiPassword, req.UserUUID)
+	if err != nil {
+		return fmt.Errorf("auth service: update user data: encrypt password: %w", err)
+	}
+
+	if err := s.repo.UpdateUserData(ctx, &DBUserData{
+		UserUUID:          req.UserUUID,
+		DikidiPassword:    pass,
+		DikidiPhoneNumber: req.DikidiPhoneNumber,
+		DEK:               dek,
+	}); err != nil {
+		return fmt.Errorf("auth service: update user data: repository call: %w", err)
+	}
+
+	return nil
+}
+
 func (s *Service) AuthUser(ctx context.Context, userUUID uuid.UUID) error {
 	data, err := s.repo.GetUserData(ctx, userUUID)
 	if err != nil {
