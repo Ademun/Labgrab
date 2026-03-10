@@ -44,79 +44,98 @@ class ApiClient {
 		this.timeout = config.timeout;
 	}
 
-	private async request<T>(
-		endpoint: string,
-		schema: z.ZodSchema<T>,
-		fetchFn?: typeof fetch,
-		options: RequestInit = {},
-		timeout?: number
-	): Promise<T> {
-		const controller = new AbortController();
-		const timeoutId = setTimeout(() => controller.abort(), timeout ?? this.timeout);
+	private hasJsonBody(response: Response): boolean {
+    const contentType = response.headers.get('Content-Type');
+    const contentLength = response.headers.get('Content-Length');
 
-		try {
-			const fetcher = fetchFn ?? fetch;
-			const url = `${this.baseUrl}${endpoint}`;
+    if (response.status === 204) return false;
+    if (contentLength === '0') return false;
+    if (!contentType) return false;
 
-			const response = await fetcher(url, {
-				...options,
-				signal: controller.signal,
-				credentials: 'include',
-				headers: {
-					'Content-Type': 'application/json',
-					...options.headers
-				}
-			});
+    return contentType.includes('application/json');
+}
 
-			if (!response.ok) {
-				let errorBody;
-				try {
-					const raw = await response.json();
-					errorBody = apiErrorSchema.parse(raw);
-				} catch {}
-				throw createApiError(response.status, errorBody);
-			}
+private async request<T>(
+    endpoint: string,
+    schema: z.ZodSchema<T>,
+    fetchFn?: typeof fetch,
+    options: RequestInit = {},
+    timeout?: number
+): Promise<T> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout ?? this.timeout);
 
-			const acceptsUndefined = schema.safeParse(undefined).success;
+    try {
+        const fetcher = fetchFn ?? fetch;
+        const url = `${this.baseUrl}${endpoint}`;
 
-			if ((response.status === 204 || response.status == 201) && response.body) {
-				if (!acceptsUndefined) {
-					throw new ValidationError(`Expected body but got 204 No Content for ${endpoint}`);
-				}
-				return schema.parse(undefined) as T;
-			}
+        const response = await fetcher(url, {
+            ...options,
+            signal: controller.signal,
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
 
-			const data = await response.json();
+        if (!response.ok) {
+            let errorBody;
+            try {
+                const raw = await response.json();
+                errorBody = apiErrorSchema.parse(raw);
+            } catch {}
+            throw createApiError(response.status, errorBody);
+        }
 
-			try {
-				return schema.parse(data);
-			} catch (e) {
-				if (e instanceof ZodError) {
-					throw new ValidationError(`Response schema mismatch on ${endpoint}: ${e.message}`, e);
-				}
-				throw e;
-			}
-		} catch (error) {
-			if (
-				error instanceof NetworkError ||
-				error instanceof ValidationError ||
-				(error instanceof Error && error.name.endsWith('Error') && 'status' in error)
-			) {
-				throw error;
-			}
+        if (!this.hasJsonBody(response)) {
+            const acceptsUndefined = schema.safeParse(undefined).success;
+            if (!acceptsUndefined) {
+                throw new ValidationError(
+                    `Expected JSON body but got empty response for ${endpoint} (status ${response.status})`
+                );
+            }
+            return schema.parse(undefined) as T;
+        }
 
-			if (error instanceof DOMException && error.name === 'AbortError') {
-				throw new NetworkError(`Request to ${endpoint} timed out after ${this.timeout}ms`, error);
-			}
+        let data: unknown;
+        try {
+            data = await response.json();
+        } catch (e) {
+            throw new ValidationError(
+                `Failed to parse JSON response on ${endpoint}: ${e instanceof Error ? e.message : String(e)}`
+            );
+        }
 
-			throw new NetworkError(
-				`Network failure on ${endpoint}: ${error instanceof Error ? error.message : String(error)}`,
-				error
-			);
-		} finally {
-			clearTimeout(timeoutId);
-		}
-	}
+        try {
+            return schema.parse(data);
+        } catch (e) {
+            if (e instanceof ZodError) {
+                throw new ValidationError(`Response schema mismatch on ${endpoint}: ${e.message}`, e);
+            }
+            throw e;
+        }
+    } catch (error) {
+        if (
+            error instanceof NetworkError ||
+            error instanceof ValidationError ||
+            (error instanceof Error && error.name.endsWith('Error') && 'status' in error)
+        ) {
+            throw error;
+        }
+
+        if (error instanceof DOMException && error.name === 'AbortError') {
+            throw new NetworkError(`Request to ${endpoint} timed out after ${this.timeout}ms`, error);
+        }
+
+        throw new NetworkError(
+            `Network failure on ${endpoint}: ${error instanceof Error ? error.message : String(error)}`,
+            error
+        );
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
 
 	async auth(data: AuthRequest, fetchFn?: typeof fetch): Promise<void> {
 		return this.request('/auth/user', z.void(), fetchFn, {
@@ -244,6 +263,12 @@ class ApiClient {
 
 	async getBookings(fetchFn?: typeof fetch): Promise<BookingArray> {
 		return this.request<BookingArray>('/bookings', bookingArraySchema, fetchFn);
+	}
+
+	async cancelBooking(id: number, fetchFn?: typeof fetch): Promise<void> {
+		return this.request<void>(`/bookings/${id}`, z.void(), fetchFn, {
+			method: "DELETE"
+		})
 	}
 
 	async getConfig(fetchFn?: typeof fetch): Promise<AppConfig> {

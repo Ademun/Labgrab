@@ -8,15 +8,17 @@ import (
 	"labgrab/internal/booking"
 	"labgrab/internal/shared/apperr"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
 
 type Handler struct {
-	getBookings  *usecase.GetBookingsUsecase
-	loadBookings *usecase.LoadBookingsUsecase
-	logger       *zap.SugaredLogger
+	getBookings   *usecase.GetBookingsUsecase
+	loadBookings  *usecase.LoadBookingsUsecase
+	cancelBooking *usecase.CancelBookingUsecase
+	logger        *zap.SugaredLogger
 }
 
 func NewHandler(bookingSvc *booking.Service, authSvc *auth.Service, logger *zap.SugaredLogger) *Handler {
@@ -26,6 +28,10 @@ func NewHandler(bookingSvc *booking.Service, authSvc *auth.Service, logger *zap.
 			AuthSvc:    authSvc,
 		},
 		loadBookings: &usecase.LoadBookingsUsecase{
+			BookingSvc: bookingSvc,
+			AuthSvc:    authSvc,
+		},
+		cancelBooking: &usecase.CancelBookingUsecase{
 			BookingSvc: bookingSvc,
 			AuthSvc:    authSvc,
 		},
@@ -80,7 +86,36 @@ func (h *Handler) LoadBookings(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *Handler) CancelBooking(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		if errors.Is(err, http.ErrNoCookie) {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		h.logger.Errorf("booking handler: get bookings: read cookie: %v", err)
+		http.Error(w, "Failed to read cookie", http.StatusInternalServerError)
+		return
+	}
+
+	vars := mux.Vars(r)
+	bookingID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		h.logger.Errorf("booking handler: get bookings: parse id: %v", err)
+		http.Error(w, "Failed to parse id", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.cancelBooking.Exec(r.Context(), cookie.Value, bookingID); err != nil {
+		h.logger.Errorf("booking handler: cancel booking: %v", err)
+		http.Error(w, err.Error(), apperr.HTTPErrorCode(err))
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/bookings", h.GetBookings).Methods(http.MethodGet)
 	r.HandleFunc("/api/bookings/load", h.LoadBookings).Methods(http.MethodPost)
+	r.HandleFunc("/api/bookings/{id}", h.CancelBooking).Methods(http.MethodDelete)
 }

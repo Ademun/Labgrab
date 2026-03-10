@@ -10,7 +10,7 @@ import (
 func (c *Client) GetBookings(ctx context.Context, client *req.Client, req *GetBookingsRequest) (*GetBookingsResult, error) {
 	var apiResp APIGetRecords
 	var err error
-	c.limitCall(func() {
+	if err := c.limitCall(ctx, func() {
 		_, err = client.R().
 			SetContext(ctx).
 			SetQueryParams(map[string]string{
@@ -29,7 +29,9 @@ func (c *Client) GetBookings(ctx context.Context, client *req.Client, req *GetBo
 			SetSuccessResult(&apiResp).
 			Get("https://dikidi.net/ru/mobile/ajax/newrecord/get_records/")
 
-	})
+	}); err != nil {
+		return nil, fmt.Errorf("api client: get bookings: failed to acquire rate: %w", err)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("api client: get bookings: request failed: %w", err)
 	}
@@ -61,7 +63,7 @@ func (c *Client) GetBookings(ctx context.Context, client *req.Client, req *GetBo
 func (c *Client) RemoveBooking(ctx context.Context, client *req.Client, req *RemoveBookingRequest) error {
 	var removeResp APIRemoveRecord
 	var err error
-	c.limitCall(func() {
+	if err := c.limitCall(ctx, func() {
 		_, err = client.R().
 			SetContext(ctx).
 			SetQueryParams(map[string]string{
@@ -78,7 +80,9 @@ func (c *Client) RemoveBooking(ctx context.Context, client *req.Client, req *Rem
 			}).
 			SetSuccessResult(&removeResp).
 			Get("https://dikidi.net/ru/mobile/newrecord/remove_record/")
-	})
+	}); err != nil {
+		return fmt.Errorf("api client: remove booking: failed to acquire rate: %w", err)
+	}
 	if err != nil {
 		return fmt.Errorf("api client: remove bookings: request failed: %w", err)
 	}

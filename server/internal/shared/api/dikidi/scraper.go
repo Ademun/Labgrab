@@ -45,15 +45,21 @@ func (c *Client) ScrapeServices(ctx context.Context, client *req.Client, service
 }
 
 func (c *Client) GetDocument(ctx context.Context, client *req.Client, url string) (*goquery.Document, error) {
-	resp, err := client.R().
-		SetContext(ctx).
-		SetHeaders(map[string]string{
-			"Sec-Fetch-Dest": "document",
-			"Sec-Fetch-Mode": "navigate",
-			"Sec-Fetch-Site": "none",
-			"Sec-Fetch-User": "?1",
-		}).
-		Get(url)
+	var resp *req.Response
+	var err error
+	if err := c.limitCall(ctx, func() {
+		resp, err = client.R().
+			SetContext(ctx).
+			SetHeaders(map[string]string{
+				"Sec-Fetch-Dest": "document",
+				"Sec-Fetch-Mode": "navigate",
+				"Sec-Fetch-Site": "none",
+				"Sec-Fetch-User": "?1",
+			}).
+			Get(url)
+	}); err != nil {
+		return nil, err
+	}
 	if err != nil {
 		return nil, err
 	}

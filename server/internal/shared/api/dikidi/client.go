@@ -1,13 +1,16 @@
 package dikidi
 
 import (
+	"context"
 	"labgrab/pkg/config"
+
+	"golang.org/x/time/rate"
 )
 
 type Client struct {
 	parser     *Parser
 	serviceIDs []int
-	limiter    chan struct{}
+	limiter    *rate.Limiter
 	cfg        *config.DikidiClientConfig
 }
 
@@ -15,13 +18,15 @@ func NewClient(cfg *config.DikidiClientConfig, parser *Parser) *Client {
 	return &Client{
 		parser:     parser,
 		serviceIDs: make([]int, 0),
-		limiter:    make(chan struct{}, cfg.ApiRateLimit),
+		limiter:    rate.NewLimiter(rate.Limit(cfg.ApiRateLimit), cfg.ApiRateBurst),
 		cfg:        cfg,
 	}
 }
 
-func (c *Client) limitCall(call func()) {
-	c.limiter <- struct{}{}
+func (c *Client) limitCall(ctx context.Context, call func()) error {
+	if err := c.limiter.Wait(ctx); err != nil {
+		return err
+	}
 	call()
-	<-c.limiter
+	return nil
 }

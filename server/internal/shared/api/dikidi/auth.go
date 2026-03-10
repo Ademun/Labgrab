@@ -13,7 +13,7 @@ import (
 func (c *Client) AcquireTelegramCSRFToken(ctx context.Context, client *req.Client) (string, error) {
 	var resp *req.Response
 	var err error
-	c.limitCall(func() {
+	if err := c.limitCall(ctx, func() {
 		resp, err = client.R().
 			SetContext(ctx).
 			SetHeaders(map[string]string{
@@ -23,7 +23,10 @@ func (c *Client) AcquireTelegramCSRFToken(ctx context.Context, client *req.Clien
 				"Sec-Fetch-User": "?1",
 			}).
 			Get("https://dikidi.net/550001?p=0.pi-ssm")
-	})
+	}); err != nil {
+		return "", fmt.Errorf("api client: acquire telegram CSRF token: failed to acquire rate: %w", err)
+	}
+
 	if err != nil {
 		return "", fmt.Errorf("api client: acquire telegram CSRF token: request failed: %w", err)
 	}
@@ -40,7 +43,7 @@ func (c *Client) AcquireTelegramCSRFToken(ctx context.Context, client *req.Clien
 func (c *Client) AcquireCSRFToken(ctx context.Context, client *req.Client, req CSRFTokenRequest) (string, error) {
 	var authData APIAuth
 	var err error
-	c.limitCall(func() {
+	if err := c.limitCall(ctx, func() {
 		_, err = client.R().
 			SetContext(ctx).
 			SetHeaders(map[string]string{
@@ -57,7 +60,9 @@ func (c *Client) AcquireCSRFToken(ctx context.Context, client *req.Client, req C
 			SetSuccessResult(&authData).
 			Post("https://auth.dikidi.net/ajax/check/auth/")
 
-	})
+	}); err != nil {
+		return "", fmt.Errorf("api client: acquire csrf token: failed to acquire rate: %w", err)
+	}
 	if err != nil {
 		return "", fmt.Errorf("api client: acquire CSRF token: request failed: %w", err)
 	}
@@ -73,7 +78,7 @@ func (c *Client) AcquireCSRFToken(ctx context.Context, client *req.Client, req C
 
 func (c *Client) SendAuthRequest(ctx context.Context, client *req.Client, req AuthRequest) error {
 	var err error
-	c.limitCall(func() {
+	if err := c.limitCall(ctx, func() {
 		_, err = client.R().
 			SetContext(ctx).
 			SetHeaders(map[string]string{
@@ -91,7 +96,9 @@ func (c *Client) SendAuthRequest(ctx context.Context, client *req.Client, req Au
 				"pdAgreement":   "1",
 			}).
 			Post("https://auth.dikidi.net/ajax/user/auth/")
-	})
+	}); err != nil {
+		return fmt.Errorf("api client: send auth request: failed to acquire rate: %w", err)
+	}
 	if err != nil {
 		return fmt.Errorf("api client: send auth request: request failed: %w", err)
 	}
@@ -109,7 +116,7 @@ func (c *Client) AcquireSessionID(cookieName string) (string, error) {
 
 func (c *Client) RenewCookies(ctx context.Context, client *req.Client) error {
 	var err error
-	c.limitCall(func() {
+	if err := c.limitCall(ctx, func() {
 		_, err = client.R().
 			SetContext(ctx).
 			SetHeaders(map[string]string{
@@ -119,7 +126,9 @@ func (c *Client) RenewCookies(ctx context.Context, client *req.Client) error {
 				"Sec-Fetch-User": "?1",
 			}).
 			Get("https://dikidi.net/550001?p=0.pi-ssm")
-	})
+	}); err != nil {
+		return fmt.Errorf("api client: renew cookies: failed to acquire rate: %w", err)
+	}
 	if err != nil {
 		return fmt.Errorf("api client: renew cookies: request failed: %w", err)
 	}

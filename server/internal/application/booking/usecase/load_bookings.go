@@ -13,12 +13,16 @@ type LoadBookingsUsecase struct {
 }
 
 func (uc *LoadBookingsUsecase) Exec(ctx context.Context, session string) error {
-	sessionData, err := uc.AuthSvc.GetSessionData(ctx, session)
-	if err != nil {
-		return fmt.Errorf("booking usecase: load bookings: get session data: %w", err)
+	if err := uc.AuthSvc.ValidateSession(ctx, session); err != nil {
+		return fmt.Errorf("bookings usecase: load bookings: validate session: %w", err)
 	}
 
-	creds, err := uc.AuthSvc.GetUserCredentials(ctx, sessionData)
+	userUUID, err := uc.AuthSvc.GetSessionData(ctx, session)
+	if err != nil {
+		return fmt.Errorf("bookings usecase: load bookings: get session data: %w", err)
+	}
+
+	creds, err := uc.AuthSvc.GetUserCredentials(ctx, userUUID)
 	if err != nil {
 		return fmt.Errorf("booking usecase: load bookings: get credentials: %w", err)
 	}
@@ -28,7 +32,7 @@ func (uc *LoadBookingsUsecase) Exec(ctx context.Context, session string) error {
 	}
 
 	if err := uc.BookingSvc.LoadClientBookings(ctx, &booking.LoadClientBookingsReq{
-		UserUUID: sessionData,
+		UserUUID: userUUID,
 		Session:  *creds.Session,
 		Cookies:  *creds.Cookies,
 	}); err != nil {

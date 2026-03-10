@@ -109,7 +109,6 @@
 					<Input
 						{...props}
 						disabled={isSubmitting}
-						type="number"
 						placeholder="+7 999 999 99 99"
 						bind:value={$formData.phone_number}
 					/>

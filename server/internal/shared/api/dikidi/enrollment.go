@@ -12,7 +12,7 @@ import (
 func (c *Client) AcquireTimeReservation(ctx context.Context, client *req.Client, req *EventReservationRequest) (*EventReservationResponse, error) {
 	var reservationData APITimeReservation
 	var err error
-	c.limitCall(func() {
+	if err := c.limitCall(ctx, func() {
 		_, err = client.R().
 			SetContext(ctx).
 			SetQueryParams(map[string]string{
@@ -32,7 +32,9 @@ func (c *Client) AcquireTimeReservation(ctx context.Context, client *req.Client,
 			}).
 			SetSuccessResult(&reservationData).
 			Get("https://dikidi.net/ru/ajax/newrecord/time_reservation/")
-	})
+	}); err != nil {
+		return nil, fmt.Errorf("api client: acquire time reservation: failed to acquire rate: %w", err)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("api client: acquire time reservation: request failed: %w", err)
 	}
@@ -57,7 +59,7 @@ func (c *Client) CheckEnrollment(ctx context.Context, client *req.Client, req *E
 
 	var checkResp APIEnrollmentCheck
 	var err error
-	c.limitCall(func() {
+	if err := c.limitCall(ctx, func() {
 		_, err = client.R().
 			SetContext(ctx).
 			SetQueryParams(map[string]string{
@@ -87,7 +89,9 @@ func (c *Client) CheckEnrollment(ctx context.Context, client *req.Client, req *E
 			}).
 			SetSuccessResult(&checkResp).
 			Post("https://dikidi.net/ru/mobile/newrecord/check/")
-	})
+	}); err != nil {
+		return fmt.Errorf("api client: check enrollment: failed to acquire lock: %w", err)
+	}
 
 	if err != nil {
 		return fmt.Errorf("api client: check enrollment: request failed: %w", err)
@@ -108,7 +112,7 @@ func (c *Client) GetReservationInfo(ctx context.Context, client *req.Client, req
 
 	var infoResp APIReservationInfo
 	var err error
-	c.limitCall(func() {
+	if err := c.limitCall(ctx, func() {
 		_, err = client.R().
 			SetContext(ctx).
 			SetQueryParams(map[string]string{
@@ -125,7 +129,9 @@ func (c *Client) GetReservationInfo(ctx context.Context, client *req.Client, req
 			}).
 			SetSuccessResult(&infoResp).
 			Get("https://dikidi.net/ru/mobile/ajax/newrecord/records_info/")
-	})
+	}); err != nil {
+		return fmt.Errorf("api client: get reservation info: failed to acquire rate: %w", err)
+	}
 	if err != nil {
 		return fmt.Errorf("api client: get reservation info: request failed: %w", err)
 	}
@@ -149,7 +155,7 @@ func (c *Client) CreateBooking(ctx context.Context, client *req.Client, req *Cre
 
 	var createResp APICreateRecord
 	var err error
-	c.limitCall(func() {
+	if err := c.limitCall(ctx, func() {
 		_, err = client.R().
 			SetContext(ctx).
 			SetQueryParams(map[string]string{
@@ -185,7 +191,9 @@ func (c *Client) CreateBooking(ctx context.Context, client *req.Client, req *Cre
 			}).
 			SetSuccessResult(&createResp).
 			Post("https://dikidi.net/ru/ajax/newrecord/record/")
-	})
+	}); err != nil {
+		return 0, fmt.Errorf("api client: create booking: failed to acquire rate: %w", err)
+	}
 	if err != nil {
 		return 0, fmt.Errorf("api client: create booking: request failed: %w", err)
 	}

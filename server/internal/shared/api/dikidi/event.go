@@ -125,7 +125,7 @@ func (c *Client) FetchService(ctx context.Context, client *req.Client, serviceID
 	}
 	var data APIService
 	var err error
-	c.limitCall(func() {
+	if err := c.limitCall(ctx, func() {
 		_, err = client.R().
 			SetContext(ctx).
 			SetQueryParams(params).
@@ -138,7 +138,9 @@ func (c *Client) FetchService(ctx context.Context, client *req.Client, serviceID
 			}).
 			SetSuccessResult(&data).
 			Get(c.cfg.EventProviderURL)
-	})
+	}); err != nil {
+		return nil, fmt.Errorf("api client: fetch service: failed to acquire rate: %w", err)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("api cliennt: fetch service: request failed: %w", err)
 	}

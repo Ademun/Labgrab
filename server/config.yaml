@@ -2,6 +2,7 @@ dikidi_client:
   service_provider_url: 'https://dikidi.net/550001?p=1.pi-ssm-sd&s=7937920&rl=0_0'
   event_provider_url: 'https://dikidi.net/ru/mobile/ajax/newrecord/get_datetimes/?company_id=550001'
   api_rate_limit: 3
+  api_rate_burst: 1
 auth_service:
   key_prefix: 'session'
 polling_service:

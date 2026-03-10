@@ -14,12 +14,16 @@ type GetBookingsUsecase struct {
 }
 
 func (uc *GetBookingsUsecase) Exec(ctx context.Context, session string) ([]dto.GetBookingsResDTO, error) {
-	sessionData, err := uc.AuthSvc.GetSessionData(ctx, session)
-	if err != nil {
-		return nil, fmt.Errorf("booking usecase: get bookings: get session data: %w", err)
+	if err := uc.AuthSvc.ValidateSession(ctx, session); err != nil {
+		return nil, fmt.Errorf("bookings usecase: get bookings: validate session: %w", err)
 	}
 
-	creds, err := uc.AuthSvc.GetUserCredentials(ctx, sessionData)
+	userUUID, err := uc.AuthSvc.GetSessionData(ctx, session)
+	if err != nil {
+		return nil, fmt.Errorf("bookings usecase: get bookings: get session data: %w", err)
+	}
+
+	creds, err := uc.AuthSvc.GetUserCredentials(ctx, userUUID)
 	if err != nil {
 		return nil, fmt.Errorf("booking usecase: get bookings: get credentials: %w", err)
 	}
@@ -29,14 +33,14 @@ func (uc *GetBookingsUsecase) Exec(ctx context.Context, session string) ([]dto.G
 	}
 
 	if err := uc.BookingSvc.LoadClientBookings(ctx, &booking.LoadClientBookingsReq{
-		UserUUID: sessionData,
+		UserUUID: userUUID,
 		Session:  *creds.Session,
 		Cookies:  *creds.Cookies,
 	}); err != nil {
 		return nil, fmt.Errorf("booking usecase: get bookings: load bookings: %w", err)
 	}
 
-	bookings, err := uc.BookingSvc.GetBookings(ctx, sessionData)
+	bookings, err := uc.BookingSvc.GetBookings(ctx, userUUID)
 	if err != nil {
 		return nil, fmt.Errorf("booking usecase: get bookings: get bookings: %w", err)
 	}
