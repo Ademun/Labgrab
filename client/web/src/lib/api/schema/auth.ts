@@ -11,3 +11,10 @@ export const authRequestSchema = z.object({
 });
 
 export type AuthRequest = z.infer<typeof authRequestSchema>;
+
+export const createUserDataRequestSchema = z.object({
+	dikidi_password: z.string(),
+	dikidi_phone_number: z.string()
+});
+
+export type CreateUserDataRequest = z.infer<typeof createUserDataRequestSchema>;

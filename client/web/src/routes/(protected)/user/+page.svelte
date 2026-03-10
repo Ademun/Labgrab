@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Fallback, Image, Root } from '$lib/components/ui/avatar/index.js';
-	import { Ban, Calendar, ChartNoAxesCombined, ChevronRight, LogOut, User } from '@lucide/svelte';
+	import { Ban, Calendar, ChartNoAxesCombined, ChevronRight, Link, LogOut, User } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { fly, fade } from 'svelte/transition';
 	import { Header } from '$lib/components/navigation/index.js';
@@ -58,6 +58,15 @@
 					in:fly={{ y: 16, duration: 300, delay: 180 }}
 				>
 					<ul class="flex flex-col gap-6 font-medium">
+						<li>
+							<a href="/user/integration" class="flex w-full items-center justify-between">
+								<span class="flex items-center gap-2">
+									<Link class="h-5 w-5 text-[#FF9F0A]" />
+									Интеграция
+								</span>
+								<ChevronRight class="h-5 w-5" />
+							</a>
+						</li>
 						<li>
 							<a href="/user/schedule" class="flex w-full items-center justify-between">
 								<span class="flex items-center gap-2">

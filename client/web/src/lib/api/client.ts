@@ -1,4 +1,4 @@
-import { type AuthRequest } from '$lib/api/schema/auth.js';
+import { type AuthRequest, type CreateUserDataRequest } from '$lib/api/schema/auth.js';
 import {
 	type UpdateUserRequest,
 	type UserResponse,
@@ -122,6 +122,17 @@ class ApiClient {
 			method: 'POST',
 			body: JSON.stringify(data)
 		});
+	}
+
+	async createUserData(data: CreateUserDataRequest, fetchFn?: typeof fetch): Promise<void> {
+	return this.request('/auth/user/data', z.void(), fetchFn, {
+		method: 'POST',
+		body: JSON.stringify(data)
+	});
+}
+
+	async dikidiAuth(fetchFn?: typeof fetch): Promise<void> {
+		return this.request('/auth/dikidi', z.void(), fetchFn);
 	}
 
 	async getUser(fetchFn?: typeof fetch): Promise<UserResponse> {
