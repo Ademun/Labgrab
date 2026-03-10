@@ -196,9 +196,10 @@ func (s *Service) CreateUserData(ctx context.Context, req *CreateUserDataReq) er
 	}
 
 	if err := s.repo.CreateUserData(ctx, &DBUserData{
-		UserUUID:       req.UserUUID,
-		DikidiPassword: pass,
-		DEK:            dek,
+		UserUUID:          req.UserUUID,
+		DikidiPassword:    pass,
+		DikidiPhoneNumber: sanitizing.SanitizePhoneNumber(req.DikidiPhoneNumber),
+		DEK:               dek,
 	}); err != nil {
 		return fmt.Errorf("auth service: create user data: repository call: %w", err)
 	}

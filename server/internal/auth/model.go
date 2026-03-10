@@ -45,8 +45,9 @@ type ValidateTelegramAuthDataReq struct {
 }
 
 type CreateUserDataReq struct {
-	UserUUID       uuid.UUID
-	DikidiPassword string
+	UserUUID          uuid.UUID
+	DikidiPassword    string
+	DikidiPhoneNumber string
 }
 
 type GetUserCredentialsRes struct {
