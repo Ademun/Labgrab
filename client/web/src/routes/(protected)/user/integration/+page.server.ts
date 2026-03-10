@@ -6,9 +6,10 @@ import { api } from '$lib/api/client.js';
 import { AuthError, NetworkError, ValidationError } from '$lib/api/errors.js';
 import { redirect } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ parent }) => {
+	const { user } = await parent();
 	const form = await superValidate(zod4(createUserDataRequestSchema));
-	return { form };
+	return { form, user };
 };
 
 export const actions = {

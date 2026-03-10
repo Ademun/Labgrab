@@ -11,6 +11,8 @@
 
 	let { data } = $props();
 
+	const apiReady = $derived(data.user?.api_ready ?? false);
+
 	let showDialog = $state(false);
 	let countdown = $state(5);
 	let countdownInterval: ReturnType<typeof setInterval> | null = null;
@@ -65,61 +67,74 @@
 
 	<div class="flex flex-1 flex-col items-center justify-center px-6 py-8">
 		<div class="w-full max-w-sm" in:fly={{ y: 16, duration: 300, delay: 60 }}>
-			<div class="mb-5 flex flex-col gap-1 px-1">
-				<p class="text-md leading-relaxed text-foreground text-center">
-					Укажите данные от Dikidi — они хранятся в зашифрованном виде и используются только для
-					автоматической записи на лабораторные.
-				</p>
-			</div>
+			{#if apiReady}
+				<div class="mb-5 flex flex-col gap-1 px-1">
+					<p class="text-md leading-relaxed text-foreground text-center">
+						Укажите данные от Dikidi — они хранятся в зашифрованном виде и используются только для
+						автоматической записи на лабораторные.
+					</p>
+				</div>
 
-			<div class="rounded-2xl border border-border/40 bg-card px-6 py-6 shadow-xl">
-				<form method="POST" action="?/connect" use:enhance class="space-y-5">
-					<Form.Field {form} name="dikidi_phone_number">
-						<Form.Control>
-							{#snippet children({ props })}
-								<Form.Label class="mb-4">Номер телефона</Form.Label>
-								<Input
-									{...props}
-									type="tel"
-									autocomplete="tel"
-									disabled={isSubmitting}
-									placeholder="+7 900 000 00 00"
-									bind:value={$formData.dikidi_phone_number}
-								/>
-							{/snippet}
-						</Form.Control>
-						<Form.FieldErrors />
-					</Form.Field>
+				<div class="rounded-2xl border border-border/40 bg-card px-6 py-6 shadow-xl">
+					<form method="POST" action="?/connect" use:enhance class="space-y-5">
+						<Form.Field {form} name="dikidi_phone_number">
+							<Form.Control>
+								{#snippet children({ props })}
+									<Form.Label class="mb-4">Номер телефона</Form.Label>
+									<Input
+										{...props}
+										type="tel"
+										autocomplete="tel"
+										disabled={isSubmitting}
+										placeholder="+7 900 000 00 00"
+										bind:value={$formData.dikidi_phone_number}
+									/>
+								{/snippet}
+							</Form.Control>
+							<Form.FieldErrors />
+						</Form.Field>
 
-					<Form.Field {form} name="dikidi_password">
-						<Form.Control>
-							{#snippet children({ props })}
-								<Form.Label class="mb-4">Пароль</Form.Label>
-								<Input
-									{...props}
-									type="password"
-									autocomplete="current-password"
-									disabled={isSubmitting}
-									placeholder="Пароль от Dikidi"
-									bind:value={$formData.dikidi_password}
-								/>
-							{/snippet}
-						</Form.Control>
-						<Form.FieldErrors />
-					</Form.Field>
+						<Form.Field {form} name="dikidi_password">
+							<Form.Control>
+								{#snippet children({ props })}
+									<Form.Label class="mb-4">Пароль</Form.Label>
+									<Input
+										{...props}
+										type="password"
+										autocomplete="current-password"
+										disabled={isSubmitting}
+										placeholder="Пароль от Dikidi"
+										bind:value={$formData.dikidi_password}
+									/>
+								{/snippet}
+							</Form.Control>
+							<Form.FieldErrors />
+						</Form.Field>
 
-					<!-- Скрытый submit, вызывается через submit() из попапа -->
-					<button type="submit" class="sr-only" aria-hidden="true" tabindex="-1"></button>
-				</form>
+						<button type="submit" class="sr-only" aria-hidden="true" tabindex="-1"></button>
+					</form>
 
-				<Button
-					class="mt-2 w-full py-5 text-md uppercase tracking-widest font-semibold"
-					disabled={isSubmitting}
-					onclick={openDialog}
-				>
-					{isSubmitting ? 'Подключение...' : 'Подключить'}
-				</Button>
-			</div>
+					<Button
+						class="mt-2 w-full py-5 text-md uppercase tracking-widest font-semibold"
+						disabled={isSubmitting}
+						onclick={openDialog}
+					>
+						{isSubmitting ? 'Подключение...' : 'Подключить'}
+					</Button>
+				</div>
+			{:else}
+				<div class="flex flex-col items-center gap-6 text-center px-1">
+					<div class="flex flex-col gap-2">
+						<p class="text-base font-semibold">Сначала заполните профиль</p>
+						<p class="text-sm leading-relaxed text-muted-foreground">
+							Перед подключением аккаунта необходимо заполнить персональную информацию.
+						</p>
+					</div>
+					<a href="/user/details">
+						<Button class="py-5 px-8">Заполнить профиль</Button>
+					</a>
+				</div>
+			{/if}
 		</div>
 	</div>
 </div>

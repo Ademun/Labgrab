@@ -8,7 +8,6 @@ import (
 
 var alphabeticRegexp = regexp.MustCompile("^[\\p{L}\\_\\-\\. ]+$")
 var groupCodeRegexp = regexp.MustCompile("^\\p{L}{2,3}\\-[0-9]{1,2}\\-[0-9]{1,2}$")
-var phoneNumberRegexp = regexp.MustCompile("^\\+[1-9]\\d{1,14}$")
 
 func validateUserName(name string, t string) error {
 	if len(name) > 100 {
@@ -35,7 +34,7 @@ func validateGroupCode(groupCode string) error {
 }
 
 func validatePhoneNumber(phoneNumber string) error {
-	if !phoneNumberRegexp.MatchString(phoneNumber) {
+	if len(phoneNumber) < 1 {
 		return errors.New("invalid phone number")
 	}
 	return nil
