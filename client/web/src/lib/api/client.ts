@@ -79,7 +79,7 @@ class ApiClient {
 
 			const acceptsUndefined = schema.safeParse(undefined).success;
 
-			if (response.status === 204 || response.status == 201) {
+			if ((response.status === 204 || response.status == 201) && response.body) {
 				if (!acceptsUndefined) {
 					throw new ValidationError(`Expected body but got 204 No Content for ${endpoint}`);
 				}

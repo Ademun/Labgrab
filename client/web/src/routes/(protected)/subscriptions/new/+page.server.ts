@@ -26,6 +26,7 @@ export const actions = {
 		try {
 			await api.createSubscription(form.data, fetch);
 		} catch (e) {
+			console.log(e)
 			if (e instanceof AuthError) {
 				throw redirect(303, '/auth');
 			}
