@@ -158,6 +158,12 @@ class ApiClient {
 		});
 	}
 
+	async deleteUser(fetchFn?: typeof fetch): Promise<void> {
+		return this.request('/user', z.void(), fetchFn, {
+			method: "DELETE"
+		})
+	}
+
 	async getSubscriptions(fetchFn?: typeof fetch): Promise<SubscriptionResponseArray> {
 		return this.request<SubscriptionResponseArray>(
 			'/subscriptions',
