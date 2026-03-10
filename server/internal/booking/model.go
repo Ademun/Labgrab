@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type Status string
@@ -55,6 +56,10 @@ type CancelClientBookingReq struct {
 	Cookies   string
 }
 
+type DeleteBookingsReq struct {
+	UserUUID uuid.UUID
+	Tx       pgx.Tx
+}
 type FilterScheduleReq struct {
 	UserUUID uuid.UUID
 	Schedule domain.Schedule

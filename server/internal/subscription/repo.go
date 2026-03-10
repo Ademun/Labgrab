@@ -453,3 +453,18 @@ func (r *Repo) CloseSubscription(ctx context.Context, subscriptionUUID uuid.UUID
 
 	return nil
 }
+
+func (r *Repo) DeleteSubscriptions(ctx context.Context, userUUID uuid.UUID, tx pgx.Tx) error {
+	query, args, err := r.sq.Delete("subscription_service.subscriptions").
+		Where(squirrel.Eq{"user_uuid": userUUID}).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("subscription repo: delete subscriptions: build query: %w", err)
+	}
+
+	_, err = tx.Exec(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("subscription repo: delete subscriptions: exec query: %w", err)
+	}
+	return nil
+}

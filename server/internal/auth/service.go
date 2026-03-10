@@ -415,3 +415,10 @@ func (s *Service) GetUserInfo(ctx context.Context, userUUID uuid.UUID) (*GetUser
 		LastAuth:          data.LastAuth,
 	}, nil
 }
+
+func (s *Service) DeleteUserData(ctx context.Context, req *DeleteUserDataReq) error {
+	if err := s.repo.DeleteUserData(ctx, req.UserUUID, req.Tx); err != nil {
+		return fmt.Errorf("auth service: delete user data: repository call: %w", err)
+	}
+	return nil
+}

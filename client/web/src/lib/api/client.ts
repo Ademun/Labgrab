@@ -77,10 +77,10 @@ class ApiClient {
 				throw createApiError(response.status, errorBody);
 			}
 
-			const isVoid = schema instanceof z.ZodVoid;
+			const acceptsUndefined = schema.safeParse(undefined).success;
 
-			if (response.status === 204) {
-				if (!isVoid) {
+			if (response.status === 204 || response.status == 201) {
+				if (!acceptsUndefined) {
 					throw new ValidationError(`Expected body but got 204 No Content for ${endpoint}`);
 				}
 				return schema.parse(undefined) as T;

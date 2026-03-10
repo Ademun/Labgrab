@@ -10,7 +10,6 @@ import (
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/codes"
 )
 
 var tracer = otel.Tracer("booking-service")
@@ -25,13 +24,8 @@ func NewService(repo *Repo, client *dikidi.Client) *Service {
 }
 
 func (s *Service) GetBookings(ctx context.Context, userUUID uuid.UUID) ([]GetBookingsRes, error) {
-	ctx, span := tracer.Start(ctx, "booking_service.get_bookings")
-	defer span.End()
-
 	bookings, err := s.repo.GetBookings(ctx, userUUID)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to get booking")
 		return nil, fmt.Errorf("booking service: get booking: repository call: %w", err)
 	}
 
@@ -53,18 +47,12 @@ func (s *Service) GetBookings(ctx context.Context, userUUID uuid.UUID) ([]GetBoo
 		}
 	}
 
-	span.SetStatus(codes.Ok, "")
 	return result, nil
 }
 
 func (s *Service) LoadClientBookings(ctx context.Context, req *LoadClientBookingsReq) error {
-	ctx, span := tracer.Start(ctx, "booking_service.load_client_bookings")
-	defer span.End()
-
 	client, err := mask.CreateClientWithCookies(&req.Cookies)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to load client booking")
 		return fmt.Errorf("booking service: load client booking: client initialization: %w", err)
 	}
 
@@ -72,8 +60,6 @@ func (s *Service) LoadClientBookings(ctx context.Context, req *LoadClientBooking
 		Session: req.Session,
 	})
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to load client booking")
 		return fmt.Errorf("booking service: load client booking: get booking: %w", err)
 	}
 
@@ -111,23 +97,15 @@ func (s *Service) LoadClientBookings(ctx context.Context, req *LoadClientBooking
 	}
 
 	if err = s.repo.LoadBookings(ctx, req.UserUUID, dbBookings); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to load client booking")
 		return fmt.Errorf("booking service: load client booking: load booking: %w", err)
 	}
 
-	span.SetStatus(codes.Ok, "")
 	return nil
 }
 
 func (s *Service) CancelClientBooking(ctx context.Context, req *CancelClientBookingReq) error {
-	ctx, span := tracer.Start(ctx, "booking_service.cancel_client_booking")
-	defer span.End()
-
 	client, err := mask.CreateClientWithCookies(&req.Cookies)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to cancel client booking")
 		return fmt.Errorf("booking service: cancel client booking: client initialization: %w", err)
 	}
 
@@ -135,8 +113,6 @@ func (s *Service) CancelClientBooking(ctx context.Context, req *CancelClientBook
 		BookingID: strconv.Itoa(req.BookingID),
 		Session:   req.Session,
 	}); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to cancel client booking")
 		return fmt.Errorf("booking service: cancel client booking: remove booking: %w", err)
 	}
 
@@ -146,18 +122,20 @@ func (s *Service) CancelClientBooking(ctx context.Context, req *CancelClientBook
 		Session:  req.Session,
 		Cookies:  req.Cookies,
 	}); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to cancel client booking")
 		return fmt.Errorf("booking service: cancel client booking: load client booking: %w", err)
 	}
 
 	return nil
 }
 
-func (s *Service) FilterSchedule(ctx context.Context, req *FilterScheduleReq) (domain.Schedule, error) {
-	ctx, span := tracer.Start(ctx, "booking_service.filter_available_slots")
-	defer span.End()
+func (s *Service) DeleteBookings(ctx context.Context, req *DeleteBookingsReq) error {
+	if err := s.repo.DeleteBookings(ctx, req.UserUUID, req.Tx); err != nil {
+		return fmt.Errorf("booking service: delete booking: repository call: %w", err)
+	}
+	return nil
+}
 
+func (s *Service) FilterSchedule(ctx context.Context, req *FilterScheduleReq) (domain.Schedule, error) {
 	schedule, err := s.repo.FilterSchedule(ctx, &DBSlotFilter{
 		UserUUID: req.UserUUID,
 		Schedule: req.Schedule,
@@ -166,11 +144,7 @@ func (s *Service) FilterSchedule(ctx context.Context, req *FilterScheduleReq) (d
 		Number:   req.Number,
 	})
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to filter schedule")
 		return nil, fmt.Errorf("booking service: filter schedule: repository call: %w", err)
 	}
-
-	span.SetStatus(codes.Ok, "")
 	return schedule, nil
 }

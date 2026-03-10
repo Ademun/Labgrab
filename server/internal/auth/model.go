@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type DBUserData struct {
@@ -62,6 +63,11 @@ type GetUserInfoRes struct {
 	DikidiPassword    string
 	ApiAuthed         bool
 	LastAuth          *time.Time
+}
+
+type DeleteUserDataReq struct {
+	UserUUID uuid.UUID
+	Tx       pgx.Tx
 }
 
 type UpdateUserDataReq struct {

@@ -85,26 +85,12 @@
 
 	// ─── Manual auth dialog ───────────────────────────────────────────────────
 	let showAuthDialog = $state(false);
-	let authCountdown = $state(5);
-	let authCountdownInterval: ReturnType<typeof setInterval> | null = null;
 
 	function openAuthDialog() {
 		showAuthDialog = true;
-		authCountdown = 5;
-		authCountdownInterval = setInterval(() => {
-			authCountdown -= 1;
-			if (authCountdown <= 0) {
-				clearInterval(authCountdownInterval!);
-				authCountdownInterval = null;
-			}
-		}, 1000);
 	}
 
 	function handleAuthCancel() {
-		if (authCountdownInterval) {
-			clearInterval(authCountdownInterval);
-			authCountdownInterval = null;
-		}
 		showAuthDialog = false;
 	}
 
@@ -118,7 +104,9 @@
 
 	const connectForm = superForm(data.connectForm!, {
 		applyAction: false,
-		onSubmit: () => { isConnectSubmitting = true; },
+		onSubmit: () => {
+			isConnectSubmitting = true;
+		},
 		onResult: async ({ result }) => {
 			isConnectSubmitting = false;
 			if (result.type === 'failure') {
@@ -138,7 +126,9 @@
 	let isUpdateSubmitting = $state(false);
 
 	const updateForm = superForm(data.updateForm!, {
-		onSubmit: () => { isUpdateSubmitting = true; },
+		onSubmit: () => {
+			isUpdateSubmitting = true;
+		},
 		onResult: async ({ result }) => {
 			isUpdateSubmitting = false;
 			if (result.type === 'failure' && result.data?.error) {
@@ -156,7 +146,7 @@
 </script>
 
 <div class="flex h-full w-full flex-col">
-	<Header title="Подключение аккаунта" back="/user" />
+	<Header title="Интеграция" back="/user" />
 
 	<div class="flex flex-1 flex-col items-center justify-center px-6 py-8">
 		<div class="w-full max-w-sm" in:fly={{ y: 16, duration: 300, delay: 60 }}>
@@ -164,7 +154,9 @@
 				<div
 					class="flex flex-col items-center gap-5 rounded-2xl border border-border/40 bg-card px-6 py-10 text-center shadow-xl"
 				>
-					<div class="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+					<div
+						class="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent"
+					></div>
 					<div class="flex flex-col gap-1">
 						<p class="text-base font-semibold">Подключение к Dikidi...</p>
 						<p class="text-sm leading-relaxed text-muted-foreground">
@@ -195,16 +187,24 @@
 							Если ошибка повторяется — проверьте введённые данные.
 						</p>
 					</div>
-					<Button variant="outline" class="w-full py-5" onclick={() => { dikidiAuthFailed = false; }}>
+					<Button
+						variant="outline"
+						class="w-full py-5"
+						onclick={() => {
+							dikidiAuthFailed = false;
+						}}
+					>
 						Попробовать снова
 					</Button>
 				</div>
 			{:else if userInfo}
 				<div class="flex flex-col gap-4">
 					<!-- Статус -->
-					<div class="flex flex-col gap-4 rounded-2xl border border-border/40 bg-card px-6 py-6 shadow-xl">
+					<div
+						class="flex flex-col gap-4 rounded-2xl border border-border/40 bg-card px-6 py-6 shadow-xl"
+					>
 						<div class="flex items-center justify-between">
-							<span class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+							<span class="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
 								Статус подключения
 							</span>
 							{#if userInfo.api_authed}
@@ -242,11 +242,7 @@
 							Система автоматически повторяет попытку авторизации каждые 10 минут.
 						</p>
 
-						<Button
-							variant="outline"
-							class="w-full py-5"
-							onclick={openAuthDialog}
-						>
+						<Button variant="outline" class="w-full py-5" onclick={openAuthDialog}>
 							<RefreshCw class="mr-2 h-4 w-4" />
 							Авторизоваться сейчас
 						</Button>
@@ -254,7 +250,7 @@
 
 					<!-- Форма обновления данных -->
 					<div class="rounded-2xl border border-border/40 bg-card px-6 py-6 shadow-xl">
-						<p class="mb-5 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+						<p class="mb-5 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
 							Обновить данные
 						</p>
 						<form method="POST" action="?/update" use:updateEnhance class="space-y-5">
@@ -294,7 +290,7 @@
 
 							<Button
 								type="submit"
-								class="w-full py-5 text-md uppercase tracking-widest font-semibold"
+								class="text-md w-full py-5 font-semibold tracking-widest uppercase"
 								disabled={isUpdateSubmitting}
 							>
 								{isUpdateSubmitting ? 'Сохранение...' : 'Сохранить'}
@@ -304,7 +300,7 @@
 				</div>
 			{:else if apiReady}
 				<div class="mb-5 flex flex-col gap-1 px-1">
-					<p class="text-md leading-relaxed text-foreground text-center">
+					<p class="text-md text-center leading-relaxed text-foreground">
 						Укажите данные от Dikidi — они хранятся в зашифрованном виде и используются только для
 						автоматической записи на лабораторные.
 					</p>
@@ -350,7 +346,7 @@
 					</form>
 
 					<Button
-						class="mt-2 w-full py-5 text-md uppercase tracking-widest font-semibold"
+						class="text-md mt-2 w-full py-5 font-semibold tracking-widest uppercase"
 						disabled={isConnectSubmitting}
 						onclick={openConnectDialog}
 					>
@@ -379,12 +375,14 @@
 	<AlertDialog.Content class="max-w-sm rounded-3xl px-6 py-8">
 		<AlertDialog.Header class="flex flex-col items-center gap-3 text-center">
 			<TriangleAlert class="h-14 w-14 text-[#FF9F0A]" strokeWidth={1.5} />
-			<AlertDialog.Title class="text-lg font-bold leading-snug">Вы уверены?</AlertDialog.Title>
+			<AlertDialog.Title class="text-lg leading-snug font-bold">Вы уверены?</AlertDialog.Title>
 			<AlertDialog.Description class="text-center text-sm leading-relaxed text-muted-foreground">
 				Продолжая, вы подтверждаете, что осознаёте риски: возможную блокировку учётной записи и
 				ответственность за нарушение пользовательского соглашения платформы.
 				<br /><br />
-				<span class="font-medium text-foreground">Сервис не несёт ответственности за последствия.</span>
+				<span class="font-medium text-foreground"
+					>Сервис не несёт ответственности за последствия.</span
+				>
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer class="mt-6 flex flex-col gap-3">
@@ -407,18 +405,16 @@
 	<AlertDialog.Content class="max-w-sm rounded-3xl px-6 py-8">
 		<AlertDialog.Header class="flex flex-col items-center gap-3 text-center">
 			<RefreshCw class="h-14 w-14 text-primary" strokeWidth={1.5} />
-			<AlertDialog.Title class="text-lg font-bold leading-snug">Авторизоваться сейчас?</AlertDialog.Title>
+			<AlertDialog.Title class="text-lg leading-snug font-bold"
+				>Авторизоваться сейчас?</AlertDialog.Title
+			>
 			<AlertDialog.Description class="text-center text-sm leading-relaxed text-muted-foreground">
 				Будет выполнена попытка авторизации в Dikidi. Это может занять до 30 секунд.
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer class="mt-6 flex flex-col gap-3">
-			<AlertDialog.Action
-				class="w-full py-5"
-				disabled={authCountdown > 0}
-				onclick={handleAuthConfirm}
-			>
-				{authCountdown > 0 ? `Продолжить (${authCountdown})` : 'Продолжить'}
+			<AlertDialog.Action class="w-full py-5" onclick={handleAuthConfirm}>
+				Продолжить
 			</AlertDialog.Action>
 			<AlertDialog.Cancel class="w-full py-5" onclick={handleAuthCancel}>
 				Отменить

@@ -76,24 +76,6 @@
 								<ChevronRight class="h-5 w-5" />
 							</a>
 						</li>
-						<li>
-							<a href="/user/blacklist" class="flex w-full items-center justify-between">
-								<span class="flex items-center gap-2">
-									<Ban class="h-5 w-5 text-[#FF3B30]" />
-									Черный список
-								</span>
-								<ChevronRight class="h-5 w-5" />
-							</a>
-						</li>
-						<li>
-							<a href="/user/stats" class="flex w-full items-center justify-between">
-								<span class="flex items-center gap-2">
-									<ChartNoAxesCombined class="h-5 w-5 text-[#34C759]" />
-									Статистика
-								</span>
-								<ChevronRight class="h-5 w-5" />
-							</a>
-						</li>
 					</ul>
 				</nav>
 

@@ -5,23 +5,25 @@ import { createUserDataRequestSchema, updateUserDataRequestSchema } from '$lib/a
 import { api } from '$lib/api/client.js';
 import { AuthError, NetworkError, ValidationError } from '$lib/api/errors.js';
 import { redirect } from '@sveltejs/kit';
+import { error } from 'console';
 
 export const load: PageServerLoad = async ({ parent, fetch }) => {
 	const { user } = await parent();
 
 	try {
 		const userInfo = await api.getUserInfo(fetch);
-
 		if (userInfo) {
 			const updateForm = await superValidate(
 				{ dikidi_phone_number: userInfo.phone_number, dikidi_password: '' },
 				zod4(updateUserDataRequestSchema)
 			);
-			return { user, userInfo, connectForm: null, updateForm };
+			const connectForm = await superValidate(zod4(createUserDataRequestSchema));
+			return { user, userInfo, connectForm, updateForm };
 		}
 
 		const connectForm = await superValidate(zod4(createUserDataRequestSchema));
-		return { user, userInfo: null, connectForm, updateForm: null };
+		const updateForm = await superValidate(zod4(updateUserDataRequestSchema));
+		return { user, userInfo: null, connectForm, updateForm };
 	} catch (e) {
 		if (e instanceof AuthError) throw redirect(303, '/auth');
 		throw e;
@@ -42,9 +44,12 @@ export const actions = {
 				fetch
 			);
 		} catch (e) {
+			console.log(e)
 			if (e instanceof AuthError) throw redirect(303, '/auth');
-			if (e instanceof ValidationError) return fail(422, { form, error: 'Неверный формат данных.' });
-			if (e instanceof NetworkError) return fail(503, { form, error: 'Сервер недоступен. Попробуйте позже.' });
+			if (e instanceof ValidationError)
+				return fail(422, { form, error: 'Неверный формат данных.' });
+			if (e instanceof NetworkError)
+				return fail(503, { form, error: 'Сервер недоступен. Попробуйте позже.' });
 			return fail(500, { form, error: 'Внутренняя ошибка сервера.' });
 		}
 
@@ -64,9 +69,12 @@ export const actions = {
 				fetch
 			);
 		} catch (e) {
+			console.log(e);
 			if (e instanceof AuthError) throw redirect(303, '/auth');
-			if (e instanceof ValidationError) return fail(422, { form, error: 'Неверный формат данных.' });
-			if (e instanceof NetworkError) return fail(503, { form, error: 'Сервер недоступен. Попробуйте позже.' });
+			if (e instanceof ValidationError)
+				return fail(422, { form, error: 'Неверный формат данных.' });
+			if (e instanceof NetworkError)
+				return fail(503, { form, error: 'Сервер недоступен. Попробуйте позже.' });
 			return fail(500, { form, error: 'Внутренняя ошибка сервера.' });
 		}
 

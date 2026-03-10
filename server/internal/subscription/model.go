@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type Status string
@@ -142,6 +143,11 @@ func (r UpdateSubscriptionDataReq) Validate() error {
 		return err
 	}
 	return nil
+}
+
+type DeleteSubscriptionsReq struct {
+	UserUUID uuid.UUID
+	Tx       pgx.Tx
 }
 
 type UserTimePreferences map[int]map[types.DayOfWeek][]domain.Lesson

@@ -8,6 +8,7 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -114,17 +115,27 @@ func (r *Repo) GetBookings(ctx context.Context, userUUID uuid.UUID) ([]DBBooking
 	return bookings, nil
 }
 
-// filterScheduleQuery is a raw CTE query because squirrel cannot express
-// lateral joins, jsonb_each, or the already_booked short-circuit pattern.
-//
-// Parameters:
-//
-//	$1 — user_uuid
-//	$2 — schedule JSON  (map[time.Time]map[Lesson][]string)
-//	$3 — lab type       (lab_type enum)
-//	$4 — lab topic      (lab_topic enum)
-//	$5 — lab number     (int)
-const filterScheduleQuery = `
+func (r *Repo) DeleteBookings(ctx context.Context, userUUID uuid.UUID, tx pgx.Tx) error {
+	query, args, err := r.sq.Delete("booking_service.bookings").
+		Where(squirrel.Eq{"user_uuid": userUUID}).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("booking repo: delete bookings: exec delete query: %w", err)
+	}
+
+	if _, err = tx.Exec(ctx, query, args...); err != nil {
+		return fmt.Errorf("booking repo: delete bookings: exec delete query: %w", err)
+	}
+	return nil
+}
+
+func (r *Repo) FilterSchedule(ctx context.Context, filter *DBSlotFilter) (domain.Schedule, error) {
+	slotsJSON, err := convertScheduleToJSON(filter.Schedule)
+	if err != nil {
+		return nil, fmt.Errorf("booking repo: filter schedule: convert schedule to json: %w", err)
+	}
+
+	query := `
 WITH already_booked AS (
     SELECT EXISTS(
         SELECT 1
@@ -176,14 +187,8 @@ SELECT jsonb_object_agg(time, lessons_map) AS result
 FROM grouped
 `
 
-func (r *Repo) FilterSchedule(ctx context.Context, filter *DBSlotFilter) (domain.Schedule, error) {
-	slotsJSON, err := convertScheduleToJSON(filter.Schedule)
-	if err != nil {
-		return nil, fmt.Errorf("booking repo: filter schedule: convert schedule to json: %w", err)
-	}
-
 	var raw []byte
-	if err = r.pool.QueryRow(ctx, filterScheduleQuery,
+	if err = r.pool.QueryRow(ctx, query,
 		filter.UserUUID,
 		slotsJSON,
 		filter.Type,

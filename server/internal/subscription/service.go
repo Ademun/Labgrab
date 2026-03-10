@@ -358,3 +358,10 @@ func (s *Service) CloseSubscription(ctx context.Context, subscriptionUUID uuid.U
 	span.SetStatus(codes.Ok, "")
 	return nil
 }
+
+func (s *Service) DeleteSubscriptions(ctx context.Context, req *DeleteSubscriptionsReq) error {
+	if err := s.repo.DeleteSubscriptions(ctx, req.UserUUID, req.Tx); err != nil {
+		return fmt.Errorf("subscription service: delete subscriptions: repository call: %w", err)
+	}
+	return nil
+}

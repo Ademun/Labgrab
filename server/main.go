@@ -211,7 +211,7 @@ func initHTTPServer(cfg *config.Config, pool *pgxpool.Pool, services *Services, 
 	r := mux.NewRouter()
 
 	log.Info("Setting up user domain routes")
-	userHandler := api_user.NewHandler(services.Auth, services.User, log)
+	userHandler := api_user.NewHandler(services.Auth, services.User, services.Booking, services.Subscription, pool, log)
 	userHandler.RegisterRoutes(r)
 	log.Info("Finished setting up user domain routes")
 
