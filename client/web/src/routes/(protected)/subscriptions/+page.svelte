@@ -26,6 +26,7 @@
 	const labTypes = $derived(data.config.lab_types);
 	const labTopics = $derived(data.config.lab_topics);
 	const user = $derived(data.user);
+	const apiAuthed = $derived(data.apiAuthed);
 
 	$effect(() => {
 		subscriptions = data.subs;
@@ -194,6 +195,7 @@
 									{subscription}
 									{labTypes}
 									{labTopics}
+									{apiAuthed}
 									bind:isEditDialogOpen
 									{onEditDialogOpen}
 									{onPaused}

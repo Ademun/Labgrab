@@ -11,9 +11,15 @@ import {
 } from '$lib/api/errors.js';
 import { redirect } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async () => {
-	const form = await superValidate(zod4(createSubscriptionRequestSchema));
-	return { form };
+export const load: PageServerLoad = async ({ fetch }) => {
+	const [form, userInfo] = await Promise.all([
+		superValidate(zod4(createSubscriptionRequestSchema)),
+		api.getUserInfo(fetch)
+	]);
+
+	const apiAuthed = userInfo?.api_authed ?? false;
+
+	return { form, apiAuthed };
 };
 
 export const actions = {

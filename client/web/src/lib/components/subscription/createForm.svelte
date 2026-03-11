@@ -16,11 +16,13 @@
 	let {
 		form,
 		isSubmitting,
+		apiAuthed,
 		labTypes,
 		labTopics
 	}: {
 		form: SuperForm<CreateSubscriptionRequest>;
 		isSubmitting: boolean;
+		apiAuthed: boolean;
 		labTypes: LabType[];
 		labTopics: LabTopic[];
 	} = $props();
@@ -48,6 +50,12 @@
 	$effect(() => {
 		if (needsAuditorium && $formData.lab_auditorium !== undefined) {
 			$formData.lab_auditorium = undefined;
+		}
+	});
+
+	$effect(() => {
+		if (!apiAuthed && $formData.auto_enroll) {
+			$formData.auto_enroll = false;
 		}
 	});
 </script>
@@ -160,13 +168,25 @@
 		<Form.Field {form} name="auto_enroll">
 			<Form.Control>
 				{#snippet children({ props })}
-					<div class="flex items-start gap-3">
-						<Checkbox {...props} disabled={isSubmitting} id="auto_enroll" class="mt-1" />
+					<div class="flex items-start gap-3" class:opacity-50={!apiAuthed}>
+						<Checkbox
+							{...props}
+							disabled={isSubmitting || !apiAuthed}
+							id="auto_enroll"
+							class="mt-1"
+							bind:checked={$formData.auto_enroll}
+						/>
 						<div class="grid gap-1">
 							<Label for="auto_enroll" class="text-md">Автоматическая запись</Label>
-							<p class="text-left text-muted-foreground">
-								Система автоматически запишет вас когда появится свободное место
-							</p>
+							{#if apiAuthed}
+								<p class="text-left text-muted-foreground">
+									Система автоматически запишет вас когда появится свободное место
+								</p>
+							{:else}
+								<p class="text-left text-xs text-muted-foreground">
+									Требуется активная авторизация в Dikidi
+								</p>
+							{/if}
 						</div>
 					</div>
 				{/snippet}

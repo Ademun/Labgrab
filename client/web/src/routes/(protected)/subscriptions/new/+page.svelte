@@ -22,6 +22,7 @@
 
 	const labTypes = $derived(data.config.lab_types);
 	const labTopics = $derived(data.config.lab_topics);
+	const apiAuthed = $derived(data.apiAuthed);
 </script>
 
 <div class="flex h-full w-full flex-col">
@@ -30,7 +31,7 @@
 	<div class="flex flex-1 flex-col items-center px-6 py-8">
 		<div class="w-full max-w-sm">
 			<div class="rounded-2xl border border-border/40 bg-card px-6 py-6 shadow-xl">
-				<CreateForm {form} {isSubmitting} {labTypes} {labTopics} />
+				<CreateForm {form} {isSubmitting} {labTypes} {labTopics} {apiAuthed} />
 			</div>
 		</div>
 	</div>

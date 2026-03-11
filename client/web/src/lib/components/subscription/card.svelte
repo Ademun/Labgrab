@@ -20,6 +20,7 @@
 		subscription,
 		labTypes,
 		labTopics,
+		apiAuthed,
 		isEditDialogOpen = $bindable(),
 		onEditDialogOpen,
 		onPaused,
@@ -32,6 +33,7 @@
 		subscription: SubscriptionResponse;
 		labTypes: LabType[];
 		labTopics: LabTopic[];
+		apiAuthed: boolean;
 		isEditDialogOpen: boolean;
 		onEditDialogOpen: (sub: SubscriptionResponse) => void;
 		onPaused: (uuid: string) => void;
@@ -165,13 +167,21 @@
 							<input type="hidden" name="uuid" value={$editFormData.uuid} />
 
 							<div class="flex flex-col gap-6">
-								<div class="flex items-start gap-3">
+								<div class="flex items-start gap-3" class:opacity-50={!apiAuthed}>
 									<Checkbox
 										id="auto-enroll"
 										name="auto_enroll"
+										disabled={!apiAuthed}
 										bind:checked={$editFormData.auto_enroll}
 									/>
-									<Label for="auto-enroll">Автоматическая запись</Label>
+									<div class="grid gap-1">
+										<Label for="auto-enroll">Автоматическая запись</Label>
+										{#if !apiAuthed}
+											<p class="text-xs text-muted-foreground">
+												Требуется активная авторизация в Dikidi
+											</p>
+										{/if}
+									</div>
 								</div>
 								<div class="flex items-start gap-3">
 									<Checkbox id="any-date" name="any_date" bind:checked={$editFormData.any_date} />

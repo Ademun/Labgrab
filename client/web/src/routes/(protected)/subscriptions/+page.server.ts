@@ -13,18 +13,22 @@ import {
 import { redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ parent, fetch }) => {
-	const [subs, editForm] = await Promise.all([
+	const { user } = await parent();
+
+	const [subs, editForm, userInfo] = await Promise.all([
 		api.getSubscriptions(fetch),
-		superValidate(zod4(editSubscriptionRequestSchema))
+		superValidate(zod4(editSubscriptionRequestSchema)),
+		api.getUserInfo(fetch)
 	]);
 
+	const apiAuthed = userInfo?.api_authed ?? false;
+
 	let bookings = undefined;
-	const { user } = await parent();
 	if (user.api_ready) {
 		bookings = await api.getBookings(fetch);
 	}
 
-	return { subs, bookings, editForm };
+	return { subs, bookings, editForm, apiAuthed };
 };
 
 export const actions = {
