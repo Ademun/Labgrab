@@ -335,6 +335,7 @@ matching_subscriptions AS (
             bool_or(
                 tp.day_of_week = ase.weekday::day_of_week
                 AND ase.lesson = ANY(tp.lessons)
+				AND (2 - ABS(EXTRACT(WEEK from ase.time) % 2 - 1)) = tp.week_number
             ) as is_overlap
         FROM subscription_service.time_preferences tp
         WHERE tp.user_uuid = s.user_uuid
