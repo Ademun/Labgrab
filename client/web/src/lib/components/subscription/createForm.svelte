@@ -28,7 +28,7 @@
 	// svelte-ignore state_referenced_locally
 	let { form: formData, enhance } = form;
 
-	const needsAuditorium = $derived(() => {
+	const needsAuditorium = $derived.by(() => {
 		const type = labTypes.find((t) => t.id === $formData.lab_type);
 		return type?.needs_auditorium ?? false;
 	});
@@ -46,7 +46,7 @@
 	});
 
 	$effect(() => {
-		if (!needsAuditorium() && $formData.lab_auditorium !== undefined) {
+		if (needsAuditorium && $formData.lab_auditorium !== undefined) {
 			$formData.lab_auditorium = undefined;
 		}
 	});
@@ -130,7 +130,7 @@
 			</Form.Control>
 			<Form.FieldErrors />
 		</Form.Field>
-		{#if needsAuditorium()}
+		{#if needsAuditorium}
 			<Form.Field {form} name="lab_auditorium">
 				<Form.Control>
 					{#snippet children({ props })}

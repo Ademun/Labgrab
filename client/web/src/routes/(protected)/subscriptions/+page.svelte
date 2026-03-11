@@ -20,7 +20,6 @@
 	let { data } = $props();
 	let subscriptions = $state<SubscriptionResponseArray>(data.subs);
 	let bookings = $state<BookingArray | undefined>(data.bookings);
-	let isLoading = $state(false);
 	let isEditDialogOpen = $state(false);
 	let currentEditingUuid = $state<string | null>(null);
 
@@ -167,11 +166,7 @@
 				<div class="mb-4 flex items-center" in:fly={{ y: -6, duration: 200 }}>
 					<span class="text-muted-foreground">
 						<span class="font-bold text-primary">
-							{#if isLoading}
-								<Spinner />
-							{:else}
-								{subscriptions.length}
-							{/if}
+							{subscriptions.length}
 						</span>
 						ПОДПИСОК
 					</span>
@@ -180,9 +175,7 @@
 				<hr class="mb-6 w-full" />
 
 				<div class="flex flex-col items-center gap-12">
-					{#if isLoading}
-						<Spinner />
-					{:else if subscriptions.length === 0}
+					{#if subscriptions.length === 0}
 						<div class="py-12 text-center" in:fade={{ duration: 280, delay: 100 }}>
 							<p class="mb-2 text-lg text-muted-foreground">У вас пока нет активных подписок</p>
 							<p class="text-sm text-muted-foreground">

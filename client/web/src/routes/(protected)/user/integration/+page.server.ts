@@ -5,7 +5,6 @@ import { createUserDataRequestSchema, updateUserDataRequestSchema } from '$lib/a
 import { api } from '$lib/api/client.js';
 import { AuthError, NetworkError, ValidationError } from '$lib/api/errors.js';
 import { redirect } from '@sveltejs/kit';
-import { error } from 'console';
 
 export const load: PageServerLoad = async ({ parent, fetch }) => {
 	const { user } = await parent();

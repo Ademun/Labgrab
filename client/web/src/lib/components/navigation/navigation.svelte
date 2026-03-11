@@ -36,7 +36,7 @@
 					'transition-colors duration-200 hover:bg-accent hover:text-primary',
 					active ? 'text-primary' : 'mb-1 text-accent-foreground'
 				)}
-				on:click={() => handleNavClick(item.href)}
+				onclick={() => handleNavClick(item.href)}
 			>
 				<span class={cn('transition-transform duration-200', active ? 'scale-110' : 'scale-100')}>
 					<svelte:component this={item.icon} class="h-6 w-6" />

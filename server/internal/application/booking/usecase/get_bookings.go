@@ -48,6 +48,7 @@ func (uc *GetBookingsUsecase) Exec(ctx context.Context, session string) ([]dto.G
 	dtoBookings := make([]dto.GetBookingsResDTO, len(bookings))
 	for i, b := range bookings {
 		dtoBookings[i] = dto.GetBookingsResDTO{
+			ID:         b.Data.ID,
 			Type:       string(b.Data.Type),
 			Topic:      string(b.Data.Topic),
 			Number:     b.Data.Number,

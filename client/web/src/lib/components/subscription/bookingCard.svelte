@@ -45,7 +45,7 @@
 		showCancelDialog = false;
 		isCancelling = true;
 		try {
-			await api.cancelBooking(booking.number);
+			await api.cancelBooking(booking.id);
 			onCancelled?.(booking.number);
 		} catch (e) {
 			toast.error(getErrorMessage(e));
