@@ -82,7 +82,6 @@ func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
 
 	var collected error
 	for err := range errCh {
-		fmt.Println(err)
 		collected = errors.Join(collected, err)
 	}
 
