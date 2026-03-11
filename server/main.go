@@ -7,6 +7,7 @@ import (
 	api_auth "labgrab/internal/application/auth"
 	api_booking "labgrab/internal/application/booking"
 	api_event "labgrab/internal/application/event"
+	api_health "labgrab/internal/application/health"
 	api_subscription "labgrab/internal/application/subscription"
 	api_user "labgrab/internal/application/user"
 	"labgrab/internal/application/web"
@@ -20,7 +21,6 @@ import (
 	"labgrab/internal/user"
 	"labgrab/pkg/config"
 	"labgrab/pkg/logger"
-	"labgrab/pkg/tracer"
 	"net/http"
 	"os"
 	"os/signal"
@@ -43,17 +43,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to load config", "error", err)
 	}
-
-	tp, err := tracer.Init(ctx, &cfg.InfraConfig.OpenTelemetryConfig)
-	if err != nil {
-		log.Fatal("Failed to initialize tracer", "error", err)
-	}
-
-	defer func() {
-		if err := tp.Shutdown(ctx); err != nil {
-			log.Fatal("Failed to shutdown tracer", "error", err)
-		}
-	}()
 
 	log.Info("Initializing infrastructure")
 	pool, cache, err := initInfrastructure(ctx, cfg, log)
@@ -235,6 +224,8 @@ func initHTTPServer(cfg *config.Config, pool *pgxpool.Pool, services *Services, 
 
 	bookingHandler := api_booking.NewHandler(services.Booking, services.Auth, log)
 	bookingHandler.RegisterRoutes(r)
+
+	api_health.RegisterRoutes(r)
 
 	server := &http.Server{
 		Addr:    "127.0.0.1:8080",

@@ -6,13 +6,7 @@ import (
 	"labgrab/internal/shared/api/dikidi"
 	"labgrab/internal/shared/mask"
 	"labgrab/internal/shared/sanitizing"
-
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 )
-
-var tracer = otel.Tracer("event-service")
 
 type Service struct {
 	client *dikidi.Client
@@ -25,15 +19,8 @@ func NewService(client *dikidi.Client) *Service {
 }
 
 func (s *Service) Enroll(ctx context.Context, req *EnrollmentReq) (int, error) {
-	ctx, span := tracer.Start(ctx, "event_service.enroll")
-	defer span.End()
-
-	span.SetAttributes(attribute.String("user.uuid", req.UserUUID.String()))
-
 	client, err := mask.CreateClientWithCookies(&req.Cookies)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to create http client with cookies")
 		return 0, fmt.Errorf("event service: enroll: create http client with cookies: %w", err)
 	}
 
@@ -45,8 +32,6 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollmentReq) (int, error) {
 		Session:    req.Session,
 	})
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to acquire time reservation")
 		return 0, fmt.Errorf("event service: enroll: acquire time reservation: %w", err)
 	}
 
@@ -66,8 +51,6 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollmentReq) (int, error) {
 		LastName:   req.Surname,
 		Comments:   req.Group,
 	}); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to check enrollment")
 		return 0, fmt.Errorf("event service: enroll: check enrollment: %w", err)
 	}
 
@@ -80,8 +63,6 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollmentReq) (int, error) {
 		Time:       refererTime,
 		Session:    req.Session,
 	}); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to get reservation info")
 		return 0, fmt.Errorf("event service: enroll: get reservation info: %w", err)
 	}
 
@@ -99,28 +80,20 @@ func (s *Service) Enroll(ctx context.Context, req *EnrollmentReq) (int, error) {
 		Comments:  req.Group,
 	})
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to create booking")
 		return 0, fmt.Errorf("event service: enroll: create booking: %w", err)
 	}
 
-	span.SetStatus(codes.Ok, "")
 	return recordID, nil
 }
 
 func (s *Service) GetCurrentEvents(ctx context.Context, clientCookies *string) (chan *GetEventsRes, error) {
-	ctx, span := tracer.Start(ctx, "event_service.get_current_events")
-
 	client, err := mask.CreateClientWithCookies(clientCookies)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to create http client with cookies")
 		return nil, fmt.Errorf("event service: get current events: create http client: %w", err)
 	}
 
 	ch := make(chan *GetEventsRes)
 	go func() {
-		defer span.End()
 		for event := range s.client.GetEventStream(ctx, client) {
 			ch <- &GetEventsRes{
 				Data: event.Event,
@@ -130,27 +103,17 @@ func (s *Service) GetCurrentEvents(ctx context.Context, clientCookies *string) (
 		close(ch)
 	}()
 
-	span.SetStatus(codes.Ok, "")
 	return ch, nil
 }
 
 func (s *Service) UpdateServiceIDs(ctx context.Context, clientCookies *string) error {
-	ctx, span := tracer.Start(ctx, "event_service.update_service_ids")
-	defer span.End()
-
 	client, err := mask.CreateClientWithCookies(clientCookies)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to create http client with cookies")
 		return fmt.Errorf("event service: update service ids: create http client: %w", err)
 	}
 
 	if err := s.client.UpdateServiceIDs(ctx, client); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to update service ids")
 		return fmt.Errorf("event service: update service ids: client call: %w", err)
 	}
-
-	span.SetStatus(codes.Ok, "")
 	return nil
 }

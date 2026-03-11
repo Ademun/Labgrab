@@ -9,10 +9,7 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel"
 )
-
-var tracer = otel.Tracer("booking-service")
 
 type Service struct {
 	repo   *Repo

@@ -4,11 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 )
-
-var tracer = otel.Tracer("web-handler")
 
 type Handler struct {
 	logger *zap.SugaredLogger
