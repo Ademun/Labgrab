@@ -53,6 +53,7 @@ func NewScheduler(
 
 func (s *Scheduler) Start(ctx context.Context) error {
 	s.UpdateServiceIDs(ctx)
+	s.ProcessNewEvents(ctx)
 	scheduler, err := gocron.NewScheduler()
 	if err != nil {
 		return err

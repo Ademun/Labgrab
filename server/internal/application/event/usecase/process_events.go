@@ -101,6 +101,7 @@ func (uc *ProcessEventsUsecase) eventWorker(
 	errCh chan<- error,
 ) {
 	for e := range events {
+		fmt.Println(e)
 		if e.Err != nil {
 			errCh <- fmt.Errorf("event usecase: event worker: event error: %w", e.Err)
 			continue
