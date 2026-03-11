@@ -73,8 +73,8 @@ export const createSubscriptionResponseSchema = z.object({
 
 export type CreateSubscriptionResponse = z.infer<typeof createSubscriptionResponseSchema>;
 
-export const timePreferencesResponseSchema = z.object({
-	preferences: z.preprocess(
+export const timeRestrictionsResponseSchema = z.object({
+	restrictions: z.preprocess(
 		(val) => {
 			if (val instanceof Map) return val;
 			return new Map(
@@ -88,13 +88,13 @@ export const timePreferencesResponseSchema = z.object({
 	)
 });
 
-export type TimePreferencesResponse = z.infer<typeof timePreferencesResponseSchema>;
+export type TimeRestrcitionsResponse = z.infer<typeof timeRestrictionsResponseSchema>;
 
-export const setTimePreferencesRequestSchema = z.object({
-	preferences: z.record(z.coerce.number(), z.record(DayOfWeekEnum, z.array(z.number())))
+export const setTimeRestrictionsRequestSchema = z.object({
+	restrictions: z.record(z.coerce.number(), z.record(DayOfWeekEnum, z.array(z.number())))
 });
 
-export type SetTimePreferencesRequest = z.infer<typeof setTimePreferencesRequestSchema>;
+export type SetTimeRestrictionsRequest = z.infer<typeof setTimeRestrictionsRequestSchema>;
 
 export const teacherPrefencesSchema = z.object({
 	preferences: z.array(z.string())

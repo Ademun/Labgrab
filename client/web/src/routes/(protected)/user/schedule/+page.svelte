@@ -16,8 +16,8 @@
 	const dayOfWeeks = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
 	const weekNumbers = [1, 2];
 
-	const initialHash = $derived(hashPrefs(data.preferences));
-	let selected = $state(prefsToSet(data.preferences));
+	const initialHash = $derived(hashPrefs(data.restrictions));
+	let selected = $state(prefsToSet(data.restrictions));
 
 	const isChanged = $derived(hashPrefs(setToPrefs(selected)) !== initialHash);
 
@@ -50,7 +50,7 @@
 	async function save() {
 		const payload = prefsToJson(setToPrefs(selected));
 		try {
-			await api.setTimePreferences({ preferences: payload });
+			await api.setTimeRestrictions({ restrictions: payload });
 			await invalidateAll();
 		} catch (e) {
 			toast.error(getErrorMessage(e));

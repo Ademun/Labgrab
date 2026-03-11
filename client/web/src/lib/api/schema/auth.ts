@@ -21,7 +21,6 @@ export type CreateUserDataRequest = z.infer<typeof createUserDataRequestSchema>;
 
 export const getUserInfoResponseSchema = z.object({
 	phone_number: z.string(),
-	password: z.string(),
 	api_authed: z.boolean(),
 	last_auth: z.nullish(z.string()),
 })
