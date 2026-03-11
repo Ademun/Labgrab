@@ -179,49 +179,28 @@ func (s *Service) UpdateSubscription(ctx context.Context, req *UpdateSubscriptio
 	return nil
 }
 
-func (s *Service) GetTimePreferences(ctx context.Context, userUUID uuid.UUID) (UserTimePreferences, error) {
-	ctx, span := tracer.Start(ctx, "subscription_service.get_time_preferences")
-	defer span.End()
-
-	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
-
-	dbPrefs, err := s.repo.GetTimePreferences(ctx, userUUID)
+func (s *Service) GetTimeRestrictions(ctx context.Context, userUUID uuid.UUID) (UserTimeRestrictions, error) {
+	dbRest, err := s.repo.GetTimeRestrictions(ctx, userUUID)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to get time preferences")
-		return nil, fmt.Errorf("subscription service: get time preferences: repository call: %w", err)
+		return nil, fmt.Errorf("subscription service: get time restrictions: repository call: %w", err)
 	}
 
-	userPrefs := make(UserTimePreferences)
-	for _, pref := range dbPrefs {
-		if _, exists := userPrefs[pref.WeekNumber]; !exists {
-			userPrefs[pref.WeekNumber] = make(map[types.DayOfWeek][]domain.Lesson)
+	userRest := make(UserTimeRestrictions)
+	for _, pref := range dbRest {
+		if _, exists := userRest[pref.WeekNumber]; !exists {
+			userRest[pref.WeekNumber] = make(map[types.DayOfWeek][]domain.Lesson)
 		}
-		userPrefs[pref.WeekNumber][pref.DayOfWeek] = pref.Lessons
+		userRest[pref.WeekNumber][pref.DayOfWeek] = pref.Lessons
 	}
 
-	span.SetAttributes(
-		attribute.Int("preferences.weeks_count", len(userPrefs)),
-		attribute.Int("preferences.records_count", len(dbPrefs)),
-	)
-	span.SetStatus(codes.Ok, "")
-
-	return userPrefs, nil
+	return userRest, nil
 }
 
-func (s *Service) SetTimePreferences(ctx context.Context, userUUID uuid.UUID, preferences UserTimePreferences) error {
-	ctx, span := tracer.Start(ctx, "subscription_service.set_time_preferences")
-	defer span.End()
-
-	span.SetAttributes(
-		attribute.String("user.uuid", userUUID.String()),
-		attribute.Int("preferences.weeks_count", len(preferences)),
-	)
-
-	var dbPrefs []DBTimePreferences
-	for weekNumber, weekPrefs := range preferences {
-		for dayOfWeek, lessons := range weekPrefs {
-			dbPrefs = append(dbPrefs, DBTimePreferences{
+func (s *Service) SetTimeRestrictions(ctx context.Context, userUUID uuid.UUID, restrictions UserTimeRestrictions) error {
+	var dbRest []DBTimeRestrictions
+	for weekNumber, weekRest := range restrictions {
+		for dayOfWeek, lessons := range weekRest {
+			dbRest = append(dbRest, DBTimeRestrictions{
 				UserUUID:   userUUID,
 				WeekNumber: weekNumber,
 				DayOfWeek:  dayOfWeek,
@@ -230,15 +209,10 @@ func (s *Service) SetTimePreferences(ctx context.Context, userUUID uuid.UUID, pr
 		}
 	}
 
-	span.SetAttributes(attribute.Int("preferences.records_count", len(dbPrefs)))
-
-	if err := s.repo.SetTimePreferences(ctx, userUUID, dbPrefs); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to set time preferences")
-		return fmt.Errorf("subscription service: set time preferences: repository call: %w", err)
+	if err := s.repo.SetTimeRestrictions(ctx, userUUID, dbRest); err != nil {
+		return fmt.Errorf("subscription service: set time restrictions: repository call: %w", err)
 	}
 
-	span.SetStatus(codes.Ok, "")
 	return nil
 }
 

@@ -257,6 +257,9 @@ func (uc *ProcessEventsUsecase) userWorker(
 	errCh chan<- error,
 ) {
 	for task := range tasks {
+		if task.userInfo.Name == nil || task.userInfo.Surname == nil || task.userInfo.Patronymic == nil || task.userInfo.GroupCode == nil {
+			continue
+		}
 		sub, err := uc.SubscriptionSvc.GetSubscription(ctx, task.sub.SubscriptionUUID)
 		if err != nil {
 			errCh <- fmt.Errorf("event usecase: user worker: get subscription: %w", err)

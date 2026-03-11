@@ -197,6 +197,11 @@ func initServices(
 		return nil, fmt.Errorf("failed to start event scheduler: %w", err)
 	}
 
+	authScheduler := api_auth.NewScheduler(authService, logger)
+	if err := authScheduler.Start(ctx); err != nil {
+		return nil, fmt.Errorf("failed to start auth scheduler: %w", err)
+	}
+
 	return &Services{
 		Subscription: subscriptionService,
 		User:         userService,

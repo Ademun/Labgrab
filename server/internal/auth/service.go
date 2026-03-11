@@ -398,19 +398,8 @@ func (s *Service) GetUserInfo(ctx context.Context, userUUID uuid.UUID) (*GetUser
 		return nil, fmt.Errorf("auth service: get user info: get user data: %w", err)
 	}
 
-	rawDEK, err := s.DecryptDEK(data.DEK, data.UserUUID)
-	if err != nil {
-		return nil, fmt.Errorf("auth service: get user info: decrypt dek: %w", err)
-	}
-
-	password, err := decryptWithDEK(data.DikidiPassword, rawDEK)
-	if err != nil {
-		return nil, fmt.Errorf("auth service: get user info: decrypt password: %w", err)
-	}
-
 	return &GetUserInfoRes{
 		DikidiPhoneNumber: data.DikidiPhoneNumber,
-		DikidiPassword:    password,
 		ApiAuthed:         data.ApiAuthed,
 		LastAuth:          data.LastAuth,
 	}, nil

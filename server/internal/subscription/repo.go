@@ -161,18 +161,18 @@ func (r *Repo) UpdateSubscription(ctx context.Context, sub *DBSubscription) erro
 	return nil
 }
 
-func (r *Repo) GetTimePreferences(ctx context.Context, userUUID uuid.UUID) ([]DBTimePreferences, error) {
+func (r *Repo) GetTimeRestrictions(ctx context.Context, userUUID uuid.UUID) ([]DBTimeRestrictions, error) {
 	query, args, err := r.sq.Select(
 		"user_uuid",
 		"week_number",
 		"day_of_week",
 		"lessons",
 	).
-		From("subscription_service.time_preferences").
+		From("subscription_service.time_restrictions").
 		Where(squirrel.Eq{"user_uuid": userUUID}).
 		ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("subscription repo: get time preferences: build query: %w", err)
+		return nil, fmt.Errorf("subscription repo: get time restrictions: build query: %w", err)
 	}
 
 	rows, err := r.pool.Query(ctx, query, args...)
@@ -181,49 +181,49 @@ func (r *Repo) GetTimePreferences(ctx context.Context, userUUID uuid.UUID) ([]DB
 	}
 	defer rows.Close()
 
-	var preferences []DBTimePreferences
+	var restrictions []DBTimeRestrictions
 	for rows.Next() {
-		var pref DBTimePreferences
+		var rest DBTimeRestrictions
 		if err = rows.Scan(
-			&pref.UserUUID,
-			&pref.WeekNumber,
-			&pref.DayOfWeek,
-			&pref.Lessons,
+			&rest.UserUUID,
+			&rest.WeekNumber,
+			&rest.DayOfWeek,
+			&rest.Lessons,
 		); err != nil {
-			return nil, fmt.Errorf("subscription repo: get time preferences: scan rows: %w", err)
+			return nil, fmt.Errorf("subscription repo: get time restrictions: scan rows: %w", err)
 		}
-		preferences = append(preferences, pref)
+		restrictions = append(restrictions, rest)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("subscription repo: get time preferences: rows error: %w", err)
+		return nil, fmt.Errorf("subscription repo: get time restrictions: rows error: %w", err)
 	}
 
-	return preferences, nil
+	return restrictions, nil
 }
 
-func (r *Repo) SetTimePreferences(ctx context.Context, userUUID uuid.UUID, preferences []DBTimePreferences) error {
+func (r *Repo) SetTimeRestrictions(ctx context.Context, userUUID uuid.UUID, preferences []DBTimeRestrictions) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("subscription repo: set time preferences: begin tx: %w", err)
+		return fmt.Errorf("subscription repo: set time restrictions: begin tx: %w", err)
 	}
 
-	deleteQuery, deleteArgs, err := r.sq.Delete("subscription_service.time_preferences").
+	deleteQuery, deleteArgs, err := r.sq.Delete("subscription_service.time_restrictions").
 		Where(squirrel.Eq{"user_uuid": userUUID}).
 		ToSql()
 	if err != nil {
 		tx.Rollback(ctx)
-		return fmt.Errorf("subscription repo: set time preferences: build delete query: %w", err)
+		return fmt.Errorf("subscription repo: set time restrictions: build delete query: %w", err)
 	}
 
 	_, err = tx.Exec(ctx, deleteQuery, deleteArgs...)
 	if err != nil {
 		tx.Rollback(ctx)
-		return fmt.Errorf("subscription repo: set time preferences: exec delete query: %w", err)
+		return fmt.Errorf("subscription repo: set time restrictions: exec delete query: %w", err)
 	}
 
 	if len(preferences) > 0 {
-		insertBuilder := r.sq.Insert("subscription_service.time_preferences").
+		insertBuilder := r.sq.Insert("subscription_service.time_restrictions").
 			Columns("user_uuid", "week_number", "day_of_week", "lessons")
 
 		for _, pref := range preferences {
@@ -233,18 +233,18 @@ func (r *Repo) SetTimePreferences(ctx context.Context, userUUID uuid.UUID, prefe
 		insertQuery, insertArgs, err := insertBuilder.ToSql()
 		if err != nil {
 			tx.Rollback(ctx)
-			return fmt.Errorf("subscription repo: set time preferences: build insert query: %w", err)
+			return fmt.Errorf("subscription repo: set time restrictions: build insert query: %w", err)
 		}
 
 		_, err = tx.Exec(ctx, insertQuery, insertArgs...)
 		if err != nil {
 			tx.Rollback(ctx)
-			return fmt.Errorf("subscription repo: set time preferences: exec insert query: %w", err)
+			return fmt.Errorf("subscription repo: set time restrictions: exec insert query: %w", err)
 		}
 	}
 
 	if err = tx.Commit(ctx); err != nil {
-		return fmt.Errorf("subscription repo: set time preferences: commit tx: %w", err)
+		return fmt.Errorf("subscription repo: set time restrictions: commit tx: %w", err)
 	}
 
 	return nil
@@ -333,12 +333,12 @@ matching_subscriptions AS (
         SELECT 
             true as has_any,
             bool_or(
-                tp.day_of_week = ase.weekday::day_of_week
-                AND ase.lesson = ANY(tp.lessons)
-				AND (2 - ABS(EXTRACT(WEEK from ase.time) % 2 - 1)) = tp.week_number
+                tr.day_of_week = ase.weekday::day_of_week
+                AND ase.lesson = ANY(tr.lessons)
+				AND (2 - ABS(EXTRACT(WEEK from ase.time) % 2 - 1)) = tr.week_number
             ) as is_overlap
-        FROM subscription_service.time_preferences tp
-        WHERE tp.user_uuid = s.user_uuid
+        FROM subscription_service.time_restrictions tr
+        WHERE tr.user_uuid = s.user_uuid
         HAVING count(*) > 0 
     ) pref ON TRUE
     LEFT JOIN subscription_service.teacher_preferences teachp 

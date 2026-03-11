@@ -5,12 +5,12 @@ import (
 	"labgrab/internal/shared/types"
 )
 
-type GetTimePreferencesResDTO struct {
-	Preferences map[int]map[types.DayOfWeek][]domain.Lesson `json:"preferences"`
+type GetTimeRestrictionsResDTO struct {
+	Restrictions map[int]map[types.DayOfWeek][]domain.Lesson `json:"restrictions"`
 }
 
-type SetTimePreferencesReqDTO struct {
-	Preferences map[int]map[types.DayOfWeek][]domain.Lesson `json:"preferences"`
+type SetTimeRestrictionsReqDTO struct {
+	Restrictions map[int]map[types.DayOfWeek][]domain.Lesson `json:"restrictions"`
 }
 
 type GetTeacherPreferencesResDTO struct {

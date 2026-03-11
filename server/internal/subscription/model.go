@@ -34,8 +34,8 @@ type DBSubscription struct {
 	UserUUID         uuid.UUID       `db:"user_uuid"`
 }
 
-// DBTimePreferences subscription_service.time_preferences
-type DBTimePreferences struct {
+// DBTimeRestrictions subscription_service.time_restrictions
+type DBTimeRestrictions struct {
 	WeekNumber int             `db:"week_number"`
 	DayOfWeek  types.DayOfWeek `db:"day_of_week"`
 	Lessons    []domain.Lesson `db:"lessons"`
@@ -150,7 +150,7 @@ type DeleteSubscriptionsReq struct {
 	Tx       pgx.Tx
 }
 
-type UserTimePreferences map[int]map[types.DayOfWeek][]domain.Lesson
+type UserTimeRestrictions map[int]map[types.DayOfWeek][]domain.Lesson
 
 type UserTeacherPreferences []string
 

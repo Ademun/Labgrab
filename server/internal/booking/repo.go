@@ -37,6 +37,12 @@ func (r *Repo) LoadBookings(ctx context.Context, userUUID uuid.UUID, data []DBBo
 		return fmt.Errorf("booking repo: load bookings: exec delete query: %w", err)
 	}
 
+	if len(data) == 0 {
+		if err := tx.Commit(ctx); err != nil {
+			return fmt.Errorf("booking repo: load bookings: commit tx: %w", err)
+		}
+		return nil
+	}
 	builder := r.sq.Insert("booking_service.bookings").
 		Columns("booking_id", "type", "topic", "number", "auditorium", "spot", "lesson", "start_time", "end_time", "status", "user_uuid")
 

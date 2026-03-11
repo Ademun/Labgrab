@@ -142,7 +142,7 @@ func (h *Handler) GetUserInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UpdateUserData(w http.ResponseWriter, r *http.Request) {
-	var req dto.CreateUserDataReqDTO
+	var req dto.UpdateUserDataReqDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.logger.Warnf("auth handler: create user data: failed to decode body: %v", err)
 		http.Error(w, "invalid request body", http.StatusBadRequest)
@@ -162,7 +162,7 @@ func (h *Handler) UpdateUserData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) RegisterRoutes(r *mux.Router) {

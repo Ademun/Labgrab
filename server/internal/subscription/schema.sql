@@ -41,7 +41,7 @@ CREATE INDEX idx_subscriptions_lookup ON subscription_service.subscriptions (
     auto_enroll
     );
 
-create table if not exists subscription_service.time_preferences
+create table if not exists subscription_service.time_restrictions
 (
     week_number int         not null,
     day_of_week day_of_week not null,
@@ -54,7 +54,7 @@ create table if not exists subscription_service.time_preferences
         )
 );
 
-CREATE INDEX idx_time_prefs_user_day ON subscription_service.time_preferences (user_uuid, day_of_week) INCLUDE (lessons);
+CREATE INDEX idx_time_restriction_user_day ON subscription_service.time_restrictions (user_uuid, day_of_week) INCLUDE (lessons);
 
 create table if not exists subscription_service.teacher_preferences
 (

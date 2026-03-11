@@ -11,7 +11,7 @@ type UpdateUserDataUsecase struct {
 	AuthSvc *auth.Service
 }
 
-func (uc *UpdateUserDataUsecase) Exec(ctx context.Context, session string, req *dto.CreateUserDataReqDTO) error {
+func (uc *UpdateUserDataUsecase) Exec(ctx context.Context, session string, req *dto.UpdateUserDataReqDTO) error {
 	if err := uc.AuthSvc.ValidateSession(ctx, session); err != nil {
 		return fmt.Errorf("auth usecase: create user data: validate session: %w", err)
 	}

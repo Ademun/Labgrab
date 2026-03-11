@@ -8,46 +8,46 @@ import (
 	"labgrab/internal/subscription"
 )
 
-type GetTimePreferencesUsecase struct {
+type GetTimeRestrictionsUsecase struct {
 	AuthSvc         *auth.Service
 	SubscriptionSvc *subscription.Service
 }
 
-func (uc *GetTimePreferencesUsecase) Exec(ctx context.Context, session string) (*dto.GetTimePreferencesResDTO, error) {
+func (uc *GetTimeRestrictionsUsecase) Exec(ctx context.Context, session string) (*dto.GetTimeRestrictionsResDTO, error) {
 	if err := uc.AuthSvc.ValidateSession(ctx, session); err != nil {
 		return nil, fmt.Errorf("subscription usecase: get time preferences: validate session: %w", err)
 	}
 
 	userUUID, err := uc.AuthSvc.GetSessionData(ctx, session)
 	if err != nil {
-		return nil, fmt.Errorf("subscription usecase: get time preferences: get session data: %w", err)
+		return nil, fmt.Errorf("subscription usecase: get time restrictions: get session data: %w", err)
 	}
 
-	preferences, err := uc.SubscriptionSvc.GetTimePreferences(ctx, userUUID)
+	restrictions, err := uc.SubscriptionSvc.GetTimeRestrictions(ctx, userUUID)
 	if err != nil {
-		return nil, fmt.Errorf("subscription usecase: get time preferences: get time preferences: %w", err)
+		return nil, fmt.Errorf("subscription usecase: get time restrictions: get time preferences: %w", err)
 	}
 
-	return &dto.GetTimePreferencesResDTO{Preferences: preferences}, nil
+	return &dto.GetTimeRestrictionsResDTO{Restrictions: restrictions}, nil
 }
 
-type SetTimePreferencesUsecase struct {
+type SetTimeRestrictionsUsecase struct {
 	AuthSvc         *auth.Service
 	SubscriptionSvc *subscription.Service
 }
 
-func (uc *SetTimePreferencesUsecase) Exec(ctx context.Context, session string, req *dto.SetTimePreferencesReqDTO) error {
+func (uc *SetTimeRestrictionsUsecase) Exec(ctx context.Context, session string, req *dto.SetTimeRestrictionsReqDTO) error {
 	if err := uc.AuthSvc.ValidateSession(ctx, session); err != nil {
-		return fmt.Errorf("subscription usecase: set time preferences: validate session: %w", err)
+		return fmt.Errorf("subscription usecase: set time restrictions: validate session: %w", err)
 	}
 
 	userUUID, err := uc.AuthSvc.GetSessionData(ctx, session)
 	if err != nil {
-		return fmt.Errorf("subscription usecase: set time preferences: get session data: %w", err)
+		return fmt.Errorf("subscription usecase: set time restrictions: get session data: %w", err)
 	}
 
-	if err := uc.SubscriptionSvc.SetTimePreferences(ctx, userUUID, req.Preferences); err != nil {
-		return fmt.Errorf("subscription usecase: set time preferences: set time preferences: %w", err)
+	if err := uc.SubscriptionSvc.SetTimeRestrictions(ctx, userUUID, req.Restrictions); err != nil {
+		return fmt.Errorf("subscription usecase: set time restrictions: set time preferences: %w", err)
 	}
 
 	return nil

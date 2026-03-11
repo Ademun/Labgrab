@@ -60,7 +60,6 @@ type GetUserCredentialsRes struct {
 
 type GetUserInfoRes struct {
 	DikidiPhoneNumber string
-	DikidiPassword    string
 	ApiAuthed         bool
 	LastAuth          *time.Time
 }

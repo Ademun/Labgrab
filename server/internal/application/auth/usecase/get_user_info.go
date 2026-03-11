@@ -32,7 +32,6 @@ func (uc *GetUserInfoUsecase) Exec(ctx context.Context, session string) (*dto.Ge
 
 	return &dto.GetUserInfoResDTO{
 		PhoneNumber: info.DikidiPhoneNumber,
-		Password:    info.DikidiPassword,
 		ApiAuthed:   info.ApiAuthed,
 		LastAuth:    info.LastAuth,
 	}, nil

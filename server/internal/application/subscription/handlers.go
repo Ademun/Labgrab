@@ -18,8 +18,8 @@ type Handler struct {
 	getSubscriptions      *usecase.GetSubscriptionsUsecase
 	newSubscription       *usecase.NewSubscriptionUsecase
 	editSubscription      *usecase.EditSubscriptionUsecase
-	getTimePreferences    *usecase.GetTimePreferencesUsecase
-	setTimePreferences    *usecase.SetTimePreferencesUsecase
+	getTimeRestrictions   *usecase.GetTimeRestrictionsUsecase
+	setTimeRestrictions   *usecase.SetTimeRestrictionsUsecase
 	getTeacherPreferences *usecase.GetTeacherPreferencesUsecase
 	setTeacherPreferences *usecase.SetTeacherPreferencesUsecase
 	logger                *zap.SugaredLogger
@@ -30,8 +30,8 @@ func NewHandler(authSvc *auth.Service, subscriptionSvc *subscription.Service, lo
 		getSubscriptions:      &usecase.GetSubscriptionsUsecase{AuthSvc: authSvc, SubscriptionSvc: subscriptionSvc},
 		newSubscription:       &usecase.NewSubscriptionUsecase{AuthSvc: authSvc, SubscriptionSvc: subscriptionSvc},
 		editSubscription:      &usecase.EditSubscriptionUsecase{AuthSvc: authSvc, SubscriptionSvc: subscriptionSvc},
-		getTimePreferences:    &usecase.GetTimePreferencesUsecase{AuthSvc: authSvc, SubscriptionSvc: subscriptionSvc},
-		setTimePreferences:    &usecase.SetTimePreferencesUsecase{AuthSvc: authSvc, SubscriptionSvc: subscriptionSvc},
+		getTimeRestrictions:   &usecase.GetTimeRestrictionsUsecase{AuthSvc: authSvc, SubscriptionSvc: subscriptionSvc},
+		setTimeRestrictions:   &usecase.SetTimeRestrictionsUsecase{AuthSvc: authSvc, SubscriptionSvc: subscriptionSvc},
 		getTeacherPreferences: &usecase.GetTeacherPreferencesUsecase{AuthSvc: authSvc, SubscriptionSvc: subscriptionSvc},
 		setTeacherPreferences: &usecase.SetTeacherPreferencesUsecase{AuthSvc: authSvc, SubscriptionSvc: subscriptionSvc},
 		logger:                logger,
@@ -123,14 +123,14 @@ func (h *Handler) EditSubscription(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) GetTimePreferences(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetTimeRestrictions(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session_id")
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	resp, err := h.getTimePreferences.Exec(r.Context(), cookie.Value)
+	resp, err := h.getTimeRestrictions.Exec(r.Context(), cookie.Value)
 	if err != nil {
 		h.logger.Errorf("subscription handler: get time preferences: %v", err)
 		http.Error(w, err.Error(), apperr.HTTPErrorCode(err))
@@ -143,8 +143,8 @@ func (h *Handler) GetTimePreferences(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) SetTimePreferences(w http.ResponseWriter, r *http.Request) {
-	var req dto.SetTimePreferencesReqDTO
+func (h *Handler) SetTimeRestrictions(w http.ResponseWriter, r *http.Request) {
+	var req dto.SetTimeRestrictionsReqDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.logger.Warnf("subscription handler: set time preferences: failed to decode body: %v", err)
 		http.Error(w, "invalid request payload", http.StatusBadRequest)
@@ -157,7 +157,7 @@ func (h *Handler) SetTimePreferences(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.setTimePreferences.Exec(r.Context(), cookie.Value, &req); err != nil {
+	if err := h.setTimeRestrictions.Exec(r.Context(), cookie.Value, &req); err != nil {
 		h.logger.Errorf("subscription handler: set time preferences: %v", err)
 		http.Error(w, err.Error(), apperr.HTTPErrorCode(err))
 		return
@@ -214,8 +214,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/subscriptions", h.NewSubscription).Methods(http.MethodPost)
 	r.HandleFunc("/api/subscriptions/{id}", h.GetSubscriptions).Methods(http.MethodGet)
 	r.HandleFunc("/api/subscriptions/{id}", h.EditSubscription).Methods(http.MethodPatch)
-	r.HandleFunc("/api/subscriptions/preferences/time", h.GetTimePreferences).Methods(http.MethodGet)
-	r.HandleFunc("/api/subscriptions/preferences/time", h.SetTimePreferences).Methods(http.MethodPost)
+	r.HandleFunc("/api/subscriptions/restrictions/time", h.GetTimeRestrictions).Methods(http.MethodGet)
+	r.HandleFunc("/api/subscriptions/restrictions/time", h.SetTimeRestrictions).Methods(http.MethodPost)
 	r.HandleFunc("/api/subscription/preferences/teachers", h.GetTeacherPreferences).Methods(http.MethodGet)
 	r.HandleFunc("/api/subscription/preferences/teachers", h.SetTeacherPreferences).Methods(http.MethodPost)
 }
