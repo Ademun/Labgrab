@@ -62,6 +62,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	_, err = scheduler.NewJob(
 		gocron.DurationRandomJob(time.Minute*10, time.Minute*30),
 		gocron.NewTask(s.ProcessNewEvents, ctx),
+		gocron.WithSingletonMode(gocron.LimitModeReschedule),
 	)
 	if err != nil {
 		return err
@@ -70,6 +71,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	_, err = scheduler.NewJob(
 		gocron.DurationRandomJob(time.Hour, time.Hour*24),
 		gocron.NewTask(s.UpdateServiceIDs, ctx),
+		gocron.WithSingletonMode(gocron.LimitModeReschedule),
 	)
 	if err != nil {
 		return err

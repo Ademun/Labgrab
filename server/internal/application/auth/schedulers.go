@@ -37,6 +37,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	_, err = scheduler.NewJob(
 		gocron.DurationJob(time.Minute*10),
 		gocron.NewTask(s.AuthStaleUsers, ctx),
+		gocron.WithSingletonMode(gocron.LimitModeReschedule),
 	)
 	if err != nil {
 		return err
