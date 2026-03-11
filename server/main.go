@@ -231,7 +231,7 @@ func initHTTPServer(cfg *config.Config, pool *pgxpool.Pool, services *Services, 
 
 	server := &http.Server{
 		Addr:    "localhost:8080",
-		Handler: routing.CORSMiddleware(r),
+		Handler: routing.CORSMiddleware(cfg.InfraConfig.AllowedOrigins)(r),
 	}
 
 	return server, nil

@@ -22,12 +22,16 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
-	var config Config
-	if err := yaml.Unmarshal(file, &config); err != nil {
+	var cfg Config
+	if err := yaml.Unmarshal(file, &cfg); err != nil {
 		return nil, err
 	}
 
-	err = envconfig.Process("", &config)
+	if err := envconfig.Process("", &cfg); err != nil {
+		return nil, err
+	}
 
-	return &config, nil
+	cfg.AuthServiceConfig.BotToken = cfg.TelegramConfig.BotToken
+
+	return &cfg, nil
 }

@@ -3,6 +3,7 @@ package config
 type InfraConfig struct {
 	RedisConfig    RedisConfig
 	PostgresConfig PostgresConfig
+	AllowedOrigins []string `envconfig:"ALLOWED_ORIGINS"`
 }
 
 type RedisConfig struct {

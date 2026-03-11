@@ -155,7 +155,6 @@ func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
 
 	var collected error
 	for err := range errCh {
-		fmt.Println(err)
 		collected = errors.Join(collected, err)
 	}
 
@@ -399,7 +398,7 @@ func (uc *ProcessEventsUsecase) userWorker(
 		lessonTime := domain.LessonLookup[int(selectedLesson)]
 		targetTime := time.Date(selectedDate.Year(), selectedDate.Month(), selectedDate.Day(), lessonTime.Start.Hour(), lessonTime.Start.Minute(), 0, 0, time.UTC)
 
-		bId, err := uc.EventSvc.Enroll(ctx, &event.EnrollmentReq{
+		_, err = uc.EventSvc.Enroll(ctx, &event.EnrollmentReq{
 			UserUUID:    task.sub.UserUUID,
 			EventID:     task.eventRes.Data.ID,
 			ServiceID:   task.eventRes.Data.ServiceID,
@@ -419,7 +418,6 @@ func (uc *ProcessEventsUsecase) userWorker(
 		}
 
 		enrollmentTotal.WithLabelValues("success").Inc()
-		fmt.Println(bId)
 
 		if err = uc.SubscriptionSvc.CloseSubscription(ctx, task.sub.SubscriptionUUID); err != nil {
 			errCh <- fmt.Errorf("event usecase: user worker: update subscription: %w", err)
