@@ -40,8 +40,8 @@ func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
 		return fmt.Errorf("event usecase: exec: get current events: %w", err)
 	}
 
-	enrollCh := make(chan enrollTask, 100)
-	errCh := make(chan error, 100)
+	enrollCh := make(chan enrollTask, 50)
+	errCh := make(chan error)
 
 	var eventWg sync.WaitGroup
 	for range 3 {
@@ -53,33 +53,33 @@ func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
 	}
 
 	go func() {
+
 		eventWg.Wait()
 		close(enrollCh)
 	}()
 
-	userChannels := make(map[uuid.UUID]chan enrollTask)
-	var userWg sync.WaitGroup
-
-	for task := range enrollCh {
-		userID := task.sub.UserUUID
-		if _, ok := userChannels[userID]; !ok {
-			ch := make(chan enrollTask, 50)
-			userChannels[userID] = ch
-			userWg.Add(1)
-			go func(userCh <-chan enrollTask) {
-				defer userWg.Done()
-				uc.userWorker(ctx, userCh, errCh)
-			}(ch)
+	go func() {
+		userChannels := make(map[uuid.UUID]chan enrollTask)
+		var userWg sync.WaitGroup
+		for task := range enrollCh {
+			userID := task.sub.UserUUID
+			if _, ok := userChannels[userID]; !ok {
+				ch := make(chan enrollTask, 10)
+				userChannels[userID] = ch
+				userWg.Add(1)
+				go func(userCh <-chan enrollTask) {
+					defer userWg.Done()
+					uc.userWorker(ctx, userCh, errCh)
+				}(ch)
+			}
+			userChannels[userID] <- task
 		}
-		userChannels[userID] <- task
-	}
-
-	for _, ch := range userChannels {
-		close(ch)
-	}
-
-	userWg.Wait()
-	close(errCh)
+		for _, ch := range userChannels {
+			close(ch)
+		}
+		userWg.Wait()
+		close(errCh)
+	}()
 
 	var collected error
 	for err := range errCh {

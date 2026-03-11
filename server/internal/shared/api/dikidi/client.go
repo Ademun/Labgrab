@@ -3,6 +3,7 @@ package dikidi
 import (
 	"context"
 	"labgrab/pkg/config"
+	"sync"
 
 	"golang.org/x/time/rate"
 )
@@ -10,6 +11,7 @@ import (
 type Client struct {
 	parser     *Parser
 	serviceIDs []int
+	mu         sync.RWMutex
 	limiter    *rate.Limiter
 	cfg        *config.DikidiClientConfig
 }

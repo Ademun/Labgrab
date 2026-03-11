@@ -14,11 +14,20 @@ func (c *Client) UpdateServiceIDs(ctx context.Context, client *req.Client) error
 	if err != nil {
 		return fmt.Errorf("api client: update service ids: scraping: %w", err)
 	}
+
+	c.mu.Lock()
 	c.serviceIDs = services
+	c.mu.Unlock()
+
 	return nil
 }
 
 func (c *Client) GetEventStream(ctx context.Context, client *req.Client) chan *GetEventsResult {
+	c.mu.RLock()
+	ids := make([]int, len(c.serviceIDs))
+	copy(ids, c.serviceIDs)
+	c.mu.RUnlock()
+
 	results := make(chan *GetEventsResult)
 	rate := make(chan struct{}, 3)
 
