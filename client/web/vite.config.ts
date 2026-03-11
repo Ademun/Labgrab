@@ -5,7 +5,7 @@ import { defineConfig } from 'vite';
 import path from 'path';
 
 export default defineConfig({
-	server: { port: 80, host: '127.0.0.1' },
+	server: { port: 443, host: 'localhost' },
 	plugins: [tailwindcss(), sveltekit(), devtoolsJson()],
 	resolve: { alias: { $lib: path.resolve('./src/lib') } }
 });
