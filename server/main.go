@@ -8,6 +8,7 @@ import (
 	api_booking "labgrab/internal/application/booking"
 	api_event "labgrab/internal/application/event"
 	api_health "labgrab/internal/application/health"
+	api_metrics "labgrab/internal/application/metrics"
 	api_subscription "labgrab/internal/application/subscription"
 	api_user "labgrab/internal/application/user"
 	"labgrab/internal/application/web"
@@ -226,9 +227,10 @@ func initHTTPServer(cfg *config.Config, pool *pgxpool.Pool, services *Services, 
 	bookingHandler.RegisterRoutes(r)
 
 	api_health.RegisterRoutes(r)
+	api_metrics.RegisterRoutes(r)
 
 	server := &http.Server{
-		Addr:    "127.0.0.1:8080",
+		Addr:    "localhost:8080",
 		Handler: routing.CORSMiddleware(r),
 	}
 

@@ -66,8 +66,8 @@ func (h *Handler) AuthUser(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   864000,
 		HttpOnly: true,
-		Secure:   false,                //TODO: set to true in prod
-		SameSite: http.SameSiteLaxMode, //TODO: set to other type in prod
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
 	})
 
 	w.WriteHeader(http.StatusNoContent)

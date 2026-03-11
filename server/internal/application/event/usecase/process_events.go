@@ -17,6 +17,68 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+)
+
+var (
+	// enrollmentTotal counts enrollment attempts by outcome.
+	// outcome labels: "success", "auth_nil_creds", "enroll_error",
+	//                 "fresh_schedule_empty", "subscription_inactive",
+	//                 "pick_slot_failed", "missing_user_fields"
+	enrollmentTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "labgrab",
+		Subsystem: "event_usecase",
+		Name:      "enrollments_total",
+		Help:      "Total enrollment attempts broken down by outcome.",
+	}, []string{"outcome"})
+
+	// cycleDurationSeconds measures the wall-clock time of a full Exec() call.
+	// This is the critical metric for detecting overlapping runs.
+	cycleDurationSeconds = promauto.NewHistogram(prometheus.HistogramOpts{
+		Namespace: "labgrab",
+		Subsystem: "event_usecase",
+		Name:      "cycle_duration_seconds",
+		Help:      "Wall-clock duration of a full ProcessEvents Exec() call.",
+		Buckets:   []float64{5, 15, 30, 60, 120, 300, 600, 900, 1200},
+	})
+
+	// enrollChFill tracks how full the enrollCh buffer is at the moment of send.
+	// Consistently high values mean event workers outpace user workers.
+	enrollChFill = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "labgrab",
+		Subsystem: "event_usecase",
+		Name:      "enroll_channel_fill",
+		Help:      "Current number of tasks buffered in enrollCh (cap=50).",
+	})
+
+	// activeUserWorkers is a gauge that tracks concurrent userWorker goroutines.
+	// Use this to justify / tune the global semaphore size.
+	activeUserWorkers = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "labgrab",
+		Subsystem: "event_usecase",
+		Name:      "active_user_workers",
+		Help:      "Number of userWorker goroutines currently running.",
+	})
+
+	// mcmfConflictsTotal counts events that triggered MCMF conflict resolution.
+	// High values = many users share the same subscription patterns.
+	mcmfConflictsTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "labgrab",
+		Subsystem: "event_usecase",
+		Name:      "mcmf_conflicts_total",
+		Help:      "Number of events that required MCMF conflict resolution.",
+	})
+
+	// subscriptionInactiveTotal counts how often the re-check in userWorker
+	// catches a subscription that became inactive between eventWorker and userWorker.
+	// This is the double-enrollment guard metric.
+	subscriptionInactiveTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "labgrab",
+		Subsystem: "event_usecase",
+		Name:      "subscription_inactive_recheck_total",
+		Help:      "Times a subscription was inactive at userWorker re-check (double-enroll guard).",
+	})
 )
 
 type ProcessEventsUsecase struct {
@@ -27,6 +89,7 @@ type ProcessEventsUsecase struct {
 	SubscriptionSvc *subscription.Service
 	TelegramSvc     *telegram.Service
 }
+
 type enrollTask struct {
 	eventRes *event.GetEventsRes
 	sub      subscription.GetMatchingSubscriptionsRes
@@ -34,6 +97,11 @@ type enrollTask struct {
 }
 
 func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
+	start := time.Now()
+	defer func() {
+		cycleDurationSeconds.Observe(time.Since(start).Seconds())
+	}()
+
 	var clientCookies string
 	events, err := uc.EventSvc.GetCurrentEvents(ctx, &clientCookies)
 	if err != nil {
@@ -61,6 +129,9 @@ func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
 		userChannels := make(map[uuid.UUID]chan enrollTask)
 		var userWg sync.WaitGroup
 		for task := range enrollCh {
+			// Track live buffer fill so we can detect backpressure.
+			enrollChFill.Set(float64(len(enrollCh)))
+
 			userID := task.sub.UserUUID
 			if _, ok := userChannels[userID]; !ok {
 				ch := make(chan enrollTask, 10)
@@ -68,7 +139,9 @@ func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
 				userWg.Add(1)
 				go func(userCh <-chan enrollTask) {
 					defer userWg.Done()
+					activeUserWorkers.Inc()
 					uc.userWorker(ctx, userCh, errCh)
+					activeUserWorkers.Dec()
 				}(ch)
 			}
 			userChannels[userID] <- task
@@ -82,6 +155,7 @@ func (uc *ProcessEventsUsecase) Exec(ctx context.Context) error {
 
 	var collected error
 	for err := range errCh {
+		fmt.Println(err)
 		collected = errors.Join(collected, err)
 	}
 
@@ -186,6 +260,11 @@ func (uc *ProcessEventsUsecase) eventWorker(
 			}
 		}
 
+		// Count events that actually needed conflict resolution.
+		if len(conflictingDates) > 0 {
+			mcmfConflictsTotal.Inc()
+		}
+
 		subIndex := make(map[uuid.UUID]int, len(enrollIdxs))
 		for _, i := range enrollIdxs {
 			subIndex[subs[i].SubscriptionUUID] = i
@@ -256,14 +335,20 @@ func (uc *ProcessEventsUsecase) userWorker(
 ) {
 	for task := range tasks {
 		if task.userInfo.Name == nil || task.userInfo.Surname == nil || task.userInfo.Patronymic == nil || task.userInfo.GroupCode == nil {
+			enrollmentTotal.WithLabelValues("missing_user_fields").Inc()
 			continue
 		}
+
 		sub, err := uc.SubscriptionSvc.GetSubscription(ctx, task.sub.SubscriptionUUID)
 		if err != nil {
 			errCh <- fmt.Errorf("event usecase: user worker: get subscription: %w", err)
 			continue
 		}
 		if sub.Status != subscription.StatusActive {
+			// Double-enrollment guard fired — subscription closed between
+			// eventWorker dispatch and userWorker execution.
+			subscriptionInactiveTotal.Inc()
+			enrollmentTotal.WithLabelValues("subscription_inactive").Inc()
 			continue
 		}
 
@@ -273,6 +358,7 @@ func (uc *ProcessEventsUsecase) userWorker(
 			continue
 		}
 		if creds.Session == nil || creds.Cookies == nil {
+			enrollmentTotal.WithLabelValues("auth_nil_creds").Inc()
 			errCh <- fmt.Errorf("event usecase: user worker: get user credentials: nil session or cookies")
 			continue
 		}
@@ -299,11 +385,14 @@ func (uc *ProcessEventsUsecase) userWorker(
 			continue
 		}
 		if len(freshSchedule) == 0 {
+			// Slot was taken between eventWorker dispatch and now.
+			enrollmentTotal.WithLabelValues("fresh_schedule_empty").Inc()
 			continue
 		}
 
 		selectedDate, selectedLesson, ok := pickRandomSlot(freshSchedule)
 		if !ok {
+			enrollmentTotal.WithLabelValues("pick_slot_failed").Inc()
 			continue
 		}
 
@@ -324,10 +413,12 @@ func (uc *ProcessEventsUsecase) userWorker(
 			Cookies:     *creds.Cookies,
 		})
 		if err != nil {
+			enrollmentTotal.WithLabelValues("enroll_error").Inc()
 			errCh <- fmt.Errorf("event usecase: user worker: enroll: %w", err)
 			continue
 		}
 
+		enrollmentTotal.WithLabelValues("success").Inc()
 		fmt.Println(bId)
 
 		if err = uc.SubscriptionSvc.CloseSubscription(ctx, task.sub.SubscriptionUUID); err != nil {
