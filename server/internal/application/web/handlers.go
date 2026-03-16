@@ -1,11 +1,17 @@
 package web
 
 import (
+	_ "embed"
+	"encoding/json"
+	"labgrab/internal/shared/apperr"
 	"net/http"
 
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
+
+//go:embed config.json
+var jsonConf []byte
 
 type Handler struct {
 	logger *zap.SugaredLogger
@@ -19,7 +25,12 @@ func NewHandler(logger *zap.SugaredLogger) *Handler {
 
 func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	http.ServeFile(w, r, "internal/application/web/config.json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(jsonConf); err != nil {
+		h.logger.Errorf("web handler: get config: %v", err)
+		http.Error(w, err.Error(), apperr.HTTPErrorCode(err))
+		return
+	}
 }
 
 func (h *Handler) RegisterRoutes(r *mux.Router) {
