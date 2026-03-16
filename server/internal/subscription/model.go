@@ -172,3 +172,10 @@ type keyGenerationParams struct {
 	time             time.Time
 	lesson           domain.Lesson
 }
+
+type Edge struct {
+	To   int
+	Cap  int
+	Cost int
+	Rev  int
+}
