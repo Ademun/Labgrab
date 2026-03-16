@@ -76,7 +76,7 @@ func main() {
 	log.Info("Initialized HTTP server")
 
 	go func() {
-		log.Info("Starting HTTP server on 127.0.0.1:8080")
+		log.Info("Starting HTTP server on 0.0.0.0:8080")
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal("HTTP server error", "error", err)
 		}
@@ -230,7 +230,7 @@ func initHTTPServer(cfg *config.Config, pool *pgxpool.Pool, services *Services, 
 	api_metrics.RegisterRoutes(r)
 
 	server := &http.Server{
-		Addr:    "localhost:8080",
+		Addr:    "0.0.0.0:8080",
 		Handler: routing.CORSMiddleware(cfg.InfraConfig.AllowedOrigins)(r),
 	}
 
